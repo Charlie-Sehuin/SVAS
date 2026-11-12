@@ -83,6 +83,11 @@ JS inicial de la landing ≈ 156 KB gzip (meta < 180 KB, arquitectura §6.2): Su
 Ola 0 construida (`features/administracion/`, rutas en `/app/admin/*`):
 - **Usuarios y roles**: lista con filtros y paginación, crear (la contraseña temporal se muestra una sola vez), cambiar rol y
   activar/desactivar con confirmación; el administrador no puede desactivarse ni cambiarse el rol a sí mismo.
+- **Contraseñas**: la temporal de un usuario nuevo es una frase legible de 4 palabras y un número
+  (`Luna-Roble-Mango-Faro-47`, ≈ 38 bits; `generarContrasenaLegible` en el backend), válida solo hasta que la persona la
+  cambie. Cualquier usuario la cambia desde su menú de cuenta → **Cambiar contraseña** (pide la actual, mínimo 8 y máximo
+  72 caracteres). La contraseña del administrador se cambia ahí mismo; si se usa Bruno, hay que actualizar `ADMIN_PASSWORD`
+  en `svas-backend/bruno/.env`.
 - **Aseguradoras y planes**: interruptores de activa/activo, crear y editar planes; si activar un plan responde 400 por
   contenido incompleto (RN-42) se muestra el mensaje con enlace a `/app/admin/planes/:planId/contenido` (esa pantalla es de la Ola 2).
 - **Campos requeridos**, **Reglas de inspección** (matriz aseguradora × uso), **Parámetros comerciales** y **Bitácora**

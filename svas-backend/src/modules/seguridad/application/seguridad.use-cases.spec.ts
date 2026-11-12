@@ -142,7 +142,8 @@ describe('CrearUsuarioInternoUseCase', () => {
     );
 
     const contrasena = identidad.crearCuenta.mock.calls[0][1] as string;
-    expect(contrasena).toHaveLength(16);
+    // Frase legible: 4 palabras y un número de 2 cifras (p. ej. Luna-Roble-Mango-Faro-47).
+    expect(contrasena).toMatch(/^([A-Z][a-z]+-){4}[1-9][0-9]$/);
     expect(r.contrasenaTemporal).toBe(contrasena);
     expect(repo.registrarInterno).toHaveBeenCalledWith('tok', {
       id: 'u1',
