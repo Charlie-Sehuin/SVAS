@@ -3,7 +3,7 @@
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
 > `arquitectura-backend-seguro-simple.md` (orden de construcción en §10).
-> Última actualización: 2026-11-12 (Ola 2 parte 3: contenido de planes).
+> Última actualización: 2026-11-12 (Ola 2 completa; sigue la Ola 3).
 
 ## 1. Dónde estamos
 
@@ -30,23 +30,26 @@ Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos) y 0030–0031 (27 c
 (36 casos) y se aplicó; Bruno 09 pasó de la 01 a la 14. `coverage/` y `*.tsbuildinfo` ahora están en el `.gitignore`
 y `tsconfig.build.tsbuildinfo` dejó de estar versionado.
 
-Lo siguiente es la Ola 2 parte 3, contenido de planes (módulo `planes`, migración ≥ 0030).
+Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El historial se reescribió el
+2026-11-12 para quitar "Co-Authored-By: Claude" (force push de `main` y `feat/*`; respaldo en
+`svas-respaldo-2026-11-12.bundle`, junto a la carpeta del repo).
 
 ## 2. Siguiente paso concreto
 
-1. Ola 2 parte 3 (en `feat/planes`): a) ✅ probar 0030+0031 (27 casos);
-   b) ✅ aplicadas 2026-11-12; c) ✅ e2e con lecturas reales; d) ✅ Bruno 10: 01–11;
-   e) ✅ commit, merge `--no-ff` a `main` y subida;
-   f) reescribir el historial para quitar "Co-Authored-By: Claude" de los commits viejos + force push (**autorizado**).
-   Pendiente sin fecha de §18.10: alerta diaria de planes incompletos o con contenido de más de 180 días.
-2. Ola 4: PDF de la simulación, clasificador LLM de preocupaciones y resumen RN-35 en el mensaje final
-   (`domain/mensajes.ts → mensajeFinal`).
+1. **Ola 3 — cerrar la venta** (arquitectura backend §10.2): `pagos` → `polizas` → `compra`, en ese orden
+   (`compra` orquesta a los otros dos). Migraciones: lo que el plan ubicaba en 0010/0013 va en ≥ 0033.
+   Al hacerla:
+   - Crear `orden_compra`: `actualizar_suma_asegurada` rechaza si hay orden; 6.10 suma "sin orden".
+   - La compra con descuento negociado/retoma cierra el seguimiento como `CONVERTIDO`
+     (`cerrar_seguimiento` ya acepta service_role).
+   - `ArmarCopiaContenidoService` (RN-45): copia del contenido del plan en la orden.
+   - Interceptor de idempotencia en `POST /compras/:id/pago` (existe `@nestjs/idempotency`).
+2. Ola 4 — medir: reportes (incluye impacto de la Prueba de Choque), PDF de la simulación, clasificador LLM
+   de preocupaciones (opcional) y resumen RN-35 en el mensaje final (`domain/mensajes.ts → mensajeFinal`).
 3. Bruno 07 16–18 cuando exista un seguimiento abierto (el detector corre a cada hora en punto con el backend encendido).
-4. Al crear `orden_compra` (0010, Ola 3): `actualizar_suma_asegurada` rechaza si hay orden; 6.10 suma "sin orden";
-   la compra con descuento negociado/retoma cierra el seguimiento como `CONVERTIDO` (`cerrar_seguimiento` ya acepta service_role).
+4. Pendiente sin fecha de §18.10: alerta diaria de planes incompletos o con contenido de más de 180 días.
 
-Diferidos sin fecha: Swagger, `@nestjs/terminus` u Observe (no pedidos). Interceptor de idempotencia:
-recién hace falta en `POST /compras/:id/pago` (Ola 3); existe `@nestjs/idempotency`.
+Diferidos sin fecha: Swagger, `@nestjs/terminus` u Observe (no pedidos).
 
 ## 3. Qué existe (resumen por capa)
 
