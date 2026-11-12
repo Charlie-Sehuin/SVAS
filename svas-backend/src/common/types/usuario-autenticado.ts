@@ -22,6 +22,8 @@ export interface RequestConContexto extends Request {
   /** JWT ya verificado; para crear el cliente de usuario (RLS + auth.uid()). Nunca se devuelve. */
   accessToken?: string;
   correlationId?: string;
+  /** Cómo entró a una cotización (CotizacionAccesoGuard): con su JWT o con X-Cotizacion-Token. */
+  accesoCotizacion?: 'JWT' | 'TOKEN';
 }
 
 /** Error de un campo del formulario (doc conexión §8). */

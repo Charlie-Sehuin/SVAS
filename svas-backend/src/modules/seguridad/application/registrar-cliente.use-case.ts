@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import { sha256Hex } from '../../../common/utils/token.util';
 import {
   PROVEEDOR_IDENTIDAD,
   type ProveedorIdentidad,
@@ -17,14 +23,16 @@ export interface DatosRegistro {
   password: string;
   telefono: string;
   cotizacionId?: string;
+  /** X-Cotizacion-Token en claro; obligatorio si llega cotizacionId. */
+  tokenAcceso?: string;
 }
 
 /**
  * Registro mínimo dentro del embudo (doc conexión §2): siempre CLIENTE.
+ * Crea la cuenta de Auth y, en una sola transacción, el perfil `usuario`, la
+ * ficha `cliente` (con el teléfono) y el vínculo con la cotización anónima.
  * Devuelve el perfil; el frontend inicia sesión después con supabase-js y el
  * token ya trae app_metadata.roles = ['CLIENTE'].
- * PENDIENTE (Ola 1, migraciones 0007/0008): crear la fila de `cliente` con
- * el teléfono y vincular `cotizacionId` si llega con X-Cotizacion-Token.
  */
 @Injectable()
 export class RegistrarClienteUseCase {
@@ -36,6 +44,13 @@ export class RegistrarClienteUseCase {
   ) {}
 
   async ejecutar(d: DatosRegistro): Promise<Usuario> {
+    // Antes de crear la cuenta: sin el token no se puede reclamar la cotización.
+    if (d.cotizacionId && !d.tokenAcceso) {
+      throw new BadRequestException(
+        'Para guardar tu cotización en tu cuenta abre el enlace de tu cotización',
+      );
+    }
+
     const { id } = await this.identidad
       .crearCuenta(d.email, d.password)
       .catch(traducirErrorIdentidad);
@@ -45,6 +60,16 @@ export class RegistrarClienteUseCase {
         id,
         email: d.email,
         nombreCompleto: armarNombreCompleto(d.nombres, d.apellidos),
+        contacto: {
+          nombres: d.nombres,
+          apellidos: d.apellidos,
+          telefono: d.telefono,
+        },
+        cotizacionId: d.cotizacionId,
+        tokenHash:
+          d.cotizacionId && d.tokenAcceso
+            ? sha256Hex(d.tokenAcceso)
+            : undefined,
       });
     } catch (error) {
       // Compensación: no dejar una cuenta de Auth sin perfil de negocio.

@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Headers, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../../../common/decorators/public.decorator';
 import { RegistrarClienteUseCase } from '../application/registrar-cliente.use-case';
@@ -17,8 +17,17 @@ import { aUsuarioResponse, type UsuarioResponseDto } from './dto/usuarios.dto';
 export class AuthController {
   constructor(private readonly registrarCliente: RegistrarClienteUseCase) {}
 
+  /** Con `cotizacionId` exige X-Cotizacion-Token para vincular la cotización anónima. */
   @Post('registro')
-  async registro(@Body() dto: RegistroDto): Promise<UsuarioResponseDto> {
-    return aUsuarioResponse(await this.registrarCliente.ejecutar(dto));
+  async registro(
+    @Body() dto: RegistroDto,
+    @Headers('x-cotizacion-token') tokenAcceso?: string,
+  ): Promise<UsuarioResponseDto> {
+    return aUsuarioResponse(
+      await this.registrarCliente.ejecutar({
+        ...dto,
+        tokenAcceso: tokenAcceso || undefined,
+      }),
+    );
   }
 }

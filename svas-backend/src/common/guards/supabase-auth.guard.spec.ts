@@ -8,6 +8,7 @@ import {
   SignJWT,
   type CryptoKey,
 } from 'jose';
+import { AuthOpcional } from '../decorators/auth-opcional.decorator';
 import { Public } from '../decorators/public.decorator';
 import type { RequestConContexto } from '../types/usuario-autenticado';
 import { SupabaseAuthGuard } from './supabase-auth.guard';
@@ -21,6 +22,10 @@ class Privado {
 }
 @Public()
 class Publico {
+  metodo() {}
+}
+@AuthOpcional()
+class Opcional {
   metodo() {}
 }
 
@@ -78,6 +83,33 @@ describe('SupabaseAuthGuard', () => {
     await expect(guard.canActivate(contexto({ headers: {} }))).rejects.toThrow(
       UnauthorizedException,
     );
+  });
+
+  it('@AuthOpcional(): sin token pasa sin usuario', async () => {
+    const req: Partial<RequestConContexto> = { headers: {} };
+    await expect(guard.canActivate(contexto(req, Opcional))).resolves.toBe(
+      true,
+    );
+    expect(req.usuario).toBeUndefined();
+  });
+
+  it('@AuthOpcional(): un token inválido igual da 401', async () => {
+    await expect(
+      guard.canActivate(
+        contexto({ headers: { authorization: 'Bearer basura' } }, Opcional),
+      ),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('@AuthOpcional(): con token válido adjunta el usuario', async () => {
+    const token = await firmar({ app_metadata: { roles: ['CLIENTE'] } });
+    const req: Partial<RequestConContexto> = {
+      headers: { authorization: `Bearer ${token}` },
+    };
+    await expect(guard.canActivate(contexto(req, Opcional))).resolves.toBe(
+      true,
+    );
+    expect(req.usuario?.roles).toEqual(['CLIENTE']);
   });
 
   it('acepta un token válido y adjunta id, email y roles de app_metadata', async () => {

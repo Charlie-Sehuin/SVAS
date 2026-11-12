@@ -23,10 +23,17 @@ export interface PaginaUsuarios {
  */
 export interface UsuarioRepository {
   buscarPorId(id: string): Promise<Usuario | null>;
+  /**
+   * Perfil CLIENTE + ficha `cliente` (+ cotización anónima con su token) en
+   * una sola transacción (RPC registrar_usuario_cliente).
+   */
   registrarCliente(u: {
     id: string;
     email: string;
     nombreCompleto: string;
+    contacto: { nombres: string; apellidos: string; telefono: string };
+    cotizacionId?: string;
+    tokenHash?: string;
   }): Promise<Usuario>;
 
   listar(

@@ -1,3 +1,4 @@
+import type { ReglaInspeccion } from './cotizacion';
 import type { CampoAseguradora } from './formulario-dinamico';
 import type { VehiculoCotizable } from './tarifa.types';
 
@@ -11,6 +12,8 @@ export interface AseguradoraActiva {
 export interface CatalogoPublicoRepository {
   aseguradorasActivas(): Promise<AseguradoraActiva[]>;
   camposActivos(): Promise<CampoAseguradora[]>;
+  /** Reglas de inspección de las aseguradoras activas (RN-03, RN-25). */
+  reglasInspeccion(): Promise<ReglaInspeccion[]>;
   marcas(): Promise<{ id: string; nombre: string }[]>;
   modelos(
     marcaId: string,

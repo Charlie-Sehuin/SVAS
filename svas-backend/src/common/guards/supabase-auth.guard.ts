@@ -15,6 +15,7 @@ import {
   type JWTVerifyGetKey,
 } from 'jose';
 import type { Env } from '../../config/env.validation';
+import { AUTH_OPCIONAL } from '../decorators/auth-opcional.decorator';
 import { ES_PUBLICO } from '../decorators/public.decorator';
 import { esRol, type RequestConContexto } from '../types/usuario-autenticado';
 
@@ -56,7 +57,14 @@ export class SupabaseAuthGuard implements CanActivate {
 
     const req = ctx.switchToHttp().getRequest<RequestConContexto>();
     const token = extraerBearer(req.headers.authorization);
-    if (!token) throw new UnauthorizedException('Debes iniciar sesión');
+    if (!token) {
+      const opcional = this.reflector.getAllAndOverride<boolean>(
+        AUTH_OPCIONAL,
+        [ctx.getHandler(), ctx.getClass()],
+      );
+      if (opcional) return true;
+      throw new UnauthorizedException('Debes iniciar sesión');
+    }
 
     let payload: JWTPayload;
     try {
