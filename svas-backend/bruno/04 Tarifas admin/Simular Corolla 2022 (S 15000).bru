@@ -10,6 +10,14 @@ post {
   auth: inherit
 }
 
+script:pre-request {
+  // Si aún no se ejecutaron 05 / Marcas y 05 / Modelos Toyota, se ejecutan solos.
+  if (!bru.getVar("corollaId")) {
+    await bru.runRequest("05 Catalogo publico/Marcas");
+    await bru.runRequest("05 Catalogo publico/Modelos Toyota");
+  }
+}
+
 body:json {
   {
     "modeloId": "{{corollaId}}",
@@ -21,8 +29,9 @@ body:json {
 
 tests {
   // Tabla dorada del doc de dominio §17.6
+  test("responde 200", () => expect(res.status).to.equal(200));
   const primas = {};
-  for (const a of res.body.aseguradoras) for (const p of a.planes) primas[`${a.codigoEstrategia} ${p.plan}`] = p.prima;
+  for (const a of res.body.aseguradoras || []) for (const p of a.planes) primas[`${a.codigoEstrategia} ${p.plan}`] = p.prima;
   test("Rímac Oro = 640.40", () => expect(primas["RIMAC Oro"]).to.equal("640.40"));
   test("Pacífico Premium = 615.36", () => expect(primas["PACIFICO Premium"]).to.equal("615.36"));
   test("La Positiva Full = 651.79", () => expect(primas["LA_POSITIVA Full"]).to.equal("651.79"));
@@ -32,6 +41,6 @@ tests {
 
 docs {
   Caso dorado (doc de dominio §17.6): Toyota Corolla 2022 en Miraflores con suma USD 15 000.
-  Antes ejecuta **05 / Marcas** y **05 / Modelos Toyota** (guardan `corollaId`).
+  Si falta `corollaId`, el script previo ejecuta solo 05 / Marcas y 05 / Modelos Toyota.
   No guarda nada: solo calcula con las fórmulas de cada aseguradora y muestra el desglose.
 }

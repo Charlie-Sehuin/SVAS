@@ -10,6 +10,14 @@ post {
   auth: inherit
 }
 
+script:pre-request {
+  // Si aún no se ejecutaron 05 / Marcas y 05 / Modelos Toyota, se ejecutan solos.
+  if (!bru.getVar("corollaId")) {
+    await bru.runRequest("05 Catalogo publico/Marcas");
+    await bru.runRequest("05 Catalogo publico/Modelos Toyota");
+  }
+}
+
 body:json {
   {
     "modeloId": "{{corollaId}}",
