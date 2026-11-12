@@ -27,17 +27,27 @@
 sesión; todo lo demás va a la API.
 
 ### Flujo de login
+Login, refresh y logout los hace el navegador con `supabase-js` (doc
+frontend §9.3); el backend **no** expone `/auth/login` ni `/auth/refresh`,
+solo verifica el JWT en cada request.
+```ts
+const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+// data.session.access_token → header Authorization de cada llamada a la API
+// supabase-js refresca el token solo (autoRefreshToken)
+const perfil = await api.get('/usuarios/me'); // { id, email, rol, nombreCompleto, activo }
 ```
-POST /api/v1/auth/login
-Body: { email, password }
-Respuesta: { access_token, refresh_token, expires_in, user: { id, email, roles, nombreCompleto } }
-```
+Un usuario desactivado queda bloqueado en Supabase Auth (no puede iniciar
+sesión ni refrescar) y el backend responde 403 aunque su token siga vigente.
 
 ### Registro mínimo (dentro del embudo, siempre rol CLIENTE)
+El alta pública de Supabase está desactivada: el registro pasa por el backend.
 ```
 POST /api/v1/auth/registro
 Body: { nombres, apellidos, email, password, telefono, cotizacionId? }
+Respuesta 201: { id, email, rol: 'CLIENTE', nombreCompleto, activo }
 ```
+Después, el frontend llama a `supabase.auth.signInWithPassword` con el mismo
+email y contraseña.
 Si llega `cotizacionId` junto con el header `X-Cotizacion-Token`, el
 backend vincula la cotización anónima al nuevo cliente. Un usuario nunca
 puede auto-asignarse `ASESOR` o `ADMINISTRADOR`.
@@ -63,7 +73,7 @@ puede auto-asignarse `ASESOR` o `ADMINISTRADOR`.
 (sincronizado desde `svas.usuario.rol`), **nunca** en `user_metadata`.
 
 ### Endpoints públicos (sin JWT)
-- `POST /auth/login`, `POST /auth/registro`, `POST /auth/refresh`
+- `POST /auth/registro` (login y refresh: `supabase-js`, ver arriba)
 - `GET /health/live`, `GET /health/ready`
 - `GET /catalogo/campos`
 - `GET /catalogo/vehiculos/marcas`, `GET /catalogo/vehiculos/marcas/:marcaId/modelos`,
@@ -148,9 +158,7 @@ zona. Enums con los mismos valores del doc de dominio §4.2.
 
 ### Seguridad
 ```
-POST   /auth/login
-POST   /auth/registro
-POST   /auth/refresh
+POST   /auth/registro                       (login/refresh: supabase-js, §2)
 GET    /usuarios/me
 GET    /admin/usuarios
 POST   /admin/usuarios                      { email, nombreCompleto, rol: 'ASESOR'|'ADMINISTRADOR' }

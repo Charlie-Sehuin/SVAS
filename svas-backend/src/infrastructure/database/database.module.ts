@@ -3,10 +3,11 @@ import {
   SUPABASE_SERVICE_CLIENT,
   supabaseServiceClientProvider,
 } from './supabase-service-client.provider';
+import { SupabaseUserClientFactory } from './supabase-user-client.factory';
 
 @Global()
 @Module({
-  providers: [supabaseServiceClientProvider],
-  exports: [SUPABASE_SERVICE_CLIENT],
+  providers: [supabaseServiceClientProvider, SupabaseUserClientFactory],
+  exports: [SUPABASE_SERVICE_CLIENT, SupabaseUserClientFactory],
 })
 export class DatabaseModule {}

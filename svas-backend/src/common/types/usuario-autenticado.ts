@@ -19,6 +19,8 @@ export interface UsuarioAutenticado {
 
 export interface RequestConContexto extends Request {
   usuario?: UsuarioAutenticado;
+  /** JWT ya verificado; para crear el cliente de usuario (RLS + auth.uid()). Nunca se devuelve. */
+  accessToken?: string;
   correlationId?: string;
 }
 
