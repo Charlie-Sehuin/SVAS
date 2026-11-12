@@ -69,6 +69,13 @@ describe('resolverError', () => {
       });
     });
 
+    it('P0002 (RAISE "no existe" del RPC) → 404 con el mensaje del RPC', () => {
+      expect(pg('P0002', 'El usuario no existe')).toEqual({
+        statusCode: 404,
+        message: 'El usuario no existe',
+      });
+    });
+
     it.each([
       ['42501', 403],
       ['23505', 409],

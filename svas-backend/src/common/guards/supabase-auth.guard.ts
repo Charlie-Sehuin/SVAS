@@ -80,6 +80,7 @@ export class SupabaseAuthGuard implements CanActivate {
       ? appMetadata.roles.filter(esRol)
       : [];
 
+    req.accessToken = token;
     req.usuario = {
       id: payload.sub,
       email: typeof payload['email'] === 'string' ? payload['email'] : null,
