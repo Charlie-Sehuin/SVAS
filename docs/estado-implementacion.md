@@ -76,9 +76,13 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
      (`GET /cotizaciones/:id/prueba-choque/pdf`), ✅ frase RN-35 en el mensaje final y su cruce en el reporte
      de la Prueba de Choque (`conversionMensajeRn35`); ✅ 0037 probada con rollback (8 casos) y aplicada;
      ✅ Bruno 08/10, 13/05 y 13/13.
-   - Más adelante: clasificador de preocupaciones (palabras clave y, opcional, LLM).
-3. Bruno 07 16–18 cuando exista un seguimiento abierto (el detector corre a cada hora en punto con el backend encendido).
-4. Pendiente sin fecha de §18.10: alerta diaria de planes incompletos o con contenido de más de 180 días.
+   - Más adelante (pospuesto por el usuario): clasificador de preocupaciones (palabras clave y, opcional, LLM).
+3. **Despliegue en Railway** (rama `chore/deploy`): ✅ `engines.node` 24.x, ✅ guía `docs/despliegue.md`
+   (configuración por panel, no `railway.json`: Railway lo deja de leer el 2026-12-01), ✅ entorno Bruno `Railway`;
+   ✅ build de producción probado en local (`ready` 200). Falta: crear el servicio en Railway (usuario) y el smoke test.
+   Pasarela, emisión y mensajes quedan simulados a propósito (proyecto de prueba).
+4. Bruno 07 16–18 cuando exista un seguimiento abierto (el detector corre a cada hora en punto con el backend encendido).
+5. Pendiente sin fecha de §18.10: alerta diaria de planes incompletos o con contenido de más de 180 días.
 
 Diferidos sin fecha: Swagger, `@nestjs/terminus` u Observe (no pedidos).
 
