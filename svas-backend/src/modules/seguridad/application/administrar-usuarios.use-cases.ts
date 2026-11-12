@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { RolesGuard } from '../../../common/guards/roles.guard';
-import { generarToken } from '../../../common/utils/token.util';
+import { generarContrasenaLegible } from '../../../common/utils/contrasena.util';
 import {
   PROVEEDOR_IDENTIDAD,
   type ProveedorIdentidad,
@@ -47,7 +47,7 @@ export class CrearUsuarioInternoUseCase {
     accessToken: string,
     d: { email: string; nombreCompleto: string; rol: RolInterno },
   ): Promise<{ usuario: Usuario; contrasenaTemporal: string }> {
-    const contrasenaTemporal = generarToken(12); // 16 caracteres base64url
+    const contrasenaTemporal = generarContrasenaLegible(); // p. ej. Luna-Roble-Mango-Faro-47
     const { id } = await this.identidad
       .crearCuenta(d.email, contrasenaTemporal)
       .catch(traducirErrorIdentidad);
