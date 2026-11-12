@@ -116,7 +116,8 @@ describe('App (e2e)', () => {
   });
 
   describe('catálogo público y primas (datos reales del seed)', () => {
-    const buscar = <T extends { nombre: string }>(xs: T[], nombre: string) =>
+    type ItemCatalogo = { nombre: string; id: string; tipo?: string };
+    const buscar = (xs: ItemCatalogo[], nombre: string) =>
       xs.find((x) => x.nombre === nombre)!;
 
     it('GET /catalogo/campos: unión sin "tipo" y con las 5 aseguradoras', async () => {
