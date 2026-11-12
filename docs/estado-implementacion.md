@@ -77,9 +77,12 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
      de la Prueba de Choque (`conversionMensajeRn35`); ✅ 0037 probada con rollback (8 casos) y aplicada;
      ✅ Bruno 08/10, 13/05 y 13/13.
    - Más adelante (pospuesto por el usuario): clasificador de preocupaciones (palabras clave y, opcional, LLM).
-3. **Despliegue en Railway** (rama `chore/deploy`): ✅ `engines.node` 24.x, ✅ guía `docs/despliegue.md`
-   (configuración por panel, no `railway.json`: Railway lo deja de leer el 2026-12-01), ✅ entorno Bruno `Railway`;
-   ✅ build de producción probado en local (`ready` 200). Falta: crear el servicio en Railway (usuario) y el smoke test.
+3. **Despliegue en Railway**: ✅ en línea desde el 2026-11-12 en `https://svas-production.up.railway.app`
+   (Node 24.22.2, 1 réplica, US East; guía en `docs/despliegue.md`, configuración por panel). Smoke test ✅:
+   `ready` 200, catálogo con 5 aseguradoras, 401 sin token, Helmet, y caso dorado (Corolla 2022) 201 desde Bruno
+   (entorno `Railway`). Plan: Free Trial (USD 5 / 30 días, vence ~2026-12-12). Antes de esa fecha decidir entre
+   Hobby (USD 5/mes) o Render gratis + pinger cada 10 min a `/health/live` (se duerme a los 15 min; sin el pinger
+   los jobs no corren).
    Pasarela, emisión y mensajes quedan simulados a propósito (proyecto de prueba).
 4. Bruno 07 16–18 cuando exista un seguimiento abierto (el detector corre a cada hora en punto con el backend encendido).
 5. Pendiente sin fecha de §18.10: alerta diaria de planes incompletos o con contenido de más de 180 días.
