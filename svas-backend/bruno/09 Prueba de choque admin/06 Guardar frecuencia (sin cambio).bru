@@ -1,0 +1,30 @@
+meta {
+  name: 06 Guardar frecuencia (sin cambio)
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/admin/prueba-choque/frecuencias
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("frecuenciaChoque")) {
+    await bru.runRequest("09 Prueba de choque admin/05 Frecuencias particular");
+  }
+  const f = JSON.parse(bru.getVar("frecuenciaChoque"));
+  req.setBody({
+    filas: [{ escenario: f.escenario, uso: f.uso, zona: f.zona, probabilidadAnual: Number(f.probabilidadAnual) }],
+  });
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("cambiadas 0", () => expect(res.body.cambiadas).to.equal(0));
+}

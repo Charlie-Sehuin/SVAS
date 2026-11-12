@@ -1,0 +1,45 @@
+meta {
+  name: 04 Guardar cobertura (sin cambio)
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/admin/prueba-choque/coberturas
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  // Reenvía la cobertura tal como está: cambiadas = 0, sin bitácora.
+  if (!bru.getVar("coberturaChoque")) {
+    await bru.runRequest("09 Prueba de choque admin/03 Coberturas choque leve");
+  }
+  const c = JSON.parse(bru.getVar("coberturaChoque"));
+  const num = (v) => (v === null ? null : Number(v));
+  req.setBody({
+    filas: [{
+      planId: c.planId,
+      escenario: c.escenario,
+      cubre: c.cubre,
+      deduciblePct: num(c.deduciblePct),
+      deducibleMinimo: num(c.deducibleMinimo),
+      topeCobertura: num(c.topeCobertura),
+      condicionTaller: c.condicionTaller,
+      diasAutoReemplazo: c.diasAutoReemplazo,
+      fuente: c.fuente,
+    }],
+  });
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("recibida 1, cambiadas 0", () => {
+    expect(res.body.recibidas).to.equal(1);
+    expect(res.body.cambiadas).to.equal(0);
+  });
+}

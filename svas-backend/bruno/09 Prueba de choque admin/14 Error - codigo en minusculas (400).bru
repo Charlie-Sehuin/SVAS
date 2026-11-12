@@ -1,0 +1,27 @@
+meta {
+  name: 14 Error - codigo en minusculas (400)
+  type: http
+  seq: 14
+}
+
+put {
+  url: {{baseUrl}}/admin/prueba-choque/escenarios/choque_leve
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "nombre": "Choque leve",
+    "descripcion": "Raspas el parachoques al estacionar",
+    "montoDanoReferencial": 600,
+    "diasTaller": 3,
+    "orden": 1,
+    "activo": true
+  }
+}
+
+tests {
+  test("responde 400", () => expect(res.status).to.equal(400));
+  test("pide el código en mayúsculas", () => expect(res.body.message).to.contain("mayúsculas"));
+}

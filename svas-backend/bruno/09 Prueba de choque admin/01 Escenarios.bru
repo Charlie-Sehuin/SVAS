@@ -1,0 +1,35 @@
+meta {
+  name: 01 Escenarios
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/prueba-choque/escenarios
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const e = (res.body || []).find((x) => x.codigo === "CHOQUE_LEVE");
+  if (e) bru.setVar("escenarioChoqueLeve", JSON.stringify(e));
+}
+
+tests {
+  const lista = res.body || [];
+  const leve = lista.find((x) => x.codigo === "CHOQUE_LEVE") || {};
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("al menos los 6 escenarios del seed", () => expect(lista.length).to.be.at.least(6));
+  test("robo total usa la suma asegurada (monto null)", () =>
+    expect(lista.find((x) => x.codigo === "ROBO_TOTAL").montoDanoReferencial).to.equal(null));
+  test("choque leve no tiene pendientes", () => {
+    expect(leve.pendientes.frecuenciasFaltantes).to.eql([]);
+    expect(leve.pendientes.planesSinCobertura).to.eql([]);
+  });
+}
+
+docs {
+  Todos los escenarios, también los inactivos. Cada activo trae `pendientes`:
+  combinaciones uso × zona sin probabilidad (el motor las toma como 0) y
+  planes activos sin cobertura (salen "Sin información", RN-30).
+}

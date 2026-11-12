@@ -1,0 +1,30 @@
+meta {
+  name: 03 Coberturas choque leve
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/admin/prueba-choque/coberturas?escenario=CHOQUE_LEVE
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const c = (res.body || [])[0];
+  if (c) {
+    bru.setVar("coberturaChoque", JSON.stringify(c));
+    bru.setVar("planChoqueId", c.planId);
+  }
+}
+
+tests {
+  const lista = res.body || [];
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("una por plan (10)", () => expect(lista.length).to.equal(10));
+  test("todas de CHOQUE_LEVE", () => expect(lista.every((c) => c.escenario === "CHOQUE_LEVE")).to.equal(true));
+}
+
+docs {
+  Filtros opcionales: `planId` y `escenario` (código).
+}

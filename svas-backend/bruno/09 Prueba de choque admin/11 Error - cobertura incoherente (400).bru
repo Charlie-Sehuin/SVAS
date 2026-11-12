@@ -1,0 +1,38 @@
+meta {
+  name: 11 Error - cobertura incoherente (400)
+  type: http
+  seq: 11
+}
+
+put {
+  url: {{baseUrl}}/admin/prueba-choque/coberturas
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("planChoqueId")) {
+    await bru.runRequest("09 Prueba de choque admin/03 Coberturas choque leve");
+  }
+}
+
+body:json {
+  {
+    "filas": [{
+      "planId": "{{planChoqueId}}",
+      "escenario": "CHOQUE_LEVE",
+      "cubre": false,
+      "deduciblePct": 10,
+      "fuente": "Prueba"
+    }]
+  }
+}
+
+tests {
+  test("responde 400", () => expect(res.status).to.equal(400));
+  test("explica la incoherencia", () => expect(res.body.message).to.contain("no cubre"));
+}
+
+docs {
+  Lo rechaza el backend antes del RPC. No se guarda nada.
+}

@@ -1,0 +1,22 @@
+meta {
+  name: 13 Error - probabilidad sobre 0.95 (400)
+  type: http
+  seq: 13
+}
+
+put {
+  url: {{baseUrl}}/admin/prueba-choque/frecuencias
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "filas": [{ "escenario": "CHOQUE_LEVE", "uso": "PARTICULAR", "zona": "ALTA", "probabilidadAnual": 0.97 }]
+  }
+}
+
+tests {
+  test("responde 400", () => expect(res.status).to.equal(400));
+  test("señala el campo", () => expect(res.body.errors[0].campo).to.equal("filas.0.probabilidadAnual"));
+}
