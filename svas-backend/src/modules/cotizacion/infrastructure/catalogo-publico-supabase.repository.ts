@@ -4,11 +4,12 @@ import {
   SUPABASE_SERVICE_CLIENT,
   type SupabaseServiceClient,
 } from '../../../infrastructure/database/supabase-service-client.provider';
-import type { TipoCampo } from '../../../shared/types/enums';
+import type { TipoCampo, UsoVehiculo } from '../../../shared/types/enums';
 import type {
   AseguradoraActiva,
   CatalogoPublicoRepository,
 } from '../domain/catalogo-publico.port';
+import type { ReglaInspeccion } from '../domain/cotizacion';
 import type { CampoAseguradora } from '../domain/formulario-dinamico';
 
 type Uno<T> = T | T[] | null;
@@ -67,6 +68,27 @@ export class CatalogoPublicoSupabaseRepository implements CatalogoPublicoReposit
       obligatorio: c.obligatorio,
       origenValores: c.origen_valores,
       valores: (c.valor_permitido ?? []).map((v) => v.valor),
+    }));
+  }
+
+  async reglasInspeccion(): Promise<ReglaInspeccion[]> {
+    const { data, error } = await this.db
+      .from('regla_inspeccion')
+      .select(
+        'aseguradora_id, uso, requiere_inspeccion, aseguradora!inner(activa)',
+      )
+      .eq('aseguradora.activa', true);
+    if (error) throw new ErrorBaseDatos(error);
+    return (
+      data as unknown as {
+        aseguradora_id: string;
+        uso: UsoVehiculo;
+        requiere_inspeccion: boolean;
+      }[]
+    ).map((r) => ({
+      aseguradoraId: r.aseguradora_id,
+      uso: r.uso,
+      requiereInspeccion: r.requiere_inspeccion,
     }));
   }
 

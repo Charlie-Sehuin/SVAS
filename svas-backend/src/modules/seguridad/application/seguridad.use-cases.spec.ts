@@ -65,8 +65,40 @@ describe('RegistrarClienteUseCase', () => {
       id: 'u1',
       email: 'ana@test.com',
       nombreCompleto: 'Ana Pérez Gómez',
+      contacto: {
+        nombres: ' Ana ',
+        apellidos: 'Pérez  Gómez',
+        telefono: '987654321',
+      },
+      cotizacionId: undefined,
+      tokenHash: undefined,
     });
     expect(r).toEqual(usuario());
+  });
+
+  it('con cotizacionId exige el token ANTES de crear la cuenta', async () => {
+    const { identidad, repo } = dobles();
+    await expect(
+      new RegistrarClienteUseCase(identidad, repo).ejecutar({
+        ...datos,
+        cotizacionId: '11111111-1111-4111-8111-111111111111',
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(identidad.crearCuenta).not.toHaveBeenCalled();
+  });
+
+  it('con cotizacionId y token pasa el sha256 del token, nunca el token', async () => {
+    const { identidad, repo } = dobles();
+    await new RegistrarClienteUseCase(identidad, repo).ejecutar({
+      ...datos,
+      cotizacionId: '11111111-1111-4111-8111-111111111111',
+      tokenAcceso: 'token-en-claro',
+    });
+    const llamada = repo.registrarCliente.mock.calls[0][0] as {
+      tokenHash?: string;
+    };
+    expect(llamada.tokenHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(JSON.stringify(llamada)).not.toContain('token-en-claro');
   });
 
   it('409 si el email ya existe', async () => {

@@ -1,0 +1,58 @@
+meta {
+  name: Cotizar Corolla 2022
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/cotizaciones
+  body: json
+  auth: none
+}
+
+script:pre-request {
+  // Si aún no se ejecutaron 05 / Marcas y 05 / Modelos Toyota, se ejecutan solos.
+  if (!bru.getVar("corollaId") || !bru.getVar("toyotaId")) {
+    await bru.runRequest("05 Catalogo publico/Marcas");
+    await bru.runRequest("05 Catalogo publico/Modelos Toyota");
+  }
+}
+
+body:json {
+  {
+    "vehiculo": { "uso": "PARTICULAR", "marcaId": "{{toyotaId}}", "modeloId": "{{corollaId}}", "anio": 2022, "clase": null },
+    "ubicacion": { "ubigeo": "150122" },
+    "contacto": { "nombres": "Prueba", "apellidos": "Bruno", "telefono": "900000001",
+                  "email": "prueba.bruno@example.com", "canalPreferido": "WHATSAPP" }
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("cotizacionId", res.body.cotizacion.id);
+    bru.setVar("tokenAcceso", res.body.tokenAcceso);
+    const rimac = res.body.cotizacion.primas.find((p) => p.aseguradora === "Rímac");
+    if (rimac) bru.setVar("rimacId", rimac.aseguradoraId);
+  }
+}
+
+tests {
+  test("responde 201", () => expect(res.status).to.equal(201));
+  const primas = (res.body.cotizacion || {}).primas || [];
+  const p = (a, n) => primas.find((x) => x.aseguradora === a && x.plan === n) || {};
+  test("10 primas disponibles", () => expect(primas.filter((x) => x.disponible).length).to.equal(10));
+  test("ambas opciones (RN-01)", () => expect(res.body.cotizacion.opciones).to.eql(["COMPRA_INMEDIATA", "ASESORIA"]));
+  test("Rímac arranca en el punto medio 14400.00 (RN-37)", () => expect(p("Rímac", "Oro").sumaAsegurada).to.equal("14400.00"));
+  test("Rímac Oro = 614.78 / 51.23", () => {
+    expect(p("Rímac", "Oro").prima).to.equal("614.78");
+    expect(p("Rímac", "Oro").primaMensual).to.equal("51.23");
+  });
+  test("trae tokenAcceso", () => expect(res.body.tokenAcceso).to.be.a("string"));
+  test("el cliente no ve el desglose (RN-41)", () => expect(p("Rímac", "Oro")).to.not.have.property("detalleCalculo"));
+}
+
+docs {
+  Caso dorado (doc conexión §6). Público: no lleva Authorization.
+  Guarda cotizacionId, tokenAcceso y rimacId para las siguientes peticiones.
+  OJO: cada ejecución crea una cotización real en la base (producción).
+}

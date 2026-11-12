@@ -1,5 +1,6 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ErrorBaseDatos } from '../../../common/filters/postgrest-error.filter';
+import { llamarRpc } from '../../../infrastructure/database/rpc.helper';
 import {
   SUPABASE_SERVICE_CLIENT,
   type SupabaseServiceClient,
@@ -25,8 +26,6 @@ const COLUMNAS = 'id, email, rol, nombre_completo, activo';
 
 @Injectable()
 export class UsuarioSupabaseRepository implements UsuarioRepository {
-  private readonly logger = new Logger(UsuarioSupabaseRepository.name);
-
   constructor(
     @Inject(SUPABASE_SERVICE_CLIENT)
     private readonly servicio: SupabaseServiceClient,
@@ -47,34 +46,23 @@ export class UsuarioSupabaseRepository implements UsuarioRepository {
     id: string;
     email: string;
     nombreCompleto: string;
+    contacto: { nombres: string; apellidos: string; telefono: string };
+    cotizacionId?: string;
+    tokenHash?: string;
   }): Promise<Usuario> {
-    const { data, error } = await this.servicio
-      .from('usuario')
-      .insert({
-        id: u.id,
-        email: u.email,
-        nombre_completo: u.nombreCompleto,
-        rol: 'CLIENTE',
-        activo: true,
-      })
-      .select(COLUMNAS)
-      .single();
-    if (error) throw new ErrorBaseDatos(error);
-
-    const { error: errorBitacora } = await this.servicio
-      .from('registro_actividad')
-      .insert({
-        usuario_id: u.id,
-        accion: 'REGISTRO_CLIENTE',
-        entidad: 'usuario',
-        entidad_id: u.id,
-      });
-    if (errorBitacora) {
-      this.logger.warn(
-        `Cliente ${u.id} registrado sin bitácora: ${errorBitacora.message}`,
-      );
-    }
-    return aUsuario(data as FilaUsuario);
+    const fila = await llamarRpc<FilaUsuario>(
+      this.servicio,
+      'registrar_usuario_cliente',
+      {
+        p_usuario_id: u.id,
+        p_email: u.email,
+        p_nombre_completo: u.nombreCompleto,
+        p_contacto: u.contacto,
+        p_cotizacion_id: u.cotizacionId ?? null,
+        p_token_hash: u.tokenHash ?? null,
+      },
+    );
+    return aUsuario(fila);
   }
 
   async listar(

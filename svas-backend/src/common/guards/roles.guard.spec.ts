@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { SupabaseServiceClient } from '../../infrastructure/database/supabase-service-client.provider';
+import { AuthOpcional } from '../decorators/auth-opcional.decorator';
 import { Roles } from '../decorators/roles.decorator';
 import type { Rol, UsuarioAutenticado } from '../types/usuario-autenticado';
 import { RolesGuard } from './roles.guard';
@@ -13,9 +14,14 @@ class Rutas {
   libre() {}
   @Roles('ADMINISTRADOR')
   soloAdmin() {}
+  @AuthOpcional()
+  opcional() {}
 }
 
-function contexto(metodo: 'libre' | 'soloAdmin', usuario: UsuarioAutenticado) {
+function contexto(
+  metodo: 'libre' | 'soloAdmin' | 'opcional',
+  usuario: UsuarioAutenticado | undefined,
+) {
   return {
     getHandler: () => Rutas.prototype[metodo],
     getClass: () => Rutas,
@@ -38,6 +44,26 @@ const usuario = (roles: Rol[]): UsuarioAutenticado => ({
 });
 
 describe('RolesGuard', () => {
+  it('@AuthOpcional() sin usuario: pasa sin consultar la base', async () => {
+    const { db, maybeSingle } = dbFalsa({ data: null, error: null });
+    const guard = new RolesGuard(new Reflector(), db);
+    await expect(
+      guard.canActivate(contexto('opcional', undefined)),
+    ).resolves.toBe(true);
+    expect(maybeSingle).not.toHaveBeenCalled();
+  });
+
+  it('@AuthOpcional() con usuario desactivado: 403 igual', async () => {
+    const { db } = dbFalsa({
+      data: { rol: 'CLIENTE', activo: false },
+      error: null,
+    });
+    const guard = new RolesGuard(new Reflector(), db);
+    await expect(
+      guard.canActivate(contexto('opcional', usuario(['CLIENTE']))),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
   it('ruta sin @Roles: pasa si el usuario está activo', async () => {
     const { db } = dbFalsa({
       data: { rol: 'CLIENTE', activo: true },

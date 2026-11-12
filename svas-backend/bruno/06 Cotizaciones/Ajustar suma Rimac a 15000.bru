@@ -1,0 +1,35 @@
+meta {
+  name: Ajustar suma Rimac a 15000
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/cotizaciones/{{cotizacionId}}/aseguradoras/{{rimacId}}/suma-asegurada
+  body: json
+  auth: none
+}
+
+headers {
+  X-Cotizacion-Token: {{tokenAcceso}}
+}
+
+body:json {
+  { "sumaAsegurada": "15000.00" }
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  const p = (n) => (res.body.primas || []).find((x) => x.plan === n) || {};
+  test("solo vuelven los 2 planes de Rímac", () => expect(res.body.primas.length).to.equal(2));
+  test("Rímac Oro = 640.40 / 53.37 (tabla dorada §17.6)", () => {
+    expect(p("Oro").prima).to.equal("640.40");
+    expect(p("Oro").primaMensual).to.equal("53.37");
+  });
+  test("Rímac Plata = 457.43", () => expect(p("Plata").prima).to.equal("457.43"));
+  test("suma 15000.00 en ambos", () => expect(res.body.primas.every((x) => x.sumaAsegurada === "15000.00")).to.equal(true));
+}
+
+docs {
+  RN-37: recalcula solo esa aseguradora (RPC 6.13). El frontend nunca calcula.
+}

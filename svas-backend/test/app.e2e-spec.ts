@@ -208,4 +208,92 @@ describe('App (e2e)', () => {
     it('POST /admin/tarifas/simular sin token → 401', () =>
       http().post('/api/v1/admin/tarifas/simular').expect(401));
   });
+
+  describe('cotizaciones (sin escribir en la base)', () => {
+    const OTRA = '6f1c2b1e-8a3d-4c2e-9b7a-1d2e3f4a5b6c';
+
+    it('POST /cotizaciones con body vacío → 400 con errores por campo', async () => {
+      const res = await http()
+        .post('/api/v1/cotizaciones')
+        .send({})
+        .expect(400);
+      expect(res.body.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ campo: 'vehiculo' }),
+          expect.objectContaining({ campo: 'contacto' }),
+        ]),
+      );
+    });
+
+    it('POST /cotizaciones con teléfono inválido → 400 en contacto.telefono', async () => {
+      const res = await http()
+        .post('/api/v1/cotizaciones')
+        .send({
+          vehiculo: {
+            uso: 'PARTICULAR',
+            marcaId: OTRA,
+            modeloId: OTRA,
+            anio: 2022,
+          },
+          ubicacion: { ubigeo: '150122' },
+          contacto: {
+            nombres: 'Ana',
+            apellidos: 'Ríos',
+            telefono: '12345',
+            email: 'ana@example.com',
+            canalPreferido: 'WHATSAPP',
+          },
+        })
+        .expect(400);
+      expect(res.body.errors).toContainEqual({
+        campo: 'contacto.telefono',
+        mensaje: 'Ingresa un celular peruano de 9 dígitos que empiece con 9',
+      });
+    });
+
+    it('POST /cotizaciones con un modelo inexistente → 400 y no crea nada', () =>
+      http()
+        .post('/api/v1/cotizaciones')
+        .send({
+          vehiculo: {
+            uso: 'PARTICULAR',
+            marcaId: OTRA,
+            modeloId: OTRA,
+            anio: 2022,
+          },
+          ubicacion: { ubigeo: '150122' },
+          contacto: {
+            nombres: 'Ana',
+            apellidos: 'Ríos',
+            telefono: '987654321',
+            email: 'ana@example.com',
+            canalPreferido: 'WHATSAPP',
+          },
+        })
+        .expect(400));
+
+    it('GET /cotizaciones/:id/resumen sin JWT ni token → 401', () =>
+      http().get(`/api/v1/cotizaciones/${OTRA}/resumen`).expect(401));
+
+    it('GET /cotizaciones/:id/resumen con token de otra cotización → 403', () =>
+      http()
+        .get(`/api/v1/cotizaciones/${OTRA}/resumen`)
+        .set('X-Cotizacion-Token', 'token-inventado')
+        .expect(403));
+
+    it('PATCH …/suma-asegurada sin JWT ni token → 401', () =>
+      http()
+        .patch(
+          `/api/v1/cotizaciones/${OTRA}/aseguradoras/${OTRA}/suma-asegurada`,
+        )
+        .send({ sumaAsegurada: '15000.00' })
+        .expect(401));
+
+    it.each([
+      ['get', '/api/v1/cotizaciones/mias'],
+      ['patch', `/api/v1/cotizaciones/${OTRA}/cliente`],
+    ] as const)('%s %s sin token → 401', (metodo, ruta) =>
+      http()[metodo](ruta).expect(401),
+    );
+  });
 });

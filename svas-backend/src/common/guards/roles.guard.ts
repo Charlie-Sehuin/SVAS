@@ -12,6 +12,7 @@ import {
   SUPABASE_SERVICE_CLIENT,
   type SupabaseServiceClient,
 } from '../../infrastructure/database/supabase-service-client.provider';
+import { AUTH_OPCIONAL } from '../decorators/auth-opcional.decorator';
 import { ES_PUBLICO } from '../decorators/public.decorator';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import {
@@ -50,7 +51,11 @@ export class RolesGuard implements CanActivate {
       return true;
 
     const usuario = ctx.switchToHttp().getRequest<RequestConContexto>().usuario;
-    if (!usuario) throw new UnauthorizedException('Debes iniciar sesión');
+    if (!usuario) {
+      if (this.reflector.getAllAndOverride<boolean>(AUTH_OPCIONAL, objetivos))
+        return true;
+      throw new UnauthorizedException('Debes iniciar sesión');
+    }
 
     const requeridos = this.reflector.getAllAndOverride<Rol[] | undefined>(
       ROLES_KEY,

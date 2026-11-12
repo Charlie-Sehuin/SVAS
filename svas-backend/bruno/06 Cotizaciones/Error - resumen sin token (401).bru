@@ -1,0 +1,15 @@
+meta {
+  name: Error - resumen sin token (401)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/cotizaciones/{{cotizacionId}}/resumen
+  body: none
+  auth: none
+}
+
+tests {
+  test("responde 401", () => expect(res.status).to.equal(401));
+}

@@ -1,0 +1,29 @@
+meta {
+  name: Resumen con token
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/cotizaciones/{{cotizacionId}}/resumen
+  body: none
+  auth: none
+}
+
+headers {
+  X-Cotizacion-Token: {{tokenAcceso}}
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("es la misma cotización", () => expect(res.body.cotizacion.id).to.equal(bru.getVar("cotizacionId")));
+  test("vehículo Toyota Corolla en Miraflores", () => {
+    expect(res.body.cotizacion.vehiculo.modelo).to.equal("Corolla");
+    expect(res.body.cotizacion.vehiculo.distrito).to.equal("Miraflores");
+  });
+  test("sin desglose para el anónimo", () => expect(res.body.cotizacion.primas[0]).to.not.have.property("detalleCalculo"));
+}
+
+docs {
+  Anónimo: entra con X-Cotizacion-Token (lo guardó "Cotizar Corolla 2022").
+}

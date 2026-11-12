@@ -1,0 +1,26 @@
+meta {
+  name: Error - suma fuera de rango (400)
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/cotizaciones/{{cotizacionId}}/aseguradoras/{{rimacId}}/suma-asegurada
+  body: json
+  auth: none
+}
+
+headers {
+  X-Cotizacion-Token: {{tokenAcceso}}
+}
+
+body:json {
+  { "sumaAsegurada": "99999.00" }
+}
+
+tests {
+  test("responde 400", () => expect(res.status).to.equal(400));
+  test("mensaje con el rango", () =>
+    expect(res.body.message).to.equal("La suma asegurada de Rímac debe estar entre USD 12,000.00 y USD 16,800.00"));
+  test("error en el campo sumaAsegurada", () => expect(res.body.errors[0].campo).to.equal("sumaAsegurada"));
+}
