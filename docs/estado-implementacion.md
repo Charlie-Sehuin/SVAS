@@ -72,13 +72,15 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
 | Config inicial (§16.1, pasos 1–6) | ✅ hecho el 2026-11-12: Vite 8 + React 18 + TS estricto, Tailwind 4 con los tokens de la guía visual, `shared/lib` (api-client con ky 2, Supabase solo sesión, query-client, query-keys, format), `AuthProvider` + `RoleGuard` + `LoginPage`, `PublicLayout` + `BackofficeLayout` (sidebar por rol), router completo con `<PantallaPendiente>` en las rutas sin construir, componentes de dominio base (`MoneyValue`, `StatusBadge`, `WarningToast`/`ErrorToast`, `RoleGate`, `DemoLegend`), MSW (`/health`, `/catalogo/campos`, `/usuarios/me`) y landing |
 | Config inicial paso 7 (deploy a Vercel) | ⏳ pendiente: `vercel.json` listo; falta crear el proyecto en Vercel y poner `FRONTEND_URL` en Railway |
 | Ola 0 · login + admin (catálogo, parámetros, usuarios, bitácora, tarifas, simulador) | ✅ hecho el 2026-11-12 (ver abajo); login probado contra Railway; las pantallas se probaron con MSW (12 pruebas) y las 13 rutas `/admin/*` existen en Railway (401 sin sesión), pero falta recorrerlas en el navegador con el ADMINISTRADOR |
-| Ola 1 · cotizar + comparativo | ⏳ |
+| Ola 1 · cotizar + comparativo | ✅ hecho el 2026-11-12 (ver abajo): asistente de 3 pasos, comparativo con suma asegurada por aseguradora, derivación y "Mis cotizaciones". Contrato verificado contra Railway; falta recorrerlo en el navegador |
 | Ola 2 · Prueba de Choque, planes, asesoría/retención | ⏳ |
 | Ola 3 · compra + pólizas | ⏳ |
 | Ola 4 · dashboard + reportes | ⏳ |
 
-Verificación al cierre: `npm run typecheck`, `npm run lint` y `npm test` (81 pruebas, incluida la guardia de contraste del modo claro y oscuro) en verde; `npm run build` OK.
-JS inicial de la landing ≈ 156 KB gzip (meta < 180 KB, arquitectura §6.2): Supabase y cada pantalla de administración van en chunks aparte y el embudo no los descarga.
+Verificación al cierre: `npm run typecheck`, `npm run lint` y `npm test` (113 pruebas, incluida la guardia de contraste del modo claro y oscuro) en verde; `npm run build` OK.
+JS inicial de la landing ≈ 157 KB gzip (meta < 180 KB, arquitectura §6.2): Supabase, los formularios (zod y react-hook-form, en su
+propio chunk `formularios`) y cada pantalla van aparte y el embudo no los descarga. Ojo: si una pantalla del arranque importa
+un formulario, ese chunk se vuelve a precargar; se vigila mirando `dist/index.html` después de `npm run build`.
 
 Ola 0 construida (`features/administracion/`, rutas en `/app/admin/*`):
 - **Usuarios y roles**: lista con filtros y paginación, crear (la contraseña temporal se muestra una sola vez), cambiar rol y
@@ -108,6 +110,28 @@ Decisiones propias de la Ola 0 (revisables):
 - Los enums del frontend se sincronizaron con los del backend (`UsoVehiculo` tiene 3 valores, no 4).
 - La lista de entidades de la bitácora es una sugerencia fija; el filtro acepta cualquier nombre en minúsculas.
 - Los rangos de suma se editan en línea; el doc pide CSV solo para pesos, así que no hay carga masiva de rangos.
+
+Ola 1 construida (`features/cotizacion/`, rutas públicas `/cotizar` y `/cotizacion/:id`, y `/mi-cuenta/cotizaciones` para el CLIENTE):
+- **Asistente `/cotizar`** en 3 pasos (Vehículo · Ubicación · Contacto), una decisión por pantalla en móvil, CTA fijo abajo, resumen lateral en
+  escritorio, validación al salir del campo y foco al título del paso nuevo. El borrador vive en sessionStorage. El formulario se arma desde
+  `GET /catalogo/campos` (obligatoriedad y opciones). La tarjeta del hero de la landing ya trae marca, modelo y año reales y los pasa al asistente.
+- **Errores del backend**: los errores por campo (`vehiculo.marcaId`, `contacto.telefono`…) se asignan al campo y se vuelve a su paso; el 422
+  de fuera de nicho (RN-05) muestra el mensaje con un enlace para llamar; el aviso `ASEGURADORA_SIN_COTIZACION` sale una sola vez (toast con `id`).
+- **Comparativo `/cotizacion/:id`**: un bloque por aseguradora, la cuota mensual como protagonista, orden por precio o A–Z, filtro por aseguradora,
+  tarjeta gris por aseguradora que no cotiza (RF-05), `DerivacionBanner` (RN-03/RN-04) que oculta "Comprar", y cotización ya convertida (sin comprar ni cambiar la suma).
+- **`SumaAseguradaControl`** (RN-37): slider + campo numérico entre el mínimo y el máximo de ESA aseguradora, espera 400 ms, valida el rango antes de
+  llamar, y pinta las primas que devuelve el backend (esqueleto mientras llegan). Un 400 devuelve el campo a la suma vigente sin reintentar; un 409
+  bloquea las sumas de la cotización. Nunca se calcula una prima en el navegador.
+- Decisiones: (1) el `api-client` manda el Bearer **y** el `X-Cotizacion-Token` si tiene ambos, porque con sesión el backend solo usa el token si la
+  cotización no es del usuario; (2) la clasificación por precio compara números con `decimal.js` (no calcula); (3) "Hablar con un asesor" es por ahora
+  un enlace `tel:` y "Comprar este plan" va a `/compra/:id?prima=…` (pantalla de la Ola 3); el diálogo de asesoría llega en la Ola 2.
+- **Fuera de esta ola** (llegan en la Ola 2): "Ver detalle", "Comparar", el botón de la Prueba de Choque y la opción de ordenar por costo real.
+- **Límite del formulario dinámico**: `POST /cotizaciones` tiene un cuerpo fijo y el backend rechaza propiedades que no declara. Hoy solo `placa` y
+  `clase` pueden dibujarse y enviarse desde el catálogo. Un campo nuevo creado en el administrador **no aparece** en el formulario hasta que el
+  backend lo admita (`RUTA_CAMPO` y `CotizarDto`); si fuera obligatorio, bloquearía las cotizaciones. Para cumplir de verdad "agregar un campo sin
+  desplegar" habría que aceptar un objeto de campos extra en el backend.
+- **Datos de prueba en producción**: al verificar el contrato se creó una cotización con el correo `prueba.frontend@example.com` (Toyota Corolla 2022,
+  Miraflores) y se movió la suma de Rímac a su mínimo. Quedan en la bitácora como COTIZAR y AJUSTAR_SUMA.
 
 Decisiones propias del frontend (revisables):
 - Versiones actuales en vez de las del doc donde no cambia la API: Vite 8 (rolldown), Tailwind 4 (tokens en `@theme`
