@@ -1,0 +1,41 @@
+meta {
+  name: 02 Guardar escenario (sin cambio)
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/admin/prueba-choque/escenarios/CHOQUE_LEVE
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  // Reenvía los valores actuales de CHOQUE_LEVE: no cambia nada ni deja bitácora.
+  if (!bru.getVar("escenarioChoqueLeve")) {
+    await bru.runRequest("09 Prueba de choque admin/01 Escenarios");
+  }
+  const e = JSON.parse(bru.getVar("escenarioChoqueLeve"));
+  req.setBody({
+    nombre: e.nombre,
+    descripcion: e.descripcion,
+    montoDanoReferencial: e.montoDanoReferencial === null ? null : Number(e.montoDanoReferencial),
+    diasTaller: e.diasTaller,
+    orden: e.orden,
+    activo: e.activo,
+  });
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("sigue siendo CHOQUE_LEVE", () => expect(res.body.codigo).to.equal("CHOQUE_LEVE"));
+}
+
+docs {
+  PUT con un código nuevo crea el escenario; con uno existente, lo reemplaza
+  (todos los campos son obligatorios; `montoDanoReferencial: null` = suma asegurada).
+}

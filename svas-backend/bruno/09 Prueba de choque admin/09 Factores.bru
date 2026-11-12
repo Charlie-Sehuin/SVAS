@@ -1,0 +1,25 @@
+meta {
+  name: 09 Factores
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/admin/prueba-choque/factores
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const f = (res.body || [])[0];
+  if (f) bru.setVar("factorChoque", JSON.stringify(f));
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("9 factores del seed", () => expect((res.body || []).length).to.equal(9));
+}
+
+docs {
+  Filtro opcional: `escenario` (código).
+}

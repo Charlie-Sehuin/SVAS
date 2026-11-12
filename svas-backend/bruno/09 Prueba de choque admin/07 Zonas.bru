@@ -1,0 +1,29 @@
+meta {
+  name: 07 Zonas
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/admin/prueba-choque/zonas
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const z = (res.body || [])[0];
+  if (z) bru.setVar("zonaChoque", JSON.stringify(z));
+}
+
+tests {
+  const lista = res.body || [];
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("50 distritos del seed", () => expect(lista.length).to.be.at.least(50));
+  test("Miraflores es BAJA", () =>
+    expect((lista.find((z) => z.distrito === "Miraflores") || {}).zona).to.equal("BAJA"));
+}
+
+docs {
+  Solo los distritos con zona propia; los que no aparecen cuentan como MEDIA.
+  Filtro opcional: `zona`.
+}

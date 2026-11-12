@@ -1,0 +1,27 @@
+meta {
+  name: 05 Frecuencias particular
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/admin/prueba-choque/frecuencias?uso=PARTICULAR
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const f = (res.body || [])[0];
+  if (f) bru.setVar("frecuenciaChoque", JSON.stringify(f));
+}
+
+tests {
+  const lista = res.body || [];
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("6 escenarios × 3 zonas", () => expect(lista.length).to.equal(18));
+  test("probabilidad como string de 4 decimales", () => expect(lista[0].probabilidadAnual).to.match(/^0\.\d{4}$/));
+}
+
+docs {
+  Filtros opcionales: `escenario` (código) y `uso`.
+}

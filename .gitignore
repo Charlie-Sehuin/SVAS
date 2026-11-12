@@ -2,3 +2,7 @@
 dist
 .env
 .DS_Store
+
+# Generados por jest --coverage y tsc --build
+coverage/
+*.tsbuildinfo

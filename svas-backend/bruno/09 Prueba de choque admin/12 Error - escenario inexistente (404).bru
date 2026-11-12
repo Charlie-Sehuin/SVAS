@@ -1,0 +1,37 @@
+meta {
+  name: 12 Error - escenario inexistente (404)
+  type: http
+  seq: 12
+}
+
+put {
+  url: {{baseUrl}}/admin/prueba-choque/coberturas
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("planChoqueId")) {
+    await bru.runRequest("09 Prueba de choque admin/03 Coberturas choque leve");
+  }
+}
+
+body:json {
+  {
+    "filas": [{
+      "planId": "{{planChoqueId}}",
+      "escenario": "GRANIZO",
+      "cubre": false,
+      "fuente": "Prueba"
+    }]
+  }
+}
+
+tests {
+  test("responde 404", () => expect(res.status).to.equal(404));
+  test("nombra el escenario", () => expect(res.body.message).to.equal("El escenario GRANIZO no existe"));
+}
+
+docs {
+  Lo rechaza el RPC (P0002 → 404). No se guarda nada.
+}

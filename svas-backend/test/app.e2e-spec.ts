@@ -103,6 +103,13 @@ describe('App (e2e)', () => {
       ['put', '/api/v1/admin/tarifas/pesos/marca'],
       ['put', '/api/v1/admin/parametros'],
       ['delete', '/api/v1/admin/campos/6f1c2b1e-8a3d-4c2e-9b7a-1d2e3f4a5b6c'],
+      ['get', '/api/v1/admin/prueba-choque/escenarios'],
+      ['put', '/api/v1/admin/prueba-choque/escenarios/CHOQUE_LEVE'],
+      ['get', '/api/v1/admin/prueba-choque/coberturas'],
+      ['put', '/api/v1/admin/prueba-choque/coberturas'],
+      ['put', '/api/v1/admin/prueba-choque/frecuencias'],
+      ['put', '/api/v1/admin/prueba-choque/zonas'],
+      ['get', '/api/v1/admin/prueba-choque/factores'],
     ] as const)('%s %s sin token → 401', (metodo, ruta) =>
       http()[metodo](ruta).expect(401),
     );

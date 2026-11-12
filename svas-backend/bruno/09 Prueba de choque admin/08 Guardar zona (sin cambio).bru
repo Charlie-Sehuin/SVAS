@@ -1,0 +1,28 @@
+meta {
+  name: 08 Guardar zona (sin cambio)
+  type: http
+  seq: 8
+}
+
+put {
+  url: {{baseUrl}}/admin/prueba-choque/zonas
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("zonaChoque")) {
+    await bru.runRequest("09 Prueba de choque admin/07 Zonas");
+  }
+  const z = JSON.parse(bru.getVar("zonaChoque"));
+  req.setBody({ filas: [{ ubigeo: z.ubigeo, zona: z.zona }] });
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("cambiadas 0", () => expect(res.body.cambiadas).to.equal(0));
+}

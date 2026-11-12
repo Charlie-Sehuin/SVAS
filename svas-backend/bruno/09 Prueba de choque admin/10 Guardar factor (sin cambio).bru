@@ -1,0 +1,28 @@
+meta {
+  name: 10 Guardar factor (sin cambio)
+  type: http
+  seq: 10
+}
+
+put {
+  url: {{baseUrl}}/admin/prueba-choque/factores
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("factorChoque")) {
+    await bru.runRequest("09 Prueba de choque admin/09 Factores");
+  }
+  const f = JSON.parse(bru.getVar("factorChoque"));
+  req.setBody({ filas: [{ escenario: f.escenario, variable: f.variable, multiplicador: Number(f.multiplicador) }] });
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("cambiadas 0", () => expect(res.body.cambiadas).to.equal(0));
+}
