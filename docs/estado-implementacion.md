@@ -50,11 +50,19 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
 
 ## 1b. Frontend (repo `SVAS-frontend`) — dónde estamos
 
-> **El frontend vive en su propio repo**: https://github.com/Charlie-Sehuin/SVAS-frontend (carpeta local
-> `C:\Users\Charlie\Desktop\Office\svas-frontend`, hermana de `svas`). Se separó para que un cambio del frontend
-> nunca dispare un redespliegue del backend en Railway (cada push a `main` de este repo lo redespliega). Los docs
-> del frontend siguen aquí, en `docs/`, porque los comparten ambos lados. Las rutas de código del frontend que
-> aparecen abajo son relativas a la raíz de ese repo (p. ej. `src/shared/lib/tarifas.constants.ts`).
+> **El frontend vive en su propio repo**: https://github.com/Charlie-Sehuin/SVAS-frontend. Se separó para que un
+> cambio del frontend nunca dispare un redespliegue del backend en Railway (cada push a `main` de este repo lo
+> redespliega). Los docs del frontend siguen aquí, en `docs/`, porque los comparten ambos lados. Las rutas de código
+> del frontend que aparecen abajo son relativas a la raíz de ese repo (p. ej. `src/shared/lib/tarifas.constants.ts`).
+>
+> **Carpeta local recomendada** (todo junto, cada repo con su propio Git):
+> ```
+> svas/                  ← repo SVAS (backend + docs)
+> ├── docs/  imagenes/  svas-backend/
+> └── svas-frontend/     ← repo SVAS-frontend; este repo lo ignora (.gitignore)
+> ```
+> Se clona con `git clone https://github.com/Charlie-Sehuin/SVAS-frontend.git svas-frontend` dentro de `svas/`.
+> Los comandos `git` de cada repo se ejecutan dentro de su carpeta.
 
 > Sigue `arquitectura-frontend-seguro-simple.md` (§16, orden por olas) y `diseno-visual-seguro-simple.md`
 > (tokens y apariencia; reemplaza §2–4 del de arquitectura).
@@ -113,7 +121,7 @@ Decisiones propias del frontend (revisables):
 
 Comandos:
 ```powershell
-cd C:\Users\Charlie\Desktop\Office\svas-frontend
+cd C:\Users\Charlie\Desktop\Office\svas\svas-frontend
 npm run dev          # http://localhost:5173 (el backend local debe tener FRONTEND_URL=http://localhost:5173)
 npm run typecheck; npm run lint; npm test; npm run build
 ```

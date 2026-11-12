@@ -6,3 +6,6 @@ dist
 # Generados por jest --coverage y tsc --build
 coverage/
 *.tsbuildinfo
+
+# El frontend es otro repo (SVAS-frontend): vive aquí solo para trabajar con todo junto
+svas-frontend/
