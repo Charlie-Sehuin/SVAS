@@ -5,6 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Public } from '../../common/decorators/public.decorator';
 import type { Env } from '../../config/env.validation';
 import {
   SUPABASE_SERVICE_CLIENT,
@@ -17,8 +18,9 @@ const TIMEOUT_MS = 3000;
 /**
  * /health/live  → el proceso responde (Railway lo usa para reiniciar).
  * /health/ready → además Postgres (esquema svas) y Supabase Auth responden (RNF-04).
- * Cuando exista el guard global de JWT, ambas rutas llevarán @Public().
+ * Públicas: Railway y el smoke test las llaman sin JWT.
  */
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(
@@ -41,7 +43,11 @@ export class HealthController {
       status: database === 'up' && auth === 'up' ? 'ok' : 'error',
       checks: { database, auth },
     };
-    if (cuerpo.status !== 'ok') throw new ServiceUnavailableException(cuerpo);
+    if (cuerpo.status !== 'ok') {
+      throw new ServiceUnavailableException(
+        `Servicio no disponible (database: ${database}, auth: ${auth})`,
+      );
+    }
     return cuerpo;
   }
 
