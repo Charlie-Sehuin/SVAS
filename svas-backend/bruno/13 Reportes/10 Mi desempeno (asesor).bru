@@ -1,0 +1,38 @@
+meta {
+  name: 10 Mi desempeno (asesor)
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/asesor/reportes/mi-desempeno?desde=2026-01-01&hasta=2026-12-31
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{asesorToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar("asesorToken")) {
+    await bru.runRequest("07 Asesoria y retencion/03 Login asesor");
+  }
+}
+
+tests {
+  const b = res.body;
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("trae sus cuatro bloques", () => {
+    expect(b.asesorias).to.be.an("object");
+    expect(b.retencion).to.be.an("object");
+    expect(b.descuentos).to.be.an("object");
+    expect(b.ventasAtribuidas).to.be.an("object");
+  });
+  test("cerradas ≤ atendidas", () => expect(b.asesorias.cerradas).to.be.at.most(b.asesorias.atendidas));
+}
+
+docs {
+Solo lo del asesor: sus asesorías, sus intentos, sus descuentos y las ventas que
+se le atribuyen (descuento negociado suyo o TELEMARKETING con un ACEPTA suyo).
+}

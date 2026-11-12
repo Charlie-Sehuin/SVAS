@@ -28,6 +28,7 @@ import { PlanesModule } from './modules/planes/planes.module';
 import { PagosModule } from './modules/pagos/pagos.module';
 import { PolizasModule } from './modules/polizas/polizas.module';
 import { CompraModule } from './modules/compra/compra.module';
+import { ReportesModule } from './modules/reportes/reportes.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { CompraModule } from './modules/compra/compra.module';
     PagosModule,
     PolizasModule,
     CompraModule,
+    ReportesModule,
   ],
   controllers: [HealthController],
   providers: [

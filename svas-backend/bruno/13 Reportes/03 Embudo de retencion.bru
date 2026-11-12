@@ -1,0 +1,35 @@
+meta {
+  name: 03 Embudo de retencion
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/admin/reportes/retencion?desde=2026-01-01&hasta=2026-12-31
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("accessToken")) {
+    await bru.runRequest("01 Auth/Login admin");
+  }
+}
+
+tests {
+  const b = res.body;
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("abiertos = convertidos + descartados + en seguimiento", () =>
+    expect(b.convertidos + b.descartados + b.enSeguimiento).to.equal(b.abiertos));
+  test("el embudo no crece", () => {
+    expect(b.conIntentos).to.be.at.most(b.abiertos);
+    expect(b.contactados).to.be.at.most(b.conIntentos);
+    expect(b.aceptaron).to.be.at.most(b.contactados);
+  });
+  test("descartados por motivo suman los descartados", () =>
+    expect(Object.values(b.descartadosPorMotivo).reduce((s, n) => s + n, 0)).to.equal(b.descartados));
+}
+
+docs {
+Cohorte: seguimientos abiertos en el periodo, con su estado actual (OE3).
+}

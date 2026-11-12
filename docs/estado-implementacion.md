@@ -20,12 +20,13 @@
 | Ola 3 · tanda 1 (base de compra + `pagos`) | ✅ hecho; 0033–0034 **aplicadas**; regresión en Bruno 06 y 08 ✅ | en `main` |
 | Ola 3 · tanda 2 (`polizas`) | ✅ hecho y probado en Bruno (11: 01–05) | en `main` |
 | Ola 3 · tanda 3 (`compra`) | ✅ hecho y probado en Bruno (12: 01–16), 0035 **aplicada** | en `main` |
+| Ola 4 · tanda 1 (`reportes` JSON) | ✅ hecho y probado en Bruno (13: 01–12), 0036 **aplicada** | en `main` |
 
-Tests al cierre: **365 unitarios + 70 e2e** en verde (`npm test`, `npm run test:e2e`).
+Tests al cierre: **376 unitarios + 75 e2e** en verde (`npm test`, `npm run test:e2e`).
 El e2e verifica la tabla dorada §17.6 contra los datos reales de Supabase. Los e2e de
 cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públicas (no escriben en la base);
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
-Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos) y 0035 (18 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
+Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos), 0035 (18 casos) y 0036 (16 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
 
 ### Último cierre (2026-11-12): Prueba de Choque, tanda 2 (admin del catálogo)
 
@@ -58,8 +59,12 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
      (compra real del cliente de prueba: pago en 6 cuotas, idempotencia, póliza, subida a Storage y descarga del PDF).
      **Ola 3 cerrada.**
      El rechazo (total terminado en .13) lo cubren las pruebas unitarias.
-2. Ola 4 — medir: reportes (incluye impacto de la Prueba de Choque), PDF de la simulación, clasificador LLM
-   de preocupaciones (opcional) y resumen RN-35 en el mensaje final (`domain/mensajes.ts → mensajeFinal`).
+2. Ola 4 — medir:
+   - Tanda 1 `reportes`: ✅ ventas (canal/aseguradora/plan), retención, descuentos, ★ impacto de la Prueba de Choque
+     y mi desempeño del asesor (JSON); ✅ 0036 probada con rollback (16 casos) y aplicada; ✅ Bruno 13 (01–12).
+   - Tanda 2: PDF del reporte de ventas (`?formato=pdf`), PDF de la simulación y resumen RN-35 en el mensaje final
+     (`domain/mensajes.ts → mensajeFinal`), con su cruce en el reporte de la Prueba de Choque.
+   - Más adelante: clasificador de preocupaciones (palabras clave y, opcional, LLM).
 3. Bruno 07 16–18 cuando exista un seguimiento abierto (el detector corre a cada hora en punto con el backend encendido).
 4. Pendiente sin fecha de §18.10: alerta diaria de planes incompletos o con contenido de más de 180 días.
 
@@ -77,6 +82,19 @@ Migraciones **aplicadas**: 0001 enums · 0002 usuario + `rol_actual()` / `exigir
 0029 RPCs admin de la Prueba de Choque · 0030 contenido de planes · 0031 seed del contenido (§18) · 0032 arreglo: la vista de completitud daba 403 (permiso de `fn_incoherencias_plan`) (**aplicadas** 2026-11-12).
 0033 orden_compra/pago/cuota/poliza + T3/T4 · 0034 RPCs de compra + `actualizar_suma_asegurada` v3 + detector v2 (**aplicadas** 2026-11-12).
 0035 `completar_datos_compra` + `vista_previa_descuento` (**aplicada** 2026-11-12).
+0036 RPCs de reportes (**aplicada** 2026-11-12).
+
+Decisiones propias de Ola 4 tanda 1 (`reportes` y 0036, revisables):
+- Funciones con el rol exigido dentro (no vistas). Periodo en días de Lima, extremos incluidos, máximo 366 días;
+  sin `?desde=&hasta=` el backend usa el mes en curso.
+- Ventas = pólizas emitidas en el periodo con su pago confirmado; aseguradora y plan salen de la copia congelada
+  de la orden (nombre del momento de la venta). `participacion` = % de la prima final.
+- Retención = cohorte de seguimientos abiertos en el periodo, con su estado actual.
+- Descuentos negociados = otorgados en el periodo; "convertido" si su orden terminó en póliza.
+- Prueba de Choque = cotizaciones creadas en el periodo, con su última simulación; además del "plan distinto al
+  más barato" se informa cuántos eligieron el #1 del ranking. `conversionMensajeRn35` = null hasta la tanda 2.
+- Mi desempeño: venta atribuida al asesor si lleva su descuento negociado o es TELEMARKETING con un ACEPTA suyo.
+- Ningún reporte expone el ingreso diario del perfil (RN-36).
 
 Decisiones propias de Ola 3 tanda 3 (`compra` y 0035, revisables):
 - Los datos faltantes (documento y placa) se guardan con `PUT /compras/:cotizacionId/datos`; `POST /compras` envía

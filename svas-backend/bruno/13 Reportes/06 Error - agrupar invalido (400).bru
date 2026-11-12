@@ -1,0 +1,21 @@
+meta {
+  name: 06 Error - agrupar invalido (400)
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/admin/reportes/ventas?agrupar=mes
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("accessToken")) {
+    await bru.runRequest("01 Auth/Login admin");
+  }
+}
+
+tests {
+  test("responde 400", () => expect(res.status).to.equal(400));
+}

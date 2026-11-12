@@ -1,0 +1,27 @@
+meta {
+  name: 02 Ventas por plan con periodo
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/admin/reportes/ventas?desde=2026-11-01&hasta=2026-11-30&agrupar=plan
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("accessToken")) {
+    await bru.runRequest("01 Auth/Login admin");
+  }
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("respeta el periodo", () => {
+    expect(res.body.desde).to.equal("2026-11-01");
+    expect(res.body.hasta).to.equal("2026-11-30");
+  });
+  test("etiqueta Aseguradora · Plan", () =>
+    expect(res.body.grupos.every((g) => g.etiqueta.includes(" · "))).to.equal(true));
+}
