@@ -1,0 +1,43 @@
+meta {
+  name: 08 Error - falta una cobertura (400)
+  type: http
+  seq: 8
+}
+
+put {
+  url: {{baseUrl}}/admin/planes/{{oroId}}/contenido
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  // El contenido de Oro sin la fila de LUNAS: "no cubre" nunca es una ausencia (RN-42).
+  if (!bru.getVar("contenidoOro")) {
+    await bru.runRequest("10 Contenido de planes/04 Contenido admin Oro");
+  }
+  const c = JSON.parse(bru.getVar("contenidoOro"));
+  req.setBody({
+    resumen: c.resumen,
+    descripcion: c.descripcion,
+    idealPara: c.idealPara,
+    coberturas: c.coberturas
+      .filter((x) => x.codigo !== "LUNAS")
+      .map((x) => ({ codigo: x.codigo, incluida: x.incluida, detalle: x.detalle,
+                     limiteMonto: x.limiteMonto === null ? null : Number(x.limiteMonto) })),
+    exclusiones: c.exclusiones,
+    requisitos: c.requisitos,
+  });
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("responde 400", () => expect(res.status).to.equal(400));
+  test("nombra la cobertura que falta", () => expect(res.body.message).to.contain("LUNAS"));
+}
+
+docs {
+  Lo rechaza el backend antes del RPC. No se guarda nada.
+}

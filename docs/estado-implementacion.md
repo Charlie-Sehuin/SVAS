@@ -3,7 +3,7 @@
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
 > `arquitectura-backend-seguro-simple.md` (orden de construcción en §10).
-> Última actualización: 2026-11-12 (Ola 2 parte 2, tanda 2: admin del catálogo de la Prueba de Choque).
+> Última actualización: 2026-11-12 (Ola 2 parte 3: contenido de planes).
 
 ## 1. Dónde estamos
 
@@ -16,13 +16,13 @@
 | Ola 2 · `asesoria-retencion` | ✅ hecho y probado en Bruno (07: 01–15; 16–18 esperan un seguimiento) | en `main` |
 | Ola 2 · `prueba-choque` tanda 1 (motor + endpoints) | ✅ hecho y probado en Bruno (08: 01–09), 0026–0028 **aplicadas** | en `main` |
 | Ola 2 · `prueba-choque` tanda 2 (admin del catálogo) | ✅ hecho y probado en Bruno (09: 01–14), 0029 **aplicada** | en `main` |
-| Ola 2 · contenido de planes (`planes`) | pendiente | — |
+| Ola 2 · contenido de planes (`planes`) | ✅ hecho y probado en Bruno (10: 01–11), 0030–0032 **aplicadas** | en `main` |
 
-Tests al cierre: **264 unitarios + 51 e2e** en verde (`npm test`, `npm run test:e2e`).
+Tests al cierre: **303 unitarios + 62 e2e** en verde (`npm test`, `npm run test:e2e`).
 El e2e verifica la tabla dorada §17.6 contra los datos reales de Supabase. Los e2e de
 cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públicas (no escriben en la base);
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
-Las RPC de 0025 (41 casos), 0028 (15 casos) y 0029 (36 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
+Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos) y 0030–0031 (27 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
 
 ### Último cierre (2026-11-12): Prueba de Choque, tanda 2 (admin del catálogo)
 
@@ -34,7 +34,11 @@ Lo siguiente es la Ola 2 parte 3, contenido de planes (módulo `planes`, migraci
 
 ## 2. Siguiente paso concreto
 
-1. Ola 2 parte 3 · contenido de planes (número > 0029, módulo `planes`); coherente con el seed 0027 (RN-43).
+1. Ola 2 parte 3 (en `feat/planes`): a) ✅ probar 0030+0031 (27 casos);
+   b) ✅ aplicadas 2026-11-12; c) ✅ e2e con lecturas reales; d) ✅ Bruno 10: 01–11;
+   e) ✅ commit, merge `--no-ff` a `main` y subida;
+   f) reescribir el historial para quitar "Co-Authored-By: Claude" de los commits viejos + force push (**autorizado**).
+   Pendiente sin fecha de §18.10: alerta diaria de planes incompletos o con contenido de más de 180 días.
 2. Ola 4: PDF de la simulación, clasificador LLM de preocupaciones y resumen RN-35 en el mensaje final
    (`domain/mensajes.ts → mensajeFinal`).
 3. Bruno 07 16–18 cuando exista un seguimiento abierto (el detector corre a cada hora en punto con el backend encendido).
@@ -53,7 +57,23 @@ Migraciones **aplicadas**: 0001 enums · 0002 usuario + `rol_actual()` / `exigir
 0015 RPCs admin catálogo · 0016 seed catálogo · 0017 seed vehículos/tarifas · 0019 bucket `polizas` · 0022 RPCs usuarios ·
 0023 RPCs tarifas · 0024 seguimiento/intento_contacto/descuento + T2 · 0025 RPCs asesoría y retención ·
 0026 tablas Prueba de Choque · 0027 seed Prueba de Choque · 0028 `registrar_simulacion` + `actualizar_suma_asegurada` v2.
-0029 RPCs admin de la Prueba de Choque (**aplicada** 2026-11-12).
+0029 RPCs admin de la Prueba de Choque · 0030 contenido de planes · 0031 seed del contenido (§18) · 0032 arreglo: la vista de completitud daba 403 (permiso de `fn_incoherencias_plan`) (**aplicadas** 2026-11-12).
+
+Decisiones propias de Ola 2 parte 3 (0030/0031, revisables):
+- Lo que el doc ubicaba en 0020/0021 va en 0030/0031. Las descripciones de las 13 coberturas las propuso Claude.
+- 0031 **alinea la Prueba de Choque con §18.5** (el doc manda): tope de RC de `DANO_TERCEROS` = límite de RC del plan
+  (antes 30 000 / 50 000) y días de reemplazo de Pacífico Premium 15 y La Positiva Full 20 (antes 10 y 7). No cambia
+  ningún resultado del motor hoy (el daño a terceros es 2 500) y deja una fila `ALINEAR_PRUEBA_CHOQUE_CONTENIDO` en la bitácora.
+- RN-43 tiene una sola definición en SQL: `fn_incoherencias_plan` (interna; la usan la vista y los RPC). Un escenario sin
+  fila en `cobertura_plan_escenario` no cuenta como "cubre". En TS solo se validan los errores (RN-42) antes del RPC.
+- `v_plan_contenido_completitud` incluye también los planes inactivos (para revisar antes de activar) y filtra por rol
+  (solo ADMINISTRADOR ve filas). `admin_cambiar_estado_plan` v2 rechaza activar con el detalle de lo que falta.
+- Coberturas del catálogo: `PUT /admin/coberturas/:codigo` crea o reemplaza (el doc decía `POST` + `PUT /:id`), con la
+  lista `escenarios` (cobertura_escenario) y devuelve `planesSinDefinir`.
+- Público: `GET /planes/:planId/contenido` responde 404 si el plan no está activo o aún no tiene `resumen`.
+  El contenido se lee con service_role y se guarda 5 min; lo invalidan el admin del contenido y los cambios de planes o aseguradoras.
+- `resumen` de cada prima en cotizaciones sale de ese mismo caché (puerto `RESUMEN_PLANES`); si falla, queda null y la cotización sigue.
+- `ArmarCopiaContenidoService` (RN-45) queda para la Ola 3, junto con `orden_compra`.
 
 Decisiones propias de Ola 2 parte 2, tanda 2 (0029, revisables):
 - RPC `admin_guardar_escenario(codigo, payload)` (crea o reemplaza; debe quedar ≥ 1 activo) y cargas por lote
@@ -118,6 +138,7 @@ Notas:
 - `modules/administracion`: `/admin/{panel, aseguradoras, planes, campos, reglas-inspeccion, parametros, bitacora}` y
   `/admin/tarifas/{planes, pesos/:tabla, rangos-suma, completitud, simular}`. Guardar tarifas invalida el caché de tarifas.
   `/admin/prueba-choque/{escenarios[/:codigo], coberturas, frecuencias, zonas, factores}` (GET y PUT).
+  `GET|PUT /admin/planes/:planId/contenido`, `GET /admin/coberturas`, `PUT /admin/coberturas/:codigo`, `GET /admin/contenido-planes/completitud`.
 - `modules/cotizacion`: `GET /catalogo/{campos, vehiculos/marcas, …/modelos, …/anios, ubigeos/*}` (públicos),
   `TarifaSupabaseRepository` (service_role, caché 5 min), `CalculadoraPrimasService` (paralelo, timeout 2 s, RF-05), `unirCampos()` (RN-17).
   `/cotizaciones`: `POST` (público, 20/min), `GET :id/resumen` y `PATCH :id/aseguradoras/:aseguradoraId/suma-asegurada`
@@ -129,6 +150,8 @@ Notas:
   Jobs en `application/retencion.jobs.ts` con `@nestjs/schedule` 12.0.2: detector `0 * * * *` y caducidad `0 8 * * *` (America/Lima).
 - `modules/prueba-choque`: `GET /prueba-choque/escenarios?uso=` (público), `POST|GET /cotizaciones/:id/prueba-choque`
   (Bearer o `X-Cotizacion-Token`, POST 20/min).
+- `modules/planes`: `GET /planes/:planId/contenido` y `GET /planes/comparar?ids=` (públicos, máx. 3); exporta
+  `CONTENIDO_PLAN_REPOSITORY` (caché 5 min) y `RESUMEN_PLANES` (lo usa el cotizador).
 - `integracion/estrategias`: `EstrategiaBase` + Rímac, Pacífico, La Positiva, Mapfre, Qualitas (§17.5), con `parametrosSchema` (zod),
   `pesosRequeridos` / `pesosOpcionales`. `NotificadorSimulado` registra en el log (fuera de producción muestra el enlace;
   en producción lo oculta). Resto de adaptadores (pagos, emisión, PDF, clasificador): stubs `NotImplemented`.
@@ -140,7 +163,7 @@ Notas:
 ### Bruno (`svas-backend/bruno/`)
 Credenciales en `bruno/.env` (ignorado). `.env.example` **siempre vacío**. Carpetas: 01 Auth · 02 Salud · 03 Catálogo admin ·
 04 Tarifas admin (incluye simulaciones del caso dorado) · 05 Catálogo público · 06 Cotizaciones (guarda solas
-`cotizacionId`, `tokenAcceso`, `rimacId`) · 07 Asesoría y retención (usa ASESOR_* y CLIENTE_* de `bruno/.env`) · 08 Prueba de choque (anónimo; crea su cotización) · 09 Prueba de choque admin (guarda sin cambiar nada + errores).
+`cotizacionId`, `tokenAcceso`, `rimacId`) · 07 Asesoría y retención (usa ASESOR_* y CLIENTE_* de `bruno/.env`) · 08 Prueba de choque (anónimo; crea su cotización) · 09 Prueba de choque admin (guarda sin cambiar nada + errores) · 10 Contenido de planes (público + admin, sin cambiar nada).
 
 ## 4. Convenciones que hay que respetar
 

@@ -1,0 +1,29 @@
+meta {
+  name: 03 Comparar Plata y Oro (publico)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/planes/comparar?ids={{plataId}},{{oroId}}
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  if (!bru.getVar("oroId") || !bru.getVar("plataId")) {
+    await bru.runRequest("10 Contenido de planes/01 Completitud (admin)");
+  }
+}
+
+tests {
+  const b = res.body || {};
+  const lunas = (b.filas || []).find((f) => f.codigo === "LUNAS") || {};
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("Plata primero, Oro después", () => expect(b.planes.map((p) => p.plan)).to.eql(["Plata", "Oro"]));
+  test("13 filas en el orden del catálogo", () => {
+    expect(b.filas.length).to.equal(13);
+    expect(b.filas[0].codigo).to.equal("DANO_CHOQUE");
+  });
+  test("lunas: Plata ✗, Oro ✓", () => expect(lunas.valores.map((v) => v.incluida)).to.eql([false, true]));
+}

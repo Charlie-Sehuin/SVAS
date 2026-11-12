@@ -1,0 +1,48 @@
+meta {
+  name: 05 Guardar contenido Oro (sin cambio)
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/admin/planes/{{oroId}}/contenido
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  // Reenvía el contenido actual de Rímac Oro: cambio = false, sin bitácora.
+  if (!bru.getVar("contenidoOro")) {
+    await bru.runRequest("10 Contenido de planes/04 Contenido admin Oro");
+  }
+  const c = JSON.parse(bru.getVar("contenidoOro"));
+  req.setBody({
+    resumen: c.resumen,
+    descripcion: c.descripcion,
+    idealPara: c.idealPara,
+    coberturas: c.coberturas.map((x) => ({
+      codigo: x.codigo,
+      incluida: x.incluida,
+      detalle: x.detalle,
+      limiteMonto: x.limiteMonto === null ? null : Number(x.limiteMonto),
+    })),
+    exclusiones: c.exclusiones,
+    requisitos: c.requisitos,
+  });
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("no cambió nada", () => expect(res.body.cambio).to.equal(false));
+  test("sin warning", () => expect(res.body.warning).to.equal(undefined));
+}
+
+docs {
+  PUT reemplaza todo el contenido del plan en una transacción (RN-42: deben
+  venir las 13 coberturas). Si una cobertura contradice a la Prueba de Choque,
+  se guarda igual y vuelve `warning: CONTENIDO_INCOHERENTE` (RN-43).
+}

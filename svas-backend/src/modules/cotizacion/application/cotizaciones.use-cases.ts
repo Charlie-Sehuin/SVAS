@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import Decimal from 'decimal.js';
@@ -33,6 +34,10 @@ import {
   type TarifaRepository,
 } from '../domain/tarifa.repository.port';
 import type { VehiculoCotizable } from '../domain/tarifa.types';
+import {
+  RESUMEN_PLANES,
+  type ResumenPlanes,
+} from '../../planes/domain/contenido-plan.repository.port';
 import { CalculadoraPrimasService } from './calculadora-primas.service';
 
 // ── Respuestas (doc conexión §6, Cotización) ────────────────────────────────
@@ -48,7 +53,7 @@ export interface PrimaDto {
   aseguradora: string;
   planId: string;
   plan: string;
-  /** Frase de venta del plan; null hasta que exista el contenido (0020). */
+  /** Frase de venta del plan (contenido 0030/0031); null si el plan aún no tiene contenido. */
   resumen: string | null;
   disponible: boolean;
   sumaAsegurada: string | null;
@@ -163,6 +168,9 @@ export class CotizarUseCase {
     private readonly catalogo: CatalogoPublicoRepository,
     @Inject(COTIZACION_REPOSITORY) private readonly repo: CotizacionRepository,
     private readonly calculadora: CalculadoraPrimasService,
+    @Optional()
+    @Inject(RESUMEN_PLANES)
+    private readonly resumenes?: ResumenPlanes,
   ) {}
 
   async ejecutar(d: DatosCotizar): Promise<{
@@ -277,6 +285,7 @@ export class CotizarUseCase {
         })),
       )
       .sort(ordenarPrimas);
+    await ponerResumenes(primasDto, this.resumenes);
 
     const sin = aseguradoras
       .filter((a) => !a.planes.some((p) => p.disponible))
@@ -347,6 +356,26 @@ function aPrimaDto(
   };
 }
 
+/**
+ * Completa la frase de venta de cada plan (contenido 0030). Si falla la
+ * lectura, la cotización sigue: el resumen queda null y la tarjeta no ofrece
+ * "Ver detalle" (arquitectura frontend §6.11).
+ */
+export async function ponerResumenes(
+  primas: PrimaDto[],
+  fuente?: ResumenPlanes,
+): Promise<void> {
+  if (!fuente || !primas.length) return;
+  try {
+    const mapa = await fuente.resumenes([
+      ...new Set(primas.map((p) => p.planId)),
+    ]);
+    for (const p of primas) p.resumen = mapa.get(p.planId) ?? null;
+  } catch {
+    // sin resumen: no es motivo para fallar la cotización
+  }
+}
+
 function vehiculoCotizable(cot: CotizacionGuardada): VehiculoCotizable {
   const v = cot.vehiculo;
   return {
@@ -366,6 +395,9 @@ export class ObtenerResumenUseCase {
   constructor(
     @Inject(COTIZACION_REPOSITORY) private readonly repo: CotizacionRepository,
     @Inject(TARIFA_REPOSITORY) private readonly tarifas: TarifaRepository,
+    @Optional()
+    @Inject(RESUMEN_PLANES)
+    private readonly resumenes?: ResumenPlanes,
   ) {}
 
   async ejecutar(
@@ -380,6 +412,7 @@ export class ObtenerResumenUseCase {
         aPrimaDto(p, rangos.get(p.aseguradoraId) ?? null, verDesglose),
       )
       .sort(ordenarPrimas);
+    await ponerResumenes(primas, this.resumenes);
     return {
       cotizacion: {
         id: cot.id,
@@ -415,6 +448,9 @@ export class AjustarSumaUseCase {
   constructor(
     @Inject(COTIZACION_REPOSITORY) private readonly repo: CotizacionRepository,
     private readonly calculadora: CalculadoraPrimasService,
+    @Optional()
+    @Inject(RESUMEN_PLANES)
+    private readonly resumenes?: ResumenPlanes,
   ) {}
 
   async ejecutar(d: {
@@ -496,6 +532,7 @@ export class AjustarSumaUseCase {
         ),
       )
       .sort(ordenarPrimas);
+    await ponerResumenes(primas, this.resumenes);
 
     return {
       primas,

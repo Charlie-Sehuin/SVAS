@@ -1,0 +1,16 @@
+meta {
+  name: 09 Error - comparar 4 planes (400)
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/planes/comparar?ids=6f1c2b1e-8a3d-4c2e-9b7a-1d2e3f4a5b6c,0b5e9c4d-2f1a-4b3c-8d7e-6a5b4c3d2e1f,1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d,2b3c4d5e-6f7a-4b2c-9d3e-4f5a6b7c8d9e
+  body: none
+  auth: none
+}
+
+tests {
+  test("responde 400", () => expect(res.status).to.equal(400));
+  test("máximo 3", () => expect(res.body.message).to.equal("Puedes comparar hasta 3 planes"));
+}

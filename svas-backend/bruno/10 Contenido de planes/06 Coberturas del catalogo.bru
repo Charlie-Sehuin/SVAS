@@ -1,0 +1,26 @@
+meta {
+  name: 06 Coberturas del catalogo
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/admin/coberturas
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const l = (res.body || []).find((c) => c.codigo === "LUNAS");
+  if (l) bru.setVar("coberturaLunas", JSON.stringify(l));
+}
+
+tests {
+  const lista = res.body || [];
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("13 coberturas", () => expect(lista.length).to.be.at.least(13));
+  test("robo parcial ↔ robo de autopartes", () =>
+    expect(lista.find((c) => c.codigo === "ROBO_PARCIAL").escenarios).to.eql(["ROBO_AUTOPARTES"]));
+  test("daño por choque ↔ 3 escenarios", () =>
+    expect(lista.find((c) => c.codigo === "DANO_CHOQUE").escenarios.length).to.equal(3));
+}

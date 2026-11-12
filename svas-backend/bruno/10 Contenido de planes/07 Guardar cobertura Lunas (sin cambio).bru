@@ -1,0 +1,40 @@
+meta {
+  name: 07 Guardar cobertura Lunas (sin cambio)
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/admin/coberturas/LUNAS
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("coberturaLunas")) {
+    await bru.runRequest("10 Contenido de planes/06 Coberturas del catalogo");
+  }
+  const c = JSON.parse(bru.getVar("coberturaLunas"));
+  req.setBody({
+    nombre: c.nombre,
+    categoria: c.categoria,
+    descripcion: c.descripcion,
+    orden: c.orden,
+    activa: c.activa,
+    escenarios: c.escenarios,
+  });
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("ningún plan queda sin definir", () => expect(res.body.planesSinDefinir).to.equal(0));
+}
+
+docs {
+  PUT con un código nuevo crea la cobertura; si es activa, todos los planes
+  activos quedan incompletos hasta definir su fila (`planesSinDefinir`).
+}
