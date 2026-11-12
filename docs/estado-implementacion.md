@@ -1,9 +1,9 @@
-# Estado de la implementación — SVAS / SeguroSimple (backend)
+# Estado de la implementación — SVAS / SeguroSimple
 
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
 > `arquitectura-backend-seguro-simple.md` (orden de construcción en §10).
-> Última actualización: 2026-11-12 (Ola 4, tanda 2: PDF y RN-35).
+> Última actualización: 2026-11-12 (backend: Ola 4 cerrada · frontend: configuración inicial y Ola 0, ver §1b).
 
 ## 1. Dónde estamos
 
@@ -47,6 +47,76 @@ y `tsconfig.build.tsbuildinfo` dejó de estar versionado.
 Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El historial se reescribió el
 2026-11-12 para quitar "Co-Authored-By: Claude" (force push de `main` y `feat/*`; respaldo en
 `svas-respaldo-2026-11-12.bundle`, junto a la carpeta del repo).
+
+## 1b. Frontend (repo `SVAS-frontend`) — dónde estamos
+
+> **El frontend vive en su propio repo**: https://github.com/Charlie-Sehuin/SVAS-frontend (carpeta local
+> `C:\Users\Charlie\Desktop\Office\svas-frontend`, hermana de `svas`). Se separó para que un cambio del frontend
+> nunca dispare un redespliegue del backend en Railway (cada push a `main` de este repo lo redespliega). Los docs
+> del frontend siguen aquí, en `docs/`, porque los comparten ambos lados. Las rutas de código del frontend que
+> aparecen abajo son relativas a la raíz de ese repo (p. ej. `src/shared/lib/tarifas.constants.ts`).
+
+> Sigue `arquitectura-frontend-seguro-simple.md` (§16, orden por olas) y `diseno-visual-seguro-simple.md`
+> (tokens y apariencia; reemplaza §2–4 del de arquitectura).
+
+| Parte | Estado |
+|---|---|
+| Config inicial (§16.1, pasos 1–6) | ✅ hecho el 2026-11-12: Vite 8 + React 18 + TS estricto, Tailwind 4 con los tokens de la guía visual, `shared/lib` (api-client con ky 2, Supabase solo sesión, query-client, query-keys, format), `AuthProvider` + `RoleGuard` + `LoginPage`, `PublicLayout` + `BackofficeLayout` (sidebar por rol), router completo con `<PantallaPendiente>` en las rutas sin construir, componentes de dominio base (`MoneyValue`, `StatusBadge`, `WarningToast`/`ErrorToast`, `RoleGate`, `DemoLegend`), MSW (`/health`, `/catalogo/campos`, `/usuarios/me`) y landing |
+| Config inicial paso 7 (deploy a Vercel) | ⏳ pendiente: `vercel.json` listo; falta crear el proyecto en Vercel y poner `FRONTEND_URL` en Railway |
+| Ola 0 · login + admin (catálogo, parámetros, usuarios, bitácora, tarifas, simulador) | ✅ hecho el 2026-11-12 (ver abajo); login probado contra Railway; las pantallas se probaron con MSW (12 pruebas) y las 13 rutas `/admin/*` existen en Railway (401 sin sesión), pero falta recorrerlas en el navegador con el ADMINISTRADOR |
+| Ola 1 · cotizar + comparativo | ⏳ |
+| Ola 2 · Prueba de Choque, planes, asesoría/retención | ⏳ |
+| Ola 3 · compra + pólizas | ⏳ |
+| Ola 4 · dashboard + reportes | ⏳ |
+
+Verificación al cierre: `npm run typecheck`, `npm run lint` y `npm test` (33 pruebas) en verde; `npm run build` OK.
+JS inicial de la landing ≈ 156 KB gzip (meta < 180 KB, arquitectura §6.2): Supabase y cada pantalla de administración van en chunks aparte y el embudo no los descarga.
+
+Ola 0 construida (`features/administracion/`, rutas en `/app/admin/*`):
+- **Usuarios y roles**: lista con filtros y paginación, crear (la contraseña temporal se muestra una sola vez), cambiar rol y
+  activar/desactivar con confirmación; el administrador no puede desactivarse ni cambiarse el rol a sí mismo.
+- **Aseguradoras y planes**: interruptores de activa/activo, crear y editar planes; si activar un plan responde 400 por
+  contenido incompleto (RN-42) se muestra el mensaje con enlace a `/app/admin/planes/:planId/contenido` (esa pantalla es de la Ola 2).
+- **Campos requeridos**, **Reglas de inspección** (matriz aseguradora × uso), **Parámetros comerciales** y **Bitácora**
+  (filtros por entidad y fechas de Lima, antes/después). Validan en el cliente las mismas reglas que el backend.
+- **Tarifas** (`/app/admin/tarifas/*`): tasa base y parámetros de cada plan (el formulario cambia según la aseguradora),
+  pesos con edición en línea y CSV (descargar y cargar), rangos de suma con filtro por marca y modelo, completitud y
+  **Simulador** con `<DesgloseCalculo>` (RN-41).
+- `/app` del ADMINISTRADOR muestra un panel con los contadores de `GET /admin/panel` y los últimos cambios; el dashboard
+  real es de la Ola 4. El ASESOR sigue viendo la pantalla "pendiente".
+- Reutilizable para la Ola 1: `SelectorVehiculoCascada`, `SelectorUbigeoCascada` y los hooks de `features/cotizacion/hooks/useCatalogo.ts`.
+
+Decisiones propias de la Ola 0 (revisables):
+- El backend no expone qué pesos y parámetros usa cada fórmula: `shared/lib/tarifas.constants.ts` los espeja a mano
+  (pesos requeridos/opcionales y parámetros por aseguradora). Si cambia una Estrategia, hay que cambiarlo ahí. Solo decide qué
+  se muestra; el backend vuelve a validar todo. Cómo mantenerlo: `docs/guia-tarifas-pesos.md`.
+- Pesos y rangos guardan solo las filas que cambiaron y comparan en números (no en texto). El editor conserva lo que se teclea
+  aunque un texto intermedio coincida con el original.
+- Los enums del frontend se sincronizaron con los del backend (`UsoVehiculo` tiene 3 valores, no 4).
+- La lista de entidades de la bitácora es una sugerencia fija; el filtro acepta cualquier nombre en minúsculas.
+- Los rangos de suma se editan en línea; el doc pide CSV solo para pesos, así que no hay carga masiva de rangos.
+
+Decisiones propias del frontend (revisables):
+- Versiones actuales en vez de las del doc donde no cambia la API: Vite 8 (rolldown), Tailwind 4 (tokens en `@theme`
+  dentro de `design-system/tokens/colors.css`; no hay `tailwind.config.ts`), ky 2 (`prefix` en vez de `prefixUrl`),
+  msw 3 (`onUnhandledFrame`), zod 4. React 18, React Router 6 y TanStack Query 5 como pide el doc.
+- Los componentes base estilo shadcn se escribieron a mano (`shared/ui/*`) con las variantes de la guía visual §7
+  (`primary`, `accent`, `secondary`, `outlineNavy`, `ghost`, `destructive`); no se corrió `shadcn init`.
+- `@supabase/supabase-js` se carga con `import()` (solo lo necesita quien inicia sesión).
+- `WarningToast`/`ErrorToast`/`SuccessToast` son funciones sobre sonner (no componentes); `ErrorToast` no se cierra solo
+  y ofrece copiar el `correlationId`.
+- El "despertando el servidor" lo marca el api-client a los 4 s sin respuesta y lo pinta `<WakeUpBanner>` en ambos layouts.
+- El token de la cotización anónima se guarda por `cotizacionId` en sessionStorage y el api-client lo manda solo cuando
+  la URL es `cotizaciones/:id/...` y no hay sesión.
+- Logo y logos de aseguradoras son tipográficos hasta tener los SVG oficiales.
+- Pendiente de decidir (guía visual §17): hex exacto de marca, tipografía (se asumió Lato), `<PromoBanner>` (vacío).
+
+Comandos:
+```powershell
+cd C:\Users\Charlie\Desktop\Office\svas-frontend
+npm run dev          # http://localhost:5173 (el backend local debe tener FRONTEND_URL=http://localhost:5173)
+npm run typecheck; npm run lint; npm test; npm run build
+```
 
 ## 2. Siguiente paso concreto
 
