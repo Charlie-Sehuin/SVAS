@@ -1,0 +1,32 @@
+meta {
+  name: 17 Detalle del seguimiento
+  type: http
+  seq: 17
+}
+
+get {
+  url: {{baseUrl}}/seguimientos/{{seguimientoId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{asesorToken}}
+}
+
+script:post-response {
+  if (res.status === 200) bru.setVar("canalSeguimiento", res.body.cliente.canalPreferido);
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("trae los límites de RN-10", () => {
+    expect(res.body.maxIntentos).to.be.a("number");
+    expect(res.body.diasSeguimiento).to.be.a("number");
+  });
+  test("nunca trae el token del enlace", () => expect(JSON.stringify(res.body)).to.not.match(/enlace/i));
+}
+
+docs {
+  Necesita que 16 haya encontrado algún seguimiento.
+}

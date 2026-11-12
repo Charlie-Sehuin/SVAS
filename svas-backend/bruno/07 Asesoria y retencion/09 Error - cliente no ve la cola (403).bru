@@ -1,0 +1,19 @@
+meta {
+  name: 09 Error - cliente no ve la cola (403)
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/asesorias/cola
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+tests {
+  test("responde 403", () => expect(res.status).to.equal(403));
+}

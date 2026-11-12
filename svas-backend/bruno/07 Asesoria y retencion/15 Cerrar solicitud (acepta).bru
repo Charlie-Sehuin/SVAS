@@ -1,0 +1,30 @@
+meta {
+  name: 15 Cerrar solicitud (acepta)
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/asesorias/{{solicitudId}}/resultado
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{asesorToken}}
+}
+
+body:json {
+  {
+    "resultado": "El cliente acepta el 8 % y comprará hoy",
+    "acepta": true
+  }
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("CERRADA y acepta", () => {
+    expect(res.body.estado).to.equal("CERRADA");
+    expect(res.body.acepta).to.equal(true);
+  });
+}

@@ -76,6 +76,15 @@ describe('resolverError', () => {
       });
     });
 
+    it('PT409 (conflicto del RPC) → 409 con el mensaje del RPC', () => {
+      expect(pg('PT409', 'La solicitud ya fue tomada por otro asesor')).toEqual(
+        {
+          statusCode: 409,
+          message: 'La solicitud ya fue tomada por otro asesor',
+        },
+      );
+    });
+
     it.each([
       ['42501', 403],
       ['23505', 409],

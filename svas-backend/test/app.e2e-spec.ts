@@ -296,4 +296,36 @@ describe('App (e2e)', () => {
       http()[metodo](ruta).expect(401),
     );
   });
+
+  describe('asesoría y retención (sin escribir en la base)', () => {
+    const ID = '00000000-0000-4000-8000-000000000000';
+
+    it.each([
+      ['post', '/api/v1/asesorias'],
+      ['get', '/api/v1/asesorias/cola'],
+      ['get', `/api/v1/asesorias/${ID}`],
+      ['post', `/api/v1/asesorias/${ID}/tomar`],
+      ['post', `/api/v1/asesorias/${ID}/descuentos`],
+      ['post', `/api/v1/asesorias/${ID}/resultado`],
+      ['get', '/api/v1/seguimientos'],
+      ['get', `/api/v1/seguimientos/${ID}`],
+      ['post', `/api/v1/seguimientos/${ID}/intentos`],
+      ['post', `/api/v1/seguimientos/${ID}/aceptacion`],
+      ['post', `/api/v1/seguimientos/${ID}/cierre`],
+    ] as const)('%s %s sin token → 401', (metodo, ruta) =>
+      http()[metodo](ruta).expect(401),
+    );
+
+    it('GET /retoma/:token mal formado → 404 sin llegar a la base', async () => {
+      const res = await http().get('/api/v1/retoma/no-es-un-token').expect(404);
+      expect(res.body).toMatchObject({ message: 'Este enlace no es válido' });
+    });
+
+    it('GET /retoma/:token con formato válido pero inexistente → 404 (RPC 6.11)', async () => {
+      const res = await http()
+        .get(`/api/v1/retoma/${'A'.repeat(43)}`)
+        .expect(404);
+      expect(res.body).toMatchObject({ message: 'Este enlace no es válido' });
+    });
+  });
 });

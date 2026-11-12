@@ -1,0 +1,29 @@
+meta {
+  name: 01 Crear asesor (una sola vez)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/admin/usuarios
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "{{process.env.ASESOR_EMAIL}}",
+    "nombreCompleto": "Asesor de Prueba",
+    "rol": "ASESOR"
+  }
+}
+
+tests {
+  test("crea el asesor (201) o ya existía (409)", () => expect([201, 409]).to.include(res.status));
+}
+
+docs {
+  Usa el token del admin (ejecuta antes 01 Auth / Login admin).
+  SOLO LA PRIMERA VEZ: copia `contrasenaTemporal` de la respuesta en `bruno/.env`
+  como ASESOR_PASSWORD. Si responde 409, el asesor ya existe: no hagas nada.
+}

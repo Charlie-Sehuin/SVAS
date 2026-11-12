@@ -1,11 +1,9 @@
-import { NotImplementedException } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { Logger, NotImplementedException } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import Decimal from 'decimal.js';
-import {
-  NOTIFICADOR_MENSAJES,
-  type NotificadorMensajes,
-} from '../modules/asesoria-retencion/domain/notificador-mensajes.port';
+import type { Env } from '../config/env.validation';
+import { NOTIFICADOR_MENSAJES } from '../modules/asesoria-retencion/domain/notificador-mensajes.port';
 import {
   CODIGOS_ESTRATEGIA,
   REGISTRO_ESTRATEGIAS,
@@ -30,6 +28,10 @@ import {
 import { ClasificadorLlmAdapter } from './clasificador/clasificador-llm.adapter';
 import { ClasificadorPalabrasClaveAdapter } from './clasificador/clasificador-palabras-clave.adapter';
 import { IntegracionModule } from './integracion.module';
+import {
+  NotificadorSimuladoAdapter,
+  ocultarEnlaces,
+} from './mensajes/notificador-simulado.adapter';
 
 async function compilar(env: Record<string, string> = {}) {
   return Test.createTestingModule({
@@ -93,16 +95,54 @@ describe('IntegracionModule', () => {
           .generarPoliza({ polizaId: 'p', numeroPoliza: 'n', datos: {} }),
       () =>
         m
-          .get<NotificadorMensajes>(NOTIFICADOR_MENSAJES)
-          .enviar({ canal: 'WHATSAPP', destinatario: 'x', texto: 't' }),
-      () =>
-        m
           .get<ClasificadorPreocupaciones>(CLASIFICADOR_PREOCUPACIONES)
           .clasificar('texto'),
     ];
     for (const llamar of llamadas) {
       expect(llamar).toThrow(NotImplementedException);
     }
+  });
+
+  describe('NotificadorSimulado', () => {
+    const texto = 'Hola Ana, retoma aquí: http://x/retoma/AbC-12_xyz';
+    const enviar = async (nodeEnv: string) => {
+      const log = jest
+        .spyOn(Logger.prototype, 'log')
+        .mockImplementation(() => undefined);
+      const config = { get: () => nodeEnv } as unknown as ConfigService<
+        Env,
+        true
+      >;
+      const r = await new NotificadorSimuladoAdapter(config).enviar({
+        canal: 'WHATSAPP',
+        destinatario: '987654321',
+        texto,
+      });
+      const linea = String(log.mock.calls[0]?.[0]);
+      log.mockRestore();
+      return { r, linea };
+    };
+
+    it('no envía: registra con el teléfono enmascarado y devuelve una referencia', async () => {
+      const { r, linea } = await enviar('development');
+      expect(r.enviado).toBe(true);
+      expect(r.referencia).toMatch(/^SIM-/);
+      expect(linea).toContain('****4321');
+      expect(linea).not.toContain('987654321');
+      expect(linea).toContain('/retoma/AbC-12_xyz');
+    });
+
+    it('en producción oculta el token del enlace', async () => {
+      const { linea } = await enviar('production');
+      expect(linea).toContain('/retoma/***');
+      expect(linea).not.toContain('AbC-12_xyz');
+    });
+
+    it('ocultarEnlaces no toca el resto del texto', () => {
+      expect(ocultarEnlaces(texto)).toBe(
+        'Hola Ana, retoma aquí: http://x/retoma/***',
+      );
+    });
   });
 
   it('usa el clasificador por palabras clave por defecto y el LLM solo con el flag', async () => {

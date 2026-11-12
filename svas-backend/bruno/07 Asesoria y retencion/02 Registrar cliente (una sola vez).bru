@@ -1,0 +1,30 @@
+meta {
+  name: 02 Registrar cliente (una sola vez)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/auth/registro
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "nombres": "Cliente",
+    "apellidos": "Prueba",
+    "email": "{{process.env.CLIENTE_EMAIL}}",
+    "password": "{{process.env.CLIENTE_PASSWORD}}",
+    "telefono": "900000002"
+  }
+}
+
+tests {
+  test("crea la cuenta (201) o ya existía (409)", () => expect([201, 409]).to.include(res.status));
+}
+
+docs {
+  Crea la cuenta CLIENTE con CLIENTE_EMAIL y CLIENTE_PASSWORD de `bruno/.env`.
+  Las siguientes veces responde 409 (ya existe): es normal.
+}

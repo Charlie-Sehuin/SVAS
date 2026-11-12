@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { CommonModule } from './common/common.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -21,6 +22,7 @@ import { IntegracionModule } from './integracion/integracion.module';
 import { SeguridadModule } from './modules/seguridad/seguridad.module';
 import { AdministracionModule } from './modules/administracion/administracion.module';
 import { CotizacionModule } from './modules/cotizacion/cotizacion.module';
+import { AsesoriaRetencionModule } from './modules/asesoria-retencion/asesoria-retencion.module';
 
 @Module({
   imports: [
@@ -32,12 +34,15 @@ import { CotizacionModule } from './modules/cotizacion/cotizacion.module';
       errorMessage:
         'Demasiadas solicitudes. Espera un momento e intenta de nuevo.',
     }),
+    // Jobs del detector de abandono y la caducidad de seguimientos (§11).
+    ScheduleModule.forRoot(),
     DatabaseModule,
     CommonModule,
     IntegracionModule,
     SeguridadModule,
     AdministracionModule,
     CotizacionModule,
+    AsesoriaRetencionModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -1,0 +1,27 @@
+meta {
+  name: 10 Cola de asesoria
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/asesorias/cola
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{asesorToken}}
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  const mia = (res.body || []).find((s) => s.id === bru.getVar("solicitudId")) || {};
+  test("la solicitud está en la cola", () => expect(mia.estado).to.equal("PENDIENTE"));
+  test("teléfono enmascarado en la lista", () => expect(mia.cliente.telefono).to.equal("****0002"));
+  test("SISTEMA antes que CLIENTE (RN-13)", () => {
+    const origenes = res.body.map((s) => s.origen);
+    const primerCliente = origenes.indexOf("CLIENTE");
+    expect(primerCliente === -1 || !origenes.slice(primerCliente).includes("SISTEMA")).to.equal(true);
+  });
+}

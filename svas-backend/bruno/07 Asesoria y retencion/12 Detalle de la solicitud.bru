@@ -1,0 +1,28 @@
+meta {
+  name: 12 Detalle de la solicitud
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/asesorias/{{solicitudId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{asesorToken}}
+}
+
+script:post-response {
+  const p = ((res.body || {}).primas || []).find((x) => x.disponible);
+  if (p) bru.setVar("planDescuentoId", p.planId);
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("asignada a mí", () => expect(res.body.asignadoAMi).to.equal(true));
+  test("teléfono completo en el caso asignado", () => expect(res.body.cliente.telefono).to.equal("900000002"));
+  test("trae el tope de descuento", () => expect(res.body.descuentoMaximo).to.match(/^\d+\.\d{2}$/));
+  test("10 primas", () => expect(res.body.primas.length).to.equal(10));
+}
