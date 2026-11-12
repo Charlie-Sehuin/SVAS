@@ -1,0 +1,29 @@
+meta {
+  name: 10 Resumen en PDF
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/cotizaciones/{{cotChoqueId}}/prueba-choque/pdf
+  body: none
+  auth: none
+}
+
+headers {
+  X-Cotizacion-Token: {{tokenChoque}}
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("es un PDF", () => expect(res.headers["content-type"]).to.include("application/pdf"));
+  test("se descarga como adjunto", () =>
+    expect(res.headers["content-disposition"]).to.include('filename="prueba-de-choque.pdf"'));
+  test("no se cachea", () => expect(res.headers["cache-control"]).to.include("no-store"));
+}
+
+docs {
+  Resumen de 1 página de la última simulación (RF-26): ranking, zona, contraste
+  RN-35 y la leyenda RN-29. Sin datos del perfil (RN-36). Tras 05 sale marcada
+  como desactualizada (RN-37) y sin contraste.
+}

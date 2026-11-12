@@ -1,7 +1,7 @@
 /**
  * Textos de los mensajes al cliente (contexto §8.5, RN-12). Funciones puras.
- * Pendiente (Ola 2.2): el mensaje final suma el resumen de la Prueba de
- * Choque (RN-35) cuando la cotización tenga una simulación.
+ * El mensaje final suma la frase de contraste de la Prueba de Choque (RN-35)
+ * cuando la cotización tiene una simulación vigente.
  */
 
 /** Token de retoma: 32 bytes en base64url (lo genera el RPC). */
@@ -23,10 +23,15 @@ export function mensajeEnlaceCompra(nombres: string, url: string): string {
   );
 }
 
-/** Al cerrar como DESCARTADO: un único mensaje final con el enlace de retoma. */
-export function mensajeFinal(nombres: string, url: string): string {
+/** Al cerrar como DESCARTADO: un único mensaje final con el enlace de retoma (+ RN-35). */
+export function mensajeFinal(
+  nombres: string,
+  url: string,
+  contraste: string | null = null,
+): string {
   return (
     `Hola ${primerNombre(nombres)}, gracias por cotizar con nosotros. ` +
+    (contraste ? `Un dato de tu Prueba de Choque: ${contraste} ` : '') +
     `Si más adelante quieres asegurar tu vehículo, retoma tu cotización aquí ` +
     `y obtén un descuento de primera compra: ${url} (es de un solo uso).`
   );

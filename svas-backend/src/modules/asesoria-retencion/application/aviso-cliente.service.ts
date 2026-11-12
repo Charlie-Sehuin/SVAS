@@ -11,6 +11,7 @@ import {
   NOTIFICADOR_MENSAJES,
   type NotificadorMensajes,
 } from '../domain/notificador-mensajes.port';
+import { GenerarResumenRetencionUseCase } from './generar-resumen-retencion.use-case';
 
 /** El cambio ya quedó guardado; solo falló el mensaje (doc conexión §9). */
 export interface WarningMensaje {
@@ -36,6 +37,7 @@ export class AvisoClienteService {
     @Inject(NOTIFICADOR_MENSAJES)
     private readonly notificador: NotificadorMensajes,
     config: ConfigService<Env, true>,
+    private readonly resumen: GenerarResumenRetencionUseCase,
   ) {
     this.frontendUrl = config.get('FRONTEND_URL', { infer: true });
   }
@@ -46,10 +48,14 @@ export class AvisoClienteService {
   ): Promise<WarningMensaje | undefined> {
     if (!aviso.enlaceToken) return undefined;
     const url = urlRetoma(this.frontendUrl, aviso.enlaceToken);
+    const contraste =
+      tipo === 'MENSAJE_FINAL'
+        ? await this.resumen.frase(aviso.cotizacionId)
+        : null;
     const texto =
       tipo === 'ENLACE_COMPRA'
         ? mensajeEnlaceCompra(aviso.nombres, url)
-        : mensajeFinal(aviso.nombres, url);
+        : mensajeFinal(aviso.nombres, url, contraste);
     try {
       // Los dos canales (LLAMADA y WHATSAPP) llegan al celular.
       const r = await this.notificador.enviar({
@@ -57,7 +63,15 @@ export class AvisoClienteService {
         destinatario: aviso.telefono,
         texto,
       });
-      if (r.enviado) return undefined;
+      if (r.enviado) {
+        if (tipo === 'MENSAJE_FINAL') {
+          await this.resumen.registrarEnvio(
+            aviso.seguimientoId,
+            contraste !== null,
+          );
+        }
+        return undefined;
+      }
     } catch (e) {
       this.logger.error(
         `Falló el notificador (seguimiento ${aviso.seguimientoId}): ${(e as Error).message}`,

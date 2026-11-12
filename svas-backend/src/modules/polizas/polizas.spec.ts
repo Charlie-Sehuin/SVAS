@@ -42,6 +42,8 @@ const generador = (falla = false): jest.Mocked<GeneradorPdf> => ({
   generarPoliza: falla
     ? jest.fn().mockRejectedValue(new Error('PDFKit falló'))
     : jest.fn().mockResolvedValue(PDF),
+  generarSimulacion: jest.fn(),
+  generarReporteVentas: jest.fn(),
 });
 
 describe('polizas · dominio', () => {

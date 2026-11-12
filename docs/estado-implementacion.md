@@ -3,7 +3,7 @@
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
 > `arquitectura-backend-seguro-simple.md` (orden de construcción en §10).
-> Última actualización: 2026-11-12 (Ola 3, tanda 2: pólizas).
+> Última actualización: 2026-11-12 (Ola 4, tanda 2: PDF y RN-35).
 
 ## 1. Dónde estamos
 
@@ -21,14 +21,24 @@
 | Ola 3 · tanda 2 (`polizas`) | ✅ hecho y probado en Bruno (11: 01–05) | en `main` |
 | Ola 3 · tanda 3 (`compra`) | ✅ hecho y probado en Bruno (12: 01–16), 0035 **aplicada** | en `main` |
 | Ola 4 · tanda 1 (`reportes` JSON) | ✅ hecho y probado en Bruno (13: 01–12), 0036 **aplicada** | en `main` |
+| Ola 4 · tanda 2 (PDF + RN-35) | ✅ hecho y probado en Bruno (08/10, 13/05, 13/13), 0037 **aplicada** | en `main` |
 
-Tests al cierre: **376 unitarios + 75 e2e** en verde (`npm test`, `npm run test:e2e`).
+Tests al cierre: **390 unitarios + 78 e2e** en verde (`npm test`, `npm run test:e2e`).
 El e2e verifica la tabla dorada §17.6 contra los datos reales de Supabase. Los e2e de
 cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públicas (no escriben en la base);
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
-Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos), 0035 (18 casos) y 0036 (16 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
+Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos), 0035 (18 casos), 0036 (16 casos) y 0037 (8 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
 
-### Último cierre (2026-11-12): Prueba de Choque, tanda 2 (admin del catálogo)
+### Último cierre (2026-11-12): Ola 4, tanda 2 (PDF + RN-35)
+
+`feat/reportes-pdf` mergeada en `main` (`--no-ff`) y subida. 0037 se probó con `begin … rollback` (8 casos) y se
+aplicó. Bruno en verde: 08/10 (Resumen en PDF; requiere correr antes 02 y 03 para `cotChoqueId`/`tokenChoque`),
+13/05 (ya trae `conversionMensajeRn35`; en 0 hasta que salga un mensaje final real) y 13/13 (Ventas en PDF).
+
+Recordatorio: borrar el repo `svas-viejo` y los respaldos `svas-respaldo-2026-11-12*.bundle`
+(todavía tienen la contraseña filtrada).
+
+### Cierre anterior (2026-11-12): Prueba de Choque, tanda 2 (admin del catálogo)
 
 `feat/prueba-choque-admin` ya está mergeada en `main` (`--no-ff`) y subida. 0029 se probó con `begin … rollback`
 (36 casos) y se aplicó; Bruno 09 pasó de la 01 a la 14. `coverage/` y `*.tsbuildinfo` ahora están en el `.gitignore`
@@ -62,8 +72,10 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
 2. Ola 4 — medir:
    - Tanda 1 `reportes`: ✅ ventas (canal/aseguradora/plan), retención, descuentos, ★ impacto de la Prueba de Choque
      y mi desempeño del asesor (JSON); ✅ 0036 probada con rollback (16 casos) y aplicada; ✅ Bruno 13 (01–12).
-   - Tanda 2: PDF del reporte de ventas (`?formato=pdf`), PDF de la simulación y resumen RN-35 en el mensaje final
-     (`domain/mensajes.ts → mensajeFinal`), con su cruce en el reporte de la Prueba de Choque.
+   - Tanda 2: ✅ PDF del reporte de ventas (`?formato=pdf`), ✅ PDF de la simulación
+     (`GET /cotizaciones/:id/prueba-choque/pdf`), ✅ frase RN-35 en el mensaje final y su cruce en el reporte
+     de la Prueba de Choque (`conversionMensajeRn35`); ✅ 0037 probada con rollback (8 casos) y aplicada;
+     ✅ Bruno 08/10, 13/05 y 13/13.
    - Más adelante: clasificador de preocupaciones (palabras clave y, opcional, LLM).
 3. Bruno 07 16–18 cuando exista un seguimiento abierto (el detector corre a cada hora en punto con el backend encendido).
 4. Pendiente sin fecha de §18.10: alerta diaria de planes incompletos o con contenido de más de 180 días.
@@ -83,6 +95,19 @@ Migraciones **aplicadas**: 0001 enums · 0002 usuario + `rol_actual()` / `exigir
 0033 orden_compra/pago/cuota/poliza + T3/T4 · 0034 RPCs de compra + `actualizar_suma_asegurada` v3 + detector v2 (**aplicadas** 2026-11-12).
 0035 `completar_datos_compra` + `vista_previa_descuento` (**aplicada** 2026-11-12).
 0036 RPCs de reportes (**aplicada** 2026-11-12).
+0037 `seguimiento.mensaje_final_en/_rn35` + `registrar_mensaje_final` + `reporte_prueba_choque` v2 (**aplicada** 2026-11-12).
+
+Decisiones propias de Ola 4 tanda 2 (PDF, RN-35 y 0037, revisables):
+- Frase RN-35: de la última simulación **vigente** con 2+ planes. Plan más barato = menor prima (CRA − esperado,
+  empate por ranking); se elige el escenario y el otro plan con la mayor diferencia de desembolso a favor del otro
+  (sin contar escenarios sin dato). Si el barato nunca sale peor, no hay frase.
+- La frase se arma al enviar; si falla, el mensaje sale igual sin ella. Solo se registra (`registrar_mensaje_final`,
+  service_role) cuando el notificador confirma el envío; reenviar reemplaza el registro.
+- `conversionMensajeRn35` = seguimientos de la cohorte del reporte con mensaje final enviado, con y sin frase;
+  "compra" = la cotización terminó CONVERTIDA.
+- PDF de la simulación: 1 página con ranking, zona, contraste y leyenda RN-29; sin datos del perfil (RN-36).
+  Mismo acceso que la simulación (JWT del dueño o `X-Cotizacion-Token`).
+- PDF solo para ventas (RF-30); los demás reportes siguen en JSON.
 
 Decisiones propias de Ola 4 tanda 1 (`reportes` y 0036, revisables):
 - Funciones con el rol exigido dentro (no vistas). Periodo en días de Lima, extremos incluidos, máximo 366 días;
@@ -92,7 +117,7 @@ Decisiones propias de Ola 4 tanda 1 (`reportes` y 0036, revisables):
 - Retención = cohorte de seguimientos abiertos en el periodo, con su estado actual.
 - Descuentos negociados = otorgados en el periodo; "convertido" si su orden terminó en póliza.
 - Prueba de Choque = cotizaciones creadas en el periodo, con su última simulación; además del "plan distinto al
-  más barato" se informa cuántos eligieron el #1 del ranking. `conversionMensajeRn35` = null hasta la tanda 2.
+  más barato" se informa cuántos eligieron el #1 del ranking.
 - Mi desempeño: venta atribuida al asesor si lleva su descuento negociado o es TELEMARKETING con un ACEPTA suyo.
 - Ningún reporte expone el ingreso diario del perfil (RN-36).
 

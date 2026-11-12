@@ -1,5 +1,6 @@
 import Decimal from 'decimal.js';
 import { aJson } from '../../../common/utils/money.util';
+import { esperadoPorPlan } from '../domain/contraste';
 import { LEYENDA_SIMULACION } from '../domain/motor-simulacion';
 import type { SimulacionGuardada } from '../domain/prueba-choque.repository.port';
 
@@ -15,16 +16,7 @@ export interface WarningSimulacion {
  * prima de la cotización haya cambiado después (simulación no vigente).
  */
 export function armarRespuesta(s: SimulacionGuardada) {
-  const esperado = new Map<string, Decimal>();
-  for (const r of s.resultados) {
-    if (r.sinDato) continue;
-    esperado.set(
-      r.primaCotizadaId,
-      (esperado.get(r.primaCotizadaId) ?? new Decimal(0)).plus(
-        r.probabilidad.times(r.desembolso),
-      ),
-    );
-  }
+  const esperado = esperadoPorPlan(s);
 
   const planes = [...s.planes].sort((a, b) => a.ranking - b.ranking);
   const orden = new Map(planes.map((p, i) => [p.primaCotizadaId, i]));
@@ -43,9 +35,7 @@ export function armarRespuesta(s: SimulacionGuardada) {
     vigente: s.vigente,
     fecha: s.fecha,
     ranking: planes.map((p) => {
-      const esp = (
-        esperado.get(p.primaCotizadaId) ?? new Decimal(0)
-      ).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+      const esp = esperado.get(p.primaCotizadaId) ?? new Decimal(0);
       return {
         primaCotizadaId: p.primaCotizadaId,
         aseguradora: p.aseguradora,

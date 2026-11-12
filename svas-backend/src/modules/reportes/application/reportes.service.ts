@@ -1,5 +1,10 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import {
+  type DatosVentasPdf,
+  GENERADOR_PDF,
+  type GeneradorPdf,
+} from '../../polizas/domain/generador-pdf.port';
+import {
   type AgruparVentas,
   type Periodo,
   resolverPeriodo,
@@ -19,10 +24,27 @@ export interface ConsultaPeriodo {
 export class ReportesService {
   constructor(
     @Inject(REPORTES_REPOSITORY) private readonly repo: ReportesRepository,
+    @Inject(GENERADOR_PDF) private readonly pdf: GeneradorPdf,
   ) {}
 
   ventas(token: string, q: ConsultaPeriodo & { agrupar?: AgruparVentas }) {
     return this.repo.ventas(token, this.periodo(q), q.agrupar ?? 'canal');
+  }
+
+  /** ?formato=pdf: el mismo reporte dibujado (RF-30). */
+  async ventasPdf(
+    token: string,
+    q: ConsultaPeriodo & { agrupar?: AgruparVentas },
+  ): Promise<{ pdf: Buffer; nombreArchivo: string }> {
+    const r = (await this.ventas(token, q)) as unknown as Omit<
+      DatosVentasPdf,
+      'generadoEn'
+    >;
+    const pdf = await this.pdf.generarReporteVentas({
+      ...r,
+      generadoEn: new Date().toISOString(),
+    });
+    return { pdf, nombreArchivo: `ventas-${r.desde}-a-${r.hasta}.pdf` };
   }
 
   retencion(token: string, q: ConsultaPeriodo) {

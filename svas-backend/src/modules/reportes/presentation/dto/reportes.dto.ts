@@ -23,4 +23,9 @@ export class VentasQueryDto extends PeriodoQueryDto {
   @IsOptional()
   @IsIn(AGRUPAR_VENTAS, { message: 'Agrupa por canal, aseguradora o plan' })
   agrupar?: AgruparVentas;
+
+  /** Solo ventas tiene PDF (contexto §10). */
+  @IsOptional()
+  @IsIn(['json', 'pdf'], { message: 'El formato debe ser json o pdf' })
+  formato?: 'json' | 'pdf';
 }

@@ -18,6 +18,8 @@ import {
   type EmisionAseguradora,
 } from '../modules/polizas/domain/emision-aseguradora.port';
 import {
+  type DatosSimulacionPdf,
+  type DatosVentasPdf,
   GENERADOR_PDF,
   type GeneradorPdf,
 } from '../modules/polizas/domain/generador-pdf.port';
@@ -216,6 +218,98 @@ describe('IntegracionModule', () => {
         (_, i) => `Exclusión de prueba número ${i + 1}`,
       );
       expect(paginas(await generar(largo))).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  describe('PdfkitGenerador · simulación y reporte de ventas', () => {
+    const paginas = (pdf: Buffer) =>
+      Number(/\/Type \/Pages\n\/Count (\d+)/.exec(pdf.toString('latin1'))?.[1]);
+    const utf16be = (s: string) =>
+      Buffer.from(s, 'utf16le').swap16().toString('latin1');
+    /** GUARDAR_PDF=<carpeta> guarda las muestras para revisarlas a ojo. */
+    const guardar = async (nombre: string, pdf: Buffer) => {
+      const dir = process.env.GUARDAR_PDF;
+      if (!dir) return;
+      const { writeFile } = await import('node:fs/promises');
+      await writeFile(`${dir}/${nombre}`, pdf);
+    };
+    const generador = async () =>
+      (await compilar()).get<GeneradorPdf>(GENERADOR_PDF);
+
+    const simulacion: DatosSimulacionPdf = {
+      fecha: '2026-11-12T15:00:00Z',
+      zona: 'ALTA',
+      vigente: true,
+      ranking: Array.from({ length: 10 }, (_, i) => ({
+        posicion: i + 1,
+        aseguradora: ['Rímac', 'Pacífico', 'La Positiva', 'Mapfre', 'Qualitas'][
+          i % 5
+        ]!,
+        plan: ['Oro', 'Premium', 'Full', 'Total', 'Amplia'][i % 5]!,
+        prima: (600 + i * 25).toFixed(2),
+        desembolsoEsperado: (90 + i * 10).toFixed(2),
+        costoRealAnual: (690 + i * 35).toFixed(2),
+        peorCaso: (1500 + i * 100).toFixed(2),
+        datosCompletos: i !== 9,
+      })),
+      contraste:
+        'Con el plan más barato (Rímac Plata) pagarías USD 1,200.00 de tu bolsillo en un caso de robo de autopartes; con Pacífico Premium, USD 150.00.',
+      leyenda:
+        'Estimación referencial basada en condiciones resumidas. Prevalece el condicionado de la aseguradora.',
+    };
+
+    it('el resumen de la simulación cabe en 1 página con 10 planes y lleva la leyenda RN-29', async () => {
+      const pdf = await (await generador()).generarSimulacion(simulacion);
+      await guardar('muestra-simulacion.pdf', pdf);
+      expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+      expect(paginas(pdf)).toBe(1);
+      expect(pdf.toString('latin1')).toContain(
+        utf16be('Estimación referencial'),
+      );
+    });
+
+    it('el reporte de ventas se genera con y sin ventas', async () => {
+      const g = await generador();
+      const ventas: DatosVentasPdf = {
+        desde: '2026-11-01',
+        hasta: '2026-11-30',
+        agrupar: 'plan',
+        generadoEn: '2026-11-12T15:00:00Z',
+        totales: {
+          polizas: 2,
+          enCuotas: 1,
+          primaAnual: '1321.38',
+          descuentos: '66.07',
+          primaFinal: '1255.31',
+          cobrado: '1284.83',
+          ticketPromedio: '627.66',
+        },
+        grupos: [
+          {
+            etiqueta: 'Rímac · Oro',
+            polizas: 1,
+            enCuotas: 0,
+            primaFinal: '665.00',
+            cobrado: '665.00',
+            ticketPromedio: '665.00',
+            participacion: '52.97',
+          },
+          {
+            etiqueta: 'La Positiva · Full',
+            polizas: 1,
+            enCuotas: 1,
+            primaFinal: '590.31',
+            cobrado: '619.83',
+            ticketPromedio: '590.31',
+            participacion: '47.03',
+          },
+        ],
+      };
+      const pdf = await g.generarReporteVentas(ventas);
+      await guardar('muestra-ventas.pdf', pdf);
+      expect(paginas(pdf)).toBe(1);
+      const vacio = await g.generarReporteVentas({ ...ventas, grupos: [] });
+      expect(vacio.subarray(0, 5).toString('latin1')).toBe('%PDF-');
     });
   });
 

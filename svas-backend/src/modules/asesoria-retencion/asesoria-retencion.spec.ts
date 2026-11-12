@@ -10,6 +10,7 @@ import {
   AvisoClienteService,
   WARNING_MENSAJE_NO_ENVIADO,
 } from './application/aviso-cliente.service';
+import type { GenerarResumenRetencionUseCase } from './application/generar-resumen-retencion.use-case';
 import { RetencionJobs } from './application/retencion.jobs';
 import { RetomaService } from './application/retoma.service';
 import { SeguimientosService } from './application/seguimientos.service';
@@ -105,6 +106,7 @@ function repoFalso(): jest.Mocked<AsesoriaRepository> {
     detectarAbandonadas: jest.fn(),
     caducarSeguimientos: jest.fn(),
     resolverRetoma: jest.fn(),
+    registrarMensajeFinal: jest.fn(),
   };
 }
 
@@ -179,12 +181,23 @@ describe('vistas del contacto (doc conexión §5)', () => {
   });
 });
 
+/** Resumen RN-35 falso: sin simulación salvo que se indique la frase. */
+function sinResumen(frase: string | null = null) {
+  return {
+    frase: jest.fn().mockResolvedValue(frase),
+    registrarEnvio: jest.fn().mockResolvedValue(undefined),
+  } as unknown as GenerarResumenRetencionUseCase & {
+    frase: jest.Mock;
+    registrarEnvio: jest.Mock;
+  };
+}
+
 // ── AvisoClienteService ─────────────────────────────────────────────────────
 describe('AvisoClienteService', () => {
   it('sin enlace no envía nada', async () => {
     const { notificador, enviar } = notificadorFalso();
     expect(
-      await new AvisoClienteService(notificador, config).enviar(
+      await new AvisoClienteService(notificador, config, sinResumen()).enviar(
         cierre(null),
         'MENSAJE_FINAL',
       ),
@@ -194,15 +207,69 @@ describe('AvisoClienteService', () => {
 
   it('envía al teléfono por el canal preferido con el enlace de retoma', async () => {
     const { notificador, enviar } = notificadorFalso();
-    const r = await new AvisoClienteService(notificador, config).enviar(
-      cierre(TOKEN),
-      'MENSAJE_FINAL',
-    );
+    const r = await new AvisoClienteService(
+      notificador,
+      config,
+      sinResumen(),
+    ).enviar(cierre(TOKEN), 'MENSAJE_FINAL');
     expect(r).toBeUndefined();
     const arg = enviar.mock.calls[0]![0];
     expect(arg.canal).toBe('WHATSAPP');
     expect(arg.destinatario).toBe('987654321');
     expect(arg.texto).toContain(`http://localhost:5173/retoma/${TOKEN}`);
+  });
+
+  it('RN-35: el mensaje final lleva la frase de contraste y se registra', async () => {
+    const { notificador, enviar } = notificadorFalso();
+    const resumen = sinResumen('Con el plan más barato pagarías USD 300.00.');
+    await new AvisoClienteService(notificador, config, resumen).enviar(
+      cierre(TOKEN),
+      'MENSAJE_FINAL',
+    );
+    expect(enviar.mock.calls[0]![0].texto).toContain(
+      'Un dato de tu Prueba de Choque: Con el plan más barato pagarías USD 300.00.',
+    );
+    expect(resumen.registrarEnvio).toHaveBeenCalledWith(
+      cierre(TOKEN).seguimientoId,
+      true,
+    );
+  });
+
+  it('sin simulación: el mensaje de siempre, registrado sin RN-35', async () => {
+    const { notificador, enviar } = notificadorFalso();
+    const resumen = sinResumen();
+    await new AvisoClienteService(notificador, config, resumen).enviar(
+      cierre(TOKEN),
+      'MENSAJE_FINAL',
+    );
+    expect(enviar.mock.calls[0]![0].texto).not.toContain('Prueba de Choque');
+    expect(resumen.registrarEnvio).toHaveBeenCalledWith(
+      cierre(TOKEN).seguimientoId,
+      false,
+    );
+  });
+
+  it('el enlace de compra no busca resumen ni registra mensaje final', async () => {
+    const { notificador } = notificadorFalso();
+    const resumen = sinResumen('x');
+    await new AvisoClienteService(notificador, config, resumen).enviar(
+      cierre(TOKEN),
+      'ENLACE_COMPRA',
+    );
+    expect(resumen.frase).not.toHaveBeenCalled();
+    expect(resumen.registrarEnvio).not.toHaveBeenCalled();
+  });
+
+  it('si el mensaje no sale, no se registra', async () => {
+    const { notificador } = notificadorFalso(() =>
+      Promise.resolve({ enviado: false }),
+    );
+    const resumen = sinResumen('x');
+    await new AvisoClienteService(notificador, config, resumen).enviar(
+      cierre(TOKEN),
+      'MENSAJE_FINAL',
+    );
+    expect(resumen.registrarEnvio).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -213,7 +280,7 @@ describe('AvisoClienteService', () => {
       impl as NotificadorMensajes['enviar'],
     );
     await expect(
-      new AvisoClienteService(notificador, config).enviar(
+      new AvisoClienteService(notificador, config, sinResumen()).enviar(
         cierre(TOKEN),
         'ENLACE_COMPRA',
       ),
@@ -274,7 +341,7 @@ describe('SeguimientosService', () => {
     const { notificador, enviar } = notificadorFalso(impl);
     const svc = new SeguimientosService(
       repo,
-      new AvisoClienteService(notificador, config),
+      new AvisoClienteService(notificador, config, sinResumen()),
     );
     return { repo, enviar, svc };
   };
@@ -375,7 +442,7 @@ describe('RetencionJobs', () => {
     await expect(
       new RetencionJobs(
         repo,
-        new AvisoClienteService(notificador, config),
+        new AvisoClienteService(notificador, config, sinResumen()),
       ).detectarAbandono(),
     ).resolves.toBe(0);
   });
@@ -395,7 +462,7 @@ describe('RetencionJobs', () => {
     );
     const r = await new RetencionJobs(
       repo,
-      new AvisoClienteService(notificador, config),
+      new AvisoClienteService(notificador, config, sinResumen()),
     ).caducarSeguimientos();
     expect(r).toEqual({ cerrados: 3, sinMensaje: 1 });
     expect(enviar).toHaveBeenCalledTimes(3);
