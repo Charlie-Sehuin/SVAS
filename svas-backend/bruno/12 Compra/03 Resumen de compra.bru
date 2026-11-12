@@ -1,0 +1,44 @@
+meta {
+  name: 03 Resumen de compra
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/compras/resumen?cotizacionId={{cotCompraId}}&primaCotizadaId={{primaCompraId}}
+  body: none
+  auth: bearer
+}
+
+params:query {
+  cotizacionId: {{cotCompraId}}
+  primaCotizadaId: {{primaCompraId}}
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+tests {
+  const b = res.body;
+  const n = (v) => Number(v);
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("prima anual = la cotizada", () => expect(b.primaAnual).to.equal(bru.getVar("primaCompraValor")));
+  test("prima final = anual × (1 − descuento)", () => {
+    const pct = b.descuento ? n(b.descuento.porcentaje) : 0;
+    expect(n(b.primaFinal)).to.be.closeTo(n(b.primaAnual) * (1 - pct / 100), 0.006);
+  });
+  test("al contado se paga la prima final", () => expect(b.pago.UNICO.total).to.equal(b.primaFinal));
+  test("en cuotas: total ≥ prima final y cuota = total / n", () => {
+    const c = b.pago.CUOTAS;
+    expect(n(c.total)).to.be.at.least(n(b.primaFinal));
+    expect(n(c.cuotaMensual)).to.be.closeTo(n(c.total) / c.numeroCuotas, 0.006);
+  });
+  test("aún sin orden", () => expect(b.ordenId).to.equal(null));
+}
+
+docs {
+  Montos que el frontend solo muestra (RN-38). El descuento es la vista previa
+  de las reglas de crear_orden_compra; `provisional: true` si el cliente aún no
+  dio su documento.
+}

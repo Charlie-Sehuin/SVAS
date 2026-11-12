@@ -19,12 +19,13 @@
 | Ola 2 · contenido de planes (`planes`) | ✅ hecho y probado en Bruno (10: 01–11), 0030–0032 **aplicadas** | en `main` |
 | Ola 3 · tanda 1 (base de compra + `pagos`) | ✅ hecho; 0033–0034 **aplicadas**; regresión en Bruno 06 y 08 ✅ | en `main` |
 | Ola 3 · tanda 2 (`polizas`) | ✅ hecho y probado en Bruno (11: 01–05) | en `main` |
+| Ola 3 · tanda 3 (`compra`) | ✅ hecho y probado en Bruno (12: 01–16), 0035 **aplicada** | en `main` |
 
-Tests al cierre: **343 unitarios + 64 e2e** en verde (`npm test`, `npm run test:e2e`).
+Tests al cierre: **365 unitarios + 70 e2e** en verde (`npm test`, `npm run test:e2e`).
 El e2e verifica la tabla dorada §17.6 contra los datos reales de Supabase. Los e2e de
 cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públicas (no escriben en la base);
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
-Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos) y 0033–0034 (25 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
+Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos) y 0035 (18 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
 
 ### Último cierre (2026-11-12): Prueba de Choque, tanda 2 (admin del catálogo)
 
@@ -51,11 +52,12 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
      Decisiones: el backend entrega el archivo (doc conexión §7) en vez de una URL firmada; `GeneradorPdf`
      solo dibuja (devuelve Buffer) y el repositorio sube a Storage con la clave `<id>.pdf` dentro del
      bucket `polizas`; si el PDF falta al descargar, se intenta generar una vez antes de responder 202.
-   - Tanda 3 `compra`: resumen, campos faltantes, datos, `POST /compras` (con `ArmarCopiaContenidoService`,
-     RN-45), `POST /compras/:id/pago` (+ `Idempotency-Key`; existe `@nestjs/idempotency`), estado;
-     Bruno 12 con el flujo completo (incluido el rechazo con un total terminado en .13). Al pagar,
-     `compra` llama a `EmitirPdfService.intentar()` (exportado por `PolizasModule`) y, si falla, responde
-     201 con `PDF_EN_GENERACION`.
+   - Tanda 3 `compra`: ✅ resumen, campos faltantes, datos, `POST /compras` (con `ArmarCopiaContenidoService`,
+     RN-45), `POST /compras/:id/pago` (+ `Idempotency-Key`), estado; ✅ 22 pruebas unitarias + 6 e2e (401);
+     ✅ 0035 probada con rollback (18 casos) y aplicada; ✅ Bruno 12 (01–16) con el flujo completo en producción
+     (compra real del cliente de prueba: pago en 6 cuotas, idempotencia, póliza, subida a Storage y descarga del PDF).
+     **Ola 3 cerrada.**
+     El rechazo (total terminado en .13) lo cubren las pruebas unitarias.
 2. Ola 4 — medir: reportes (incluye impacto de la Prueba de Choque), PDF de la simulación, clasificador LLM
    de preocupaciones (opcional) y resumen RN-35 en el mensaje final (`domain/mensajes.ts → mensajeFinal`).
 3. Bruno 07 16–18 cuando exista un seguimiento abierto (el detector corre a cada hora en punto con el backend encendido).
@@ -74,6 +76,24 @@ Migraciones **aplicadas**: 0001 enums · 0002 usuario + `rol_actual()` / `exigir
 0026 tablas Prueba de Choque · 0027 seed Prueba de Choque · 0028 `registrar_simulacion` + `actualizar_suma_asegurada` v2.
 0029 RPCs admin de la Prueba de Choque · 0030 contenido de planes · 0031 seed del contenido (§18) · 0032 arreglo: la vista de completitud daba 403 (permiso de `fn_incoherencias_plan`) (**aplicadas** 2026-11-12).
 0033 orden_compra/pago/cuota/poliza + T3/T4 · 0034 RPCs de compra + `actualizar_suma_asegurada` v3 + detector v2 (**aplicadas** 2026-11-12).
+0035 `completar_datos_compra` + `vista_previa_descuento` (**aplicada** 2026-11-12).
+
+Decisiones propias de Ola 3 tanda 3 (`compra` y 0035, revisables):
+- Los datos faltantes (documento y placa) se guardan con `PUT /compras/:cotizacionId/datos`; `POST /compras` envía
+  `p_datos_faltantes = null`. Un dato ya guardado no se cambia (400) y, creada la orden, quedan fijos (409).
+  El documento vuelve enmascarado.
+- `GET /compras/resumen` muestra el descuento con `vista_previa_descuento` (mismas reglas que `crear_orden_compra`;
+  si se cambia una, hay que cambiar la otra) con `provisional: true` si el cliente aún no dio su documento.
+  Si ya hay orden, usa sus montos congelados; si la orden es de otro plan, 409. `pago.CUOTAS` usa `max_cuotas`
+  (leído con service_role: `parametros_comerciales` no es visible para CLIENTE) y añade `pago.maxCuotas`.
+- `ArmarCopiaContenidoService` (en `planes`) lee el contenido sin caché y responde 409 `CONTENIDO_PLAN_INCOMPLETO`.
+- `POST /compras` y `GET /compras/:id/estado` devuelven la misma vista de la orden (`estado` PENDIENTE_PAGO o
+  CONFIRMADO, montos, pago confirmado con cuotas, `pagosRechazados`, póliza y `contenidoPlan`).
+- Idempotencia de `POST /compras/:id/pago` sin `@nestjs/idempotency` ni memoria: se cobra con la clave (la pasarela
+  devuelve la misma referencia) y, si la orden ya tiene un pago con esa referencia, se responde lo mismo (201 o el
+  mismo 400). Carreras: PT409/23505 en `confirmar_compra` → se relee la orden. **Limitación**: con una pasarela real,
+  otra clave sobre una orden ya pagada llegaría a cobrar antes del 409; al conectarla, guardar la clave en `pago`.
+- `Idempotency-Key` obligatoria: 8 a 100 caracteres `[A-Za-z0-9_.:-]`.
 
 Decisiones propias de Ola 3 tanda 1 (0033/0034, revisables):
 - Lo que el doc ubicaba en 0010/0013 va en 0033/0034.

@@ -1,0 +1,29 @@
+meta {
+  name: 11 Reintento con la misma clave
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/compras/{{ordenCompraId}}/pago
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+headers {
+  Idempotency-Key: {{claveCompra}}
+}
+
+body:json {
+  { "modo": "CUOTAS", "numeroCuotas": 6 }
+}
+
+tests {
+  test("responde 201", () => expect(res.status).to.equal(201));
+  test("misma respuesta que la primera vez (sin cobrar de nuevo)", () =>
+    expect(res.body.compra).to.eql(JSON.parse(bru.getVar("respuestaPago"))));
+}

@@ -1,0 +1,52 @@
+meta {
+  name: 01 Cotizar para compra
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/cotizaciones
+  body: json
+  auth: none
+}
+
+script:pre-request {
+  if (!bru.getVar("corollaId") || !bru.getVar("toyotaId")) {
+    await bru.runRequest("05 Catalogo publico/Marcas");
+    await bru.runRequest("05 Catalogo publico/Modelos Toyota");
+  }
+}
+
+body:json {
+  {
+    "vehiculo": { "uso": "PARTICULAR", "marcaId": "{{toyotaId}}", "modeloId": "{{corollaId}}", "anio": 2022, "clase": null },
+    "ubicacion": { "ubigeo": "150122" },
+    "contacto": { "nombres": "Cliente", "apellidos": "Prueba", "telefono": "900000003",
+                  "email": "prueba.compra@example.com", "canalPreferido": "WHATSAPP" }
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    const primas = res.body.cotizacion.primas.filter((p) => p.disponible && p.resumen);
+    // La Positiva Full: tiene recargo por cuotas (RN-38). Si no está, el primer plan con contenido.
+    const elegida = primas.find((p) => p.aseguradora === "La Positiva" && p.plan === "Full") || primas[0];
+    bru.setVar("cotCompraId", res.body.cotizacion.id);
+    bru.setVar("tokenCompra", res.body.tokenAcceso);
+    bru.setVar("primaCompraId", elegida ? elegida.id : "");
+    bru.setVar("primaCompraValor", elegida ? elegida.prima : "");
+  }
+}
+
+tests {
+  test("responde 201", () => expect(res.status).to.equal(201));
+  test("permite compra inmediata (RN-01)", () => expect(res.body.cotizacion.opciones).to.include("COMPRA_INMEDIATA"));
+  test("hay un plan con contenido para comprar", () => expect(bru.getVar("primaCompraId")).to.not.equal(""));
+}
+
+docs {
+  Cotización anónima nueva para la compra. OJO: toda la carpeta 12 escribe en
+  producción: cotización, documento y placa del cliente de prueba, orden, pago,
+  cuotas, póliza y su PDF en Storage. Tras la primera compra, el cliente ya no
+  tiene descuento de primera compra (RN-08); las pruebas lo toleran.
+}

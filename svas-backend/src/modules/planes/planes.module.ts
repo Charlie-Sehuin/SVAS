@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ArmarCopiaContenidoService } from './application/armar-copia-contenido.service';
 import { PlanesService } from './application/planes.service';
 import {
   CONTENIDO_PLAN_REPOSITORY,
@@ -22,7 +23,13 @@ import { PlanesController } from './presentation/planes.controller';
     },
     { provide: RESUMEN_PLANES, useExisting: ContenidoPlanSupabaseRepository },
     PlanesService,
+    ArmarCopiaContenidoService,
   ],
-  exports: [CONTENIDO_PLAN_REPOSITORY, RESUMEN_PLANES],
+  exports: [
+    CONTENIDO_PLAN_REPOSITORY,
+    RESUMEN_PLANES,
+    // compra congela el contenido del plan en la orden (RN-45).
+    ArmarCopiaContenidoService,
+  ],
 })
 export class PlanesModule {}

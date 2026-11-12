@@ -1,0 +1,28 @@
+meta {
+  name: 12 Error - pagar de nuevo con otra clave (409)
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/compras/{{ordenCompraId}}/pago
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+headers {
+  Idempotency-Key: otra-clave-{{claveCompra}}
+}
+
+body:json {
+  { "modo": "UNICO" }
+}
+
+tests {
+  test("responde 409", () => expect(res.status).to.equal(409));
+  test("ya está pagada", () => expect(res.body.message).to.include("ya está pagada"));
+}

@@ -1,0 +1,35 @@
+meta {
+  name: 05 Completar datos
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/compras/{{cotCompraId}}/datos
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+body:json {
+  {}
+}
+
+script:pre-request {
+  // Envía solo lo que falta. Valores al azar: el documento queda guardado en producción.
+  const faltan = (bru.getVar("camposCompra") || "placa").split(",");
+  const azar = (n) => String(Math.floor(Math.random() * 10 ** n)).padStart(n, "0");
+  const body = {};
+  if (faltan.includes("numeroDocumento")) body.numeroDocumento = "7" + azar(7);
+  if (faltan.includes("placa")) body.placa = "BRU-" + azar(3);
+  req.setBody(body);
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("ya no falta nada", () => expect(res.body.camposFaltantes).to.eql([]));
+  test("el documento vuelve enmascarado", () => expect(res.body.numeroDocumento).to.match(/^\*\*\*\*/));
+}

@@ -1,0 +1,57 @@
+meta {
+  name: 10 Pagar en 6 cuotas
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/compras/{{ordenCompraId}}/pago
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+headers {
+  Idempotency-Key: {{claveCompra}}
+}
+
+body:json {
+  { "modo": "CUOTAS", "numeroCuotas": 6 }
+}
+
+script:pre-request {
+  // Una clave nueva por compra; 11 la repite para probar la idempotencia.
+  bru.setVar("claveCompra", "bruno-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8));
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("polizaCompraId", res.body.compra.polizaId);
+    bru.setVar("respuestaPago", JSON.stringify(res.body.compra));
+  }
+}
+
+tests {
+  const c = res.body.compra || {};
+  test("responde 201", () => expect(res.status).to.equal(201));
+  test("confirmada con póliza", () => {
+    expect(c.estado).to.equal("CONFIRMADO");
+    expect(c.numeroPoliza).to.match(/^[A-Z]{3}-\d{4}-[0-9A-F]{8}$/);
+  });
+  test("6 cuotas que suman el total (RN-38)", () => {
+    expect(c.cuotas.length).to.equal(6);
+    const suma = c.cuotas.reduce((s, q) => s + Number(q.monto), 0);
+    expect(suma).to.be.closeTo(Number(c.montoTotal), 0.001);
+  });
+  test("la 1ª cuota se cobra hoy", () => expect(c.cuotas[0].estado).to.equal("CONFIRMADO"));
+}
+
+docs {
+  Cobra (pasarela simulada), emite (número PREFIJO-AÑO-8 hex), confirma todo o
+  nada y genera el PDF. Si el PDF falla: 201 con warning PDF_EN_GENERACION.
+  El rechazo (total terminado en .13) no se puede forzar aquí: lo cubren las
+  pruebas unitarias.
+}

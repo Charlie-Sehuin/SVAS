@@ -1,0 +1,44 @@
+meta {
+  name: 07 Crear orden
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/compras
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+body:json {
+  {
+    "cotizacionId": "{{cotCompraId}}",
+    "primaCotizadaId": "{{primaCompraId}}",
+    "aceptaCondiciones": true,
+    "firmaSimulada": "Cliente Prueba"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) bru.setVar("ordenCompraId", res.body.ordenId);
+}
+
+tests {
+  test("responde 201", () => expect(res.status).to.equal(201));
+  test("pendiente de pago", () => expect(res.body.estado).to.equal("PENDIENTE_PAGO"));
+  test("canal autónomo (RN-27)", () => expect(res.body.canalVenta).to.equal("AUTONOMO"));
+  test("copia del plan congelada (RN-45)", () => expect(res.body.contenidoPlan.congeladoEn).to.be.a("string"));
+  test("sin pago ni póliza aún", () => {
+    expect(res.body.pago).to.equal(null);
+    expect(res.body.poliza).to.equal(null);
+  });
+}
+
+docs {
+  El backend arma la copia del contenido del plan; el RPC decide el descuento
+  (primera compra o ninguno) y el canal.
+}
