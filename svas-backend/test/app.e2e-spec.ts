@@ -315,6 +315,17 @@ describe('App (e2e)', () => {
     );
   });
 
+  describe('pólizas (sin escribir en la base)', () => {
+    const ID = '00000000-0000-4000-8000-000000000000';
+
+    it.each([
+      ['get', '/api/v1/polizas/mias'],
+      ['get', `/api/v1/polizas/${ID}/pdf`],
+    ] as const)('%s %s sin token → 401', (metodo, ruta) =>
+      http()[metodo](ruta).expect(401),
+    );
+  });
+
   describe('asesoría y retención (sin escribir en la base)', () => {
     const ID = '00000000-0000-4000-8000-000000000000';
 

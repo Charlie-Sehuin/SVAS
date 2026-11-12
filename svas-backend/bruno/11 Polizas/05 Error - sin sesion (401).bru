@@ -1,0 +1,15 @@
+meta {
+  name: 05 Error - sin sesion (401)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/polizas/mias
+  body: none
+  auth: none
+}
+
+tests {
+  test("responde 401", () => expect(res.status).to.equal(401));
+}

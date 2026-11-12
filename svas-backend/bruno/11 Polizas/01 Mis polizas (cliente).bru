@@ -1,0 +1,34 @@
+meta {
+  name: 01 Mis polizas (cliente)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/polizas/mias
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+script:pre-request {
+  // Inicia sesión como cliente si todavía no hay token en esta sesión.
+  if (!bru.getVar("clienteToken")) {
+    await bru.runRequest("07 Asesoria y retencion/04 Login cliente");
+  }
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("devuelve una lista", () => expect(Array.isArray(res.body)).to.equal(true));
+  test("cada póliza trae su contenido congelado", () =>
+    expect(res.body.every((p) => p.contenidoPlan && p.contenidoPlan.congeladoEn)).to.equal(true));
+}
+
+docs {
+  Hoy devuelve [] (aún no hay compras). Con compras, cada póliza trae
+  `pdfDisponible` y `contenidoPlan` (lo que contrató, RN-45).
+}

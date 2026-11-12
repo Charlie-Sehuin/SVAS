@@ -1,0 +1,30 @@
+meta {
+  name: 02 Error - poliza inexistente (404)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/polizas/00000000-0000-4000-8000-000000000000/pdf
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar("clienteToken")) {
+    await bru.runRequest("07 Asesoria y retencion/04 Login cliente");
+  }
+}
+
+tests {
+  test("responde 404", () => expect(res.status).to.equal(404));
+  test("mensaje", () => expect(res.body.message).to.equal("La póliza no existe"));
+}
+
+docs {
+  Una póliza ajena responde igual (404): no se distingue, para no filtrar que existe.
+}
