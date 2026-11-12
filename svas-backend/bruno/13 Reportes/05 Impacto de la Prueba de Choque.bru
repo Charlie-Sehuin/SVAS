@@ -23,10 +23,17 @@ tests {
   test("con + sin simulación = cotizaciones", () =>
     expect(b.conversion.conSimulacion.cotizaciones + b.conversion.sinSimulacion.cotizaciones).to.equal(b.cotizaciones));
   test("preocupaciones por segmento y zona", () => expect(Array.isArray(b.preocupaciones)).to.equal(true));
-  test("RN-35 aún sin datos", () => expect(b.conversionMensajeRn35).to.equal(null));
+  test("RN-35: con y sin la frase de contraste", () => {
+    for (const k of ["conRn35", "sinRn35"]) {
+      const g = b.conversionMensajeRn35[k];
+      expect(g.compras).to.be.at.most(g.mensajes);
+      expect(g.tasa === null || typeof g.tasa === "string").to.equal(true);
+    }
+  });
   test("nunca expone el ingreso (RN-36)", () => expect(JSON.stringify(b)).to.not.include("ingreso"));
 }
 
 docs {
-★ Métricas de §16.7. La última (mensaje final con RN-35) llega en la tanda 2.
+★ Métricas de §16.7. conversionMensajeRn35 cruza los mensajes finales enviados
+con y sin la frase de contraste de la Prueba de Choque (RN-35) contra las compras.
 }

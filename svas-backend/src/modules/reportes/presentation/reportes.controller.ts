@@ -1,4 +1,5 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Res, StreamableFile } from '@nestjs/common';
+import type { Response } from 'express';
 import { AccessToken } from '../../../common/decorators/access-token.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { ReportesService } from '../application/reportes.service';
@@ -10,9 +11,21 @@ import { PeriodoQueryDto, VentasQueryDto } from './dto/reportes.dto';
 export class AdminReportesController {
   constructor(private readonly reportes: ReportesService) {}
 
+  /** JSON; con ?formato=pdf, el archivo para descargar. */
   @Get('ventas')
-  ventas(@AccessToken() token: string, @Query() q: VentasQueryDto) {
-    return this.reportes.ventas(token, q);
+  async ventas(
+    @AccessToken() token: string,
+    @Query() q: VentasQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (q.formato !== 'pdf') return this.reportes.ventas(token, q);
+    const { pdf, nombreArchivo } = await this.reportes.ventasPdf(token, q);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${nombreArchivo}"`,
+      'Cache-Control': 'private, no-store',
+    });
+    return new StreamableFile(pdf);
   }
 
   @Get('retencion')

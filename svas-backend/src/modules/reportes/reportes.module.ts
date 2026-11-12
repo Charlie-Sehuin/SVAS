@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { IntegracionModule } from '../../integracion/integracion.module';
 import { ReportesService } from './application/reportes.service';
 import { REPORTES_REPOSITORY } from './domain/reportes.repository.port';
 import { ReportesSupabaseRepository } from './infrastructure/reportes-supabase.repository';
@@ -9,6 +10,7 @@ import {
 
 /** Ola 4: reportes de solo lectura sobre las RPC de 0036. */
 @Module({
+  imports: [IntegracionModule],
   controllers: [AdminReportesController, AsesorReportesController],
   providers: [
     { provide: REPORTES_REPOSITORY, useClass: ReportesSupabaseRepository },

@@ -476,6 +476,13 @@ export class AsesoriaSupabaseRepository implements AsesoriaRepository {
     return r.map(aCierre);
   }
 
+  async registrarMensajeFinal(seguimientoId: string, incluyeRn35: boolean) {
+    await llamarRpc(this.servicio, 'registrar_mensaje_final', {
+      p_seguimiento_id: seguimientoId,
+      p_incluye_rn35: incluyeRn35,
+    });
+  }
+
   async resolverRetoma(tokenHash: string, nuevoTokenHash: string) {
     const r = await llamarRpc<{
       cotizacion_id: string;

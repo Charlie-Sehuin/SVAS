@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { IntegracionModule } from '../../integracion/integracion.module';
 import { CotizacionModule } from '../cotizacion/cotizacion.module';
 import { PruebaChoqueService } from './application/prueba-choque.service';
+import { ResumenSimulacionPdfService } from './application/resumen-pdf.service';
 import { PRUEBA_CHOQUE_REPOSITORY } from './domain/prueba-choque.repository.port';
 import { PruebaChoqueSupabaseRepository } from './infrastructure/prueba-choque-supabase.repository';
 import {
@@ -10,7 +12,7 @@ import {
 
 /** Ola 2 ★: motor de simulación de siniestros (0026/0027/0028). */
 @Module({
-  imports: [CotizacionModule],
+  imports: [CotizacionModule, IntegracionModule],
   controllers: [PruebaChoqueController, CotizacionPruebaChoqueController],
   providers: [
     {
@@ -18,6 +20,7 @@ import {
       useClass: PruebaChoqueSupabaseRepository,
     },
     PruebaChoqueService,
+    ResumenSimulacionPdfService,
   ],
   exports: [PRUEBA_CHOQUE_REPOSITORY],
 })

@@ -55,7 +55,12 @@ describe('reportes · ReportesService', () => {
     pruebaChoque: jest.fn().mockResolvedValue({}),
     miDesempeno: jest.fn().mockResolvedValue({}),
   };
-  const servicio = new ReportesService(repo);
+  const generarReporteVentas = jest.fn().mockResolvedValue(Buffer.from('%PDF'));
+  const servicio = new ReportesService(repo, {
+    generarPoliza: jest.fn(),
+    generarSimulacion: jest.fn(),
+    generarReporteVentas,
+  });
   const periodo = { desde: '2026-10-01', hasta: '2026-10-31' };
 
   beforeEach(() => jest.clearAllMocks());
@@ -80,6 +85,22 @@ describe('reportes · ReportesService', () => {
     ]) {
       expect(f).toHaveBeenCalledWith('jwt', periodo);
     }
+  });
+
+  it('ventas en PDF: dibuja el mismo reporte y nombra el archivo por periodo', async () => {
+    repo.ventas.mockResolvedValueOnce({
+      desde: '2026-10-01',
+      hasta: '2026-10-31',
+      grupos: [],
+    });
+    const r = await servicio.ventasPdf('jwt', periodo);
+    expect(r.nombreArchivo).toBe('ventas-2026-10-01-a-2026-10-31.pdf');
+    expect(generarReporteVentas).toHaveBeenCalledWith(
+      expect.objectContaining({
+        desde: '2026-10-01',
+        generadoEn: expect.any(String),
+      }),
+    );
   });
 
   it('periodo inválido → 400 sin llamar a la base', () => {

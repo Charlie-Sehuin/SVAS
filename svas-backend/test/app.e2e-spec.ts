@@ -329,6 +329,7 @@ describe('App (e2e)', () => {
   describe('reportes (sin escribir en la base)', () => {
     it.each([
       ['get', '/api/v1/admin/reportes/ventas'],
+      ['get', '/api/v1/admin/reportes/ventas?formato=pdf'],
       ['get', '/api/v1/admin/reportes/retencion'],
       ['get', '/api/v1/admin/reportes/descuentos'],
       ['get', '/api/v1/admin/reportes/prueba-choque'],
@@ -479,9 +480,16 @@ describe('App (e2e)', () => {
     it.each([
       ['post', `/api/v1/cotizaciones/${ID}/prueba-choque`],
       ['get', `/api/v1/cotizaciones/${ID}/prueba-choque`],
+      ['get', `/api/v1/cotizaciones/${ID}/prueba-choque/pdf`],
     ] as const)('%s %s sin JWT ni token → 401', (metodo, ruta) =>
       http()[metodo](ruta).expect(401),
     );
+
+    it('GET …/prueba-choque/pdf con token de otra cotización → 403', () =>
+      http()
+        .get(`/api/v1/cotizaciones/${ID}/prueba-choque/pdf`)
+        .set('X-Cotizacion-Token', 'token-inventado')
+        .expect(403));
 
     it('POST …/prueba-choque con token de otra cotización → 403', () =>
       http()

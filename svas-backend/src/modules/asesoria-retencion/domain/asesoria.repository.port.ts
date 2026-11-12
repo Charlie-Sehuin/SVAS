@@ -190,6 +190,11 @@ export interface AsesoriaRepository {
   detectarAbandonadas(): Promise<number>;
   /** Cierra los vencidos (service_role) y devuelve a quién avisar. */
   caducarSeguimientos(): Promise<CierreSeguimiento[]>;
+  /** 0037 (service_role): el mensaje final salió; si llevó la frase RN-35 (reporte §16.7). */
+  registrarMensajeFinal(
+    seguimientoId: string,
+    incluyeRn35: boolean,
+  ): Promise<void>;
   /** RPC 6.11 (service_role): un solo uso; reemplaza el token de acceso de la cotización. */
   resolverRetoma(
     tokenHash: string,
