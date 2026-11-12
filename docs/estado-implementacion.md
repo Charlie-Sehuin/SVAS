@@ -77,7 +77,7 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
 | Ola 3 · compra + pólizas | ⏳ |
 | Ola 4 · dashboard + reportes | ⏳ |
 
-Verificación al cierre: `npm run typecheck`, `npm run lint` y `npm test` (33 pruebas) en verde; `npm run build` OK.
+Verificación al cierre: `npm run typecheck`, `npm run lint` y `npm test` (81 pruebas, incluida la guardia de contraste del modo claro y oscuro) en verde; `npm run build` OK.
 JS inicial de la landing ≈ 156 KB gzip (meta < 180 KB, arquitectura §6.2): Supabase y cada pantalla de administración van en chunks aparte y el embudo no los descarga.
 
 Ola 0 construida (`features/administracion/`, rutas en `/app/admin/*`):
@@ -118,6 +118,8 @@ Decisiones propias del frontend (revisables):
   la URL es `cotizaciones/:id/...` y no hay sesión.
 - Logo y logos de aseguradoras son tipográficos hasta tener los SVG oficiales.
 - Pendiente de decidir (guía visual §17): hex exacto de marca, tipografía (se asumió Lato), `<PromoBanner>` (vacío).
+- Editar la fórmula de una aseguradora desde el frontend **no existe** (RN-40: la fórmula es código). El diseño propuesto
+  para hacerlo, con sus reglas de seguridad y un plan por tandas, está en `propuesta-editar-formulas-desde-frontend.md`.
 
 Comandos:
 ```powershell

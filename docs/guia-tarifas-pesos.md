@@ -17,6 +17,8 @@
 - **Cambiar valores** (un peso, una tasa, un rango) → pantalla del administrador. **No se toca código.**
 - **Cambiar la forma** (qué pesos usa una aseguradora, qué parámetros tiene un plan, una aseguradora nueva)
   → código en el backend y en un archivo del frontend.
+- **Cambiar la fórmula misma** (cómo se combinan los pesos) → hoy es código del backend. Para editarla desde pantalla
+  hay un diseño propuesto en `propuesta-editar-formulas-desde-frontend.md` (todavía no implementado).
 
 ---
 
