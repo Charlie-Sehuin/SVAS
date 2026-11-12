@@ -1,0 +1,26 @@
+meta {
+  name: 04 Descuentos otorgados
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/admin/reportes/descuentos?desde=2026-01-01&hasta=2026-12-31
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("accessToken")) {
+    await bru.runRequest("01 Auth/Login admin");
+  }
+}
+
+tests {
+  const b = res.body;
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("por asesor suma los negociados", () =>
+    expect(b.porAsesor.reduce((s, a) => s + a.otorgados, 0)).to.equal(b.negociados.otorgados));
+  test("convertidos ≤ otorgados", () => expect(b.negociados.convertidos).to.be.at.most(b.negociados.otorgados));
+  test("trae los de primera compra", () => expect(b.primeraCompra.aplicados).to.be.a("number"));
+}

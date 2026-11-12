@@ -1,0 +1,35 @@
+meta {
+  name: 01 Ventas por canal (mes en curso)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/reportes/ventas
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("accessToken")) {
+    await bru.runRequest("01 Auth/Login admin");
+  }
+}
+
+tests {
+  const b = res.body;
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("agrupa por canal por defecto", () => expect(b.agrupar).to.equal("canal"));
+  test("hay al menos la compra de Bruno 12", () => expect(b.totales.polizas).to.be.at.least(1));
+  test("los grupos suman el total de pólizas", () =>
+    expect(b.grupos.reduce((s, g) => s + g.polizas, 0)).to.equal(b.totales.polizas));
+  test("las participaciones suman 100 %", () =>
+    expect(b.grupos.reduce((s, g) => s + Number(g.participacion), 0)).to.be.closeTo(100, 0.05));
+  test("prima final = anual − descuentos", () =>
+    expect(Number(b.totales.primaFinal)).to.be.closeTo(Number(b.totales.primaAnual) - Number(b.totales.descuentos), 0.001));
+}
+
+docs {
+Sin ?desde=&hasta= usa el mes en curso (días de Lima). Ventas = pólizas emitidas
+con su pago confirmado (RF-30). Usa el token del administrador (01 Auth / Login admin).
+}

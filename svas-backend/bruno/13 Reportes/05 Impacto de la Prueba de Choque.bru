@@ -1,0 +1,32 @@
+meta {
+  name: 05 Impacto de la Prueba de Choque
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/admin/reportes/prueba-choque?desde=2026-01-01&hasta=2026-12-31
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("accessToken")) {
+    await bru.runRequest("01 Auth/Login admin");
+  }
+}
+
+tests {
+  const b = res.body;
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("con simulación ≤ cotizaciones", () => expect(b.conSimulacion).to.be.at.most(b.cotizaciones));
+  test("con + sin simulación = cotizaciones", () =>
+    expect(b.conversion.conSimulacion.cotizaciones + b.conversion.sinSimulacion.cotizaciones).to.equal(b.cotizaciones));
+  test("preocupaciones por segmento y zona", () => expect(Array.isArray(b.preocupaciones)).to.equal(true));
+  test("RN-35 aún sin datos", () => expect(b.conversionMensajeRn35).to.equal(null));
+  test("nunca expone el ingreso (RN-36)", () => expect(JSON.stringify(b)).to.not.include("ingreso"));
+}
+
+docs {
+★ Métricas de §16.7. La última (mensaje final con RN-35) llega en la tanda 2.
+}

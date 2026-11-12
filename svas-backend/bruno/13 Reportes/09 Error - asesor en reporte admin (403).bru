@@ -1,0 +1,25 @@
+meta {
+  name: 09 Error - asesor en reporte admin (403)
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/admin/reportes/ventas
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{asesorToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar("asesorToken")) {
+    await bru.runRequest("07 Asesoria y retencion/03 Login asesor");
+  }
+}
+
+tests {
+  test("responde 403", () => expect(res.status).to.equal(403));
+}
