@@ -1,0 +1,18 @@
+meta {
+  name: Activar aseguradora (sin cambio)
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/admin/aseguradoras/{{aseguradoraId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "activa": true
+  }
+}
+

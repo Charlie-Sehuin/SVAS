@@ -1,0 +1,21 @@
+meta {
+  name: Error - peso tipo en Rimac (400)
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/admin/tarifas/pesos/tipo
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "aseguradoraId": "{{aseguradoraId}}",
+    "filas": [{ "clave": "{{marcaToyotaId}}", "peso": 1 }]
+  }
+}
+docs {
+  Debe responder 400: la fórmula de Rímac no usa peso de tipo de vehículo.
+}

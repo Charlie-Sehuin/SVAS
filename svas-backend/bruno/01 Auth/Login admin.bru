@@ -1,0 +1,38 @@
+meta {
+  name: Login admin
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{supabaseUrl}}/auth/v1/token?grant_type=password
+  body: json
+  auth: none
+}
+
+headers {
+  apikey: {{process.env.SUPABASE_ANON_KEY}}
+}
+
+body:json {
+  {
+    "email": "{{process.env.ADMIN_EMAIL}}",
+    "password": "{{process.env.ADMIN_PASSWORD}}"
+  }
+}
+
+script:post-response {
+  // Login con Supabase (lo mismo que hará el frontend con supabase-js).
+  if (res.status === 200) {
+    bru.setVar("accessToken", res.body.access_token);
+  }
+}
+
+tests {
+  test("login correcto", () => expect(res.status).to.equal(200));
+}
+
+docs {
+  Login directo contra Supabase Auth. Guarda `accessToken` para el resto de la colección.
+  El backend no tiene endpoint de login: solo verifica este token.
+}

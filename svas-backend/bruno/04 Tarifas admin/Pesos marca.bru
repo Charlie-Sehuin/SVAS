@@ -1,0 +1,16 @@
+meta {
+  name: Pesos marca
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/admin/tarifas/pesos/marca?aseguradoraId={{aseguradoraId}}
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const toyota = (res.body || []).find((p) => p.nombre === "Toyota");
+  if (toyota) bru.setVar("marcaToyotaId", toyota.clave);
+}

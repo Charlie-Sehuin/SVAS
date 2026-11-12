@@ -1,0 +1,11 @@
+meta {
+  name: Usuarios (admin)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/admin/usuarios?pagina=1&tamano=20
+  body: none
+  auth: inherit
+}

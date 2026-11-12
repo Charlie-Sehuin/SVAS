@@ -1,0 +1,23 @@
+meta {
+  name: SVAS API
+}
+
+auth {
+  mode: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  # SVAS API (local)
+
+  1. Copia `.env.example` como `.env` en esta carpeta y llénalo (no se sube a git).
+  2. Arranca el backend: `npm run start:dev` (en svas-backend).
+  3. Elige el entorno **Local** (arriba a la derecha).
+  4. Ejecuta **01 Auth / Login admin**: guarda el token para todo lo demás.
+  5. Ejecuta **03 / Aseguradoras** y **03 / Planes** antes de los que usan `{{aseguradoraId}}` o `{{planId}}`.
+
+  El token dura 1 hora: si ves 401, vuelve a ejecutar el login.
+}

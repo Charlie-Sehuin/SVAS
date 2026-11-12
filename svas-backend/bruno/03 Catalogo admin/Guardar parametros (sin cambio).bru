@@ -1,0 +1,18 @@
+meta {
+  name: Guardar parametros (sin cambio)
+  type: http
+  seq: 9
+}
+
+put {
+  url: {{baseUrl}}/admin/parametros
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "maxIntentos": 4
+  }
+}
+

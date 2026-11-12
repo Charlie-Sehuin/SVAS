@@ -1,0 +1,13 @@
+meta {
+  name: Tarifas de planes
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/tarifas/planes?aseguradoraId={{aseguradoraId}}
+  body: none
+  auth: inherit
+}
+
+

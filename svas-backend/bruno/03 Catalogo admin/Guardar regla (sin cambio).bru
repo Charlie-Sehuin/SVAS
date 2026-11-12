@@ -1,0 +1,20 @@
+meta {
+  name: Guardar regla (sin cambio)
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/admin/reglas-inspeccion
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "reglas": [
+      { "aseguradoraId": "{{aseguradoraId}}", "uso": "PARTICULAR", "requiereInspeccion": false }
+    ]
+  }
+}
+

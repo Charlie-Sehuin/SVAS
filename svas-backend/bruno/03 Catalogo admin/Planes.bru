@@ -1,0 +1,17 @@
+meta {
+  name: Planes
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/admin/planes?aseguradoraId={{aseguradoraId}}
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  // Guarda el plan Oro de Rímac.
+  const oro = (res.body || []).find((p) => p.nombre === "Oro");
+  if (oro) bru.setVar("planId", oro.id);
+}

@@ -1,0 +1,17 @@
+meta {
+  name: Aseguradoras
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/admin/aseguradoras
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  // Guarda el id de Rímac para las demás peticiones.
+  const rimac = (res.body || []).find((a) => a.codigoEstrategia === "RIMAC");
+  if (rimac) bru.setVar("aseguradoraId", rimac.id);
+}

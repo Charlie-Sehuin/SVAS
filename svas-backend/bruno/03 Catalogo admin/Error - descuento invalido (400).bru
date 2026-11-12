@@ -1,0 +1,20 @@
+meta {
+  name: Error - descuento invalido (400)
+  type: http
+  seq: 10
+}
+
+put {
+  url: {{baseUrl}}/admin/parametros
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "descuentoPrimeraCompra": 50
+  }
+}
+docs {
+  Debe responder 400: el descuento de primera compra no puede superar el máximo (10 %). No guarda nada.
+}

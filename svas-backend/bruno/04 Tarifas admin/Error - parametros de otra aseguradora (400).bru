@@ -1,0 +1,21 @@
+meta {
+  name: Error - parametros de otra aseguradora (400)
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/admin/tarifas/planes/{{planId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "tasaBase": 0.042,
+    "parametros": { "cargo_fijo_anual": 30 }
+  }
+}
+docs {
+  Debe responder 400: Rímac no acepta cargo_fijo_anual (es un parámetro de Pacífico). Lo valida el zod de su Estrategia.
+}

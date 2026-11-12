@@ -1,0 +1,21 @@
+meta {
+  name: Guardar peso Toyota (sin cambio)
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/admin/tarifas/pesos/marca
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "aseguradoraId": "{{aseguradoraId}}",
+    "filas": [{ "clave": "{{marcaToyotaId}}", "peso": 0.95 }]
+  }
+}
+docs {
+  Debe responder { recibidas: 1, cambiadas: 0 }: es el mismo peso del seed.
+}
