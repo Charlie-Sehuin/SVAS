@@ -77,8 +77,8 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
 | Ola 3 · compra + pólizas | ⏳ |
 | Ola 4 · dashboard + reportes | ⏳ |
 
-Verificación al cierre: `npm run typecheck`, `npm run lint` y `npm test` (113 pruebas, incluida la guardia de contraste del modo claro y oscuro) en verde; `npm run build` OK.
-JS inicial de la landing ≈ 157 KB gzip (meta < 180 KB, arquitectura §6.2): Supabase, los formularios (zod y react-hook-form, en su
+Verificación al cierre: `npm run typecheck`, `npm run lint` y `npm test` (133 pruebas, incluida la guardia de contraste del modo claro y oscuro) en verde; `npm run build` OK.
+JS inicial de la landing ≈ 158 KB gzip (meta < 180 KB, arquitectura §6.2): Supabase, los formularios (zod y react-hook-form, en su
 propio chunk `formularios`) y cada pantalla van aparte y el embudo no los descarga. Ojo: si una pantalla del arranque importa
 un formulario, ese chunk se vuelve a precargar; se vigila mirando `dist/index.html` después de `npm run build`.
 
@@ -119,9 +119,20 @@ Ola 1 construida (`features/cotizacion/`, rutas públicas `/cotizar` y `/cotizac
   de fuera de nicho (RN-05) muestra el mensaje con un enlace para llamar; el aviso `ASEGURADORA_SIN_COTIZACION` sale una sola vez (toast con `id`).
 - **Comparativo `/cotizacion/:id`**: un bloque por aseguradora, la cuota mensual como protagonista, orden por precio o A–Z, filtro por aseguradora,
   tarjeta gris por aseguradora que no cotiza (RF-05), `DerivacionBanner` (RN-03/RN-04) que oculta "Comprar", y cotización ya convertida (sin comprar ni cambiar la suma).
-- **`SumaAseguradaControl`** (RN-37): slider + campo numérico entre el mínimo y el máximo de ESA aseguradora, espera 400 ms, valida el rango antes de
-  llamar, y pinta las primas que devuelve el backend (esqueleto mientras llegan). Un 400 devuelve el campo a la suma vigente sin reintentar; un 409
-  bloquea las sumas de la cotización. Nunca se calcula una prima en el navegador.
+- **Una sola barra de suma asegurada** (`SumaAseguradaControl`, RN-37), decisión de producto del 2026-11-12: slider + campo numérico arriba del comparativo
+  (fijo en escritorio) que sirve para toda la cotización. Al elegir una suma (espera 400 ms y valida el rango antes de llamar) el frontend pide el
+  recálculo a CADA aseguradora que cotizó, en paralelo, con el mismo `PATCH …/aseguradoras/:id/suma-asegurada` de siempre, y pinta las primas que devuelve
+  el backend (esqueleto mientras llegan). Como cada aseguradora tiene su propio rango, la barra va del mínimo más bajo al máximo más alto, y a la que
+  no admite el valor elegido se le pide su mínimo o su máximo, y el bloque de esa aseguradora lo dice ("Usamos USD 16,800, el máximo que permite Rímac").
+  Al abrir la cotización la barra está "sin elegir" (cada aseguradora propone su punto medio) hasta que la persona la mueve; lo elegido se recuerda
+  en sessionStorage. Un 400 deja la barra "sin elegir" otra vez sin reintentar; un 409 la bloquea. Nunca se calcula una prima en el navegador.
+  **Esto reemplaza el control por aseguradora** que describen `arquitectura-frontend` §4.2 y §6.9, `diseno-visual` §8.3 y §9.3, y `contexto-dominio` §14;
+  esos textos siguen diciendo "uno por aseguradora" y conviene actualizarlos. El backend no cambia (la suma sigue siendo por aseguradora, RN-37).
+- **Comprar sin cuenta** (CU-02): la ruta `/compra/:cotizacionId` es pública y, sin sesión, abre `RegistroMinimoDialog` en lugar de mandar a un login.
+  El contacto que se escribió al cotizar queda en sessionStorage y viene prellenado: solo falta la contraseña (mínimo 8, con la sugerencia de una frase
+  fácil de recordar). Llama a `POST /auth/registro` con `cotizacionId` y el `X-Cotizacion-Token` (a mano, porque esa URL no es de una cotización), e inicia
+  sesión. Si el correo ya existe ofrece "Inicia sesión" y, desde el login, "Créala para comprar" vuelve a la compra. Con la cuenta lista aparece un aviso:
+  el asistente de compra (datos que faltan, firma, pago) es la Ola 3. Solo un CLIENTE compra; asesor y administrador ven "sin acceso".
 - Decisiones: (1) el `api-client` manda el Bearer **y** el `X-Cotizacion-Token` si tiene ambos, porque con sesión el backend solo usa el token si la
   cotización no es del usuario; (2) la clasificación por precio compara números con `decimal.js` (no calcula); (3) "Hablar con un asesor" es por ahora
   un enlace `tel:` y "Comprar este plan" va a `/compra/:id?prima=…` (pantalla de la Ola 3); el diálogo de asesoría llega en la Ola 2.
