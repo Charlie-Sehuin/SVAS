@@ -1,0 +1,24 @@
+meta {
+  name: 06 Simulacion desactualizada
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/cotizaciones/{{cotChoqueId}}/prueba-choque
+  body: none
+  auth: none
+}
+
+headers {
+  X-Cotizacion-Token: {{tokenChoque}}
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("ya no está vigente", () => expect(res.body.simulacion.vigente).to.equal(false));
+}
+
+docs {
+  El frontend debe invitar a simular de nuevo. Ejecuta 03 otra vez y vuelve a estar vigente.
+}

@@ -3,7 +3,7 @@
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
 > `arquitectura-backend-seguro-simple.md` (orden de construcción en §10).
-> Última actualización: 2026-11-12 (Ola 2 parte 1: asesoría y retención).
+> Última actualización: 2026-11-12 (Ola 2 parte 2, tanda 1: Prueba de Choque).
 
 ## 1. Dónde estamos
 
@@ -13,26 +13,27 @@
 | Ola 0 · `seguridad` | ✅ hecho y probado en Bruno | en `main` |
 | Ola 0 · `administracion` (catálogo + tarifas) | ✅ hecho y probado en Bruno | en `main` |
 | Ola 1 · `cotizacion` (partes 1 y 2) | ✅ hecho y probado en Bruno | en `main` |
-| Ola 2 · `asesoria-retencion` | ✅ hecho, 0024/0025 **aplicadas**; falta Bruno 07 + commit | `feat/asesoria-retencion` |
-| Ola 2 · `prueba-choque` | pendiente | — |
+| Ola 2 · `asesoria-retencion` | ✅ hecho y probado en Bruno (07: 01–15; 16–18 esperan un seguimiento) | en `main` |
+| Ola 2 · `prueba-choque` | tanda 1 hecha, 0026–0028 **aplicadas**; falta Bruno 08 + commit; tanda 2 (admin) pendiente | `feat/prueba-choque` |
 | Ola 2 · contenido de planes (`planes`) | pendiente | — |
 
-Tests al cierre: **208 unitarios + 39 e2e** en verde (`npm test`, `npm run test:e2e`).
+Tests al cierre: **238 unitarios + 44 e2e** en verde (`npm test`, `npm run test:e2e`).
 El e2e verifica la tabla dorada §17.6 contra los datos reales de Supabase. Los e2e de
-cotizaciones y asesoría solo prueban errores (no escriben en la base); el camino feliz se prueba con Bruno 06 y 07.
-Las RPC de 0025 se probaron con 41 casos dentro de `begin … rollback` antes de aplicarlas.
+cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públicas (no escriben en la base);
+el camino feliz se prueba con Bruno 06, 07 y 08.
+Las RPC de 0025 (41 casos) y de 0028 (15 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
 
 ## 2. Siguiente paso concreto
 
-1. Usuario: llenar en `bruno/.env` ASESOR_EMAIL, CLIENTE_EMAIL y CLIENTE_PASSWORD; correr **Bruno → 07** en orden
-   (01 da la `contrasenaTemporal` → ASESOR_PASSWORD, solo la primera vez). 16–18 necesitan un seguimiento abierto
-   (el detector corre a cada hora en punto con el backend encendido).
-2. Commit en `feat/asesoria-retencion` (revisar `git diff --cached`), merge `--no-ff` a `main` y subir.
-3. Ola 2 parte 2 · `prueba-choque`: 0011 (`simulacion`, …) + 6.2 `registrar_simulacion` + seed 0018. Al crearla:
-   `create or replace` de `actualizar_suma_asegurada` para marcar `simulacion.vigente = false`, y sumar el resumen
-   RN-35 al mensaje final (`domain/mensajes.ts → mensajeFinal`).
-4. Ola 2 parte 3 · contenido de planes (0020/0021, módulo `planes`).
-5. Al crear `orden_compra` (0010, Ola 3): `actualizar_suma_asegurada` rechaza si hay orden; 6.10 suma "sin orden";
+1. Usuario: correr **Bruno → 08** en orden (anónimo, no necesita credenciales). Commit en `feat/prueba-choque`
+   (revisar `git diff --cached`), merge `--no-ff` a `main` y subir.
+2. Prueba de Choque tanda 2: `GET|PUT /admin/prueba-choque/{escenarios, coberturas, frecuencias, zonas, factores}`
+   con RPC + bitácora (ADMINISTRADOR).
+3. Ola 2 parte 3 · contenido de planes (número > 0028, módulo `planes`); coherente con el seed 0027 (RN-43).
+4. Ola 4: PDF de la simulación, clasificador LLM de preocupaciones y resumen RN-35 en el mensaje final
+   (`domain/mensajes.ts → mensajeFinal`).
+5. Bruno 07 16–18 cuando exista un seguimiento abierto (el detector corre a cada hora en punto con el backend encendido).
+6. Al crear `orden_compra` (0010, Ola 3): `actualizar_suma_asegurada` rechaza si hay orden; 6.10 suma "sin orden";
    la compra con descuento negociado/retoma cierra el seguimiento como `CONVERTIDO` (`cerrar_seguimiento` ya acepta service_role).
 
 Diferidos sin fecha: Swagger, `@nestjs/terminus` u Observe (no pedidos). Interceptor de idempotencia:
@@ -45,7 +46,20 @@ Migraciones **aplicadas**: 0001 enums · 0002 usuario + `rol_actual()` / `exigir
 0004 catálogo · 0005 vehículos/ubigeos · 0006 tarifas + `v_tarifa_completitud` · 0007 cliente/vehiculo/ubicacion_uso ·
 0008 cotizacion/opcion/prima_cotizada · 0009 `solicitud_asesoria` (completa, adelantada) + T1 · 0012 RPCs cotización ·
 0015 RPCs admin catálogo · 0016 seed catálogo · 0017 seed vehículos/tarifas · 0019 bucket `polizas` · 0022 RPCs usuarios ·
-0023 RPCs tarifas · 0024 seguimiento/intento_contacto/descuento + T2 · 0025 RPCs asesoría y retención.
+0023 RPCs tarifas · 0024 seguimiento/intento_contacto/descuento + T2 · 0025 RPCs asesoría y retención ·
+0026 tablas Prueba de Choque · 0027 seed Prueba de Choque · 0028 `registrar_simulacion` + `actualizar_suma_asegurada` v2.
+
+Decisiones propias de Ola 2 parte 2 (revisables):
+- Lo que el doc ubicaba en 0011/0018 va en 0026/0027/0028. Todos los valores del seed 0027 son **supuestos referenciales**
+  propuestos por Claude (RN-31): 6 escenarios, 60 coberturas, 54 frecuencias, 50 distritos de Lima/Callao con zona
+  (el resto cae en MEDIA), 9 factores de perfil.
+- El motor es una función pura (`prueba-choque/domain/motor-simulacion.ts`); el RPC solo valida y guarda la instantánea.
+  `version_reglas` = 12 primeros hex del sha256 del catálogo usado.
+- `registrar_simulacion` acepta service_role o el CLIENTE dueño; solo cotizaciones `REGISTRADA`; los planes deben ser
+  exactamente las primas disponibles. `actualizar_suma_asegurada` marca `vigente = false` y el RPC devuelve `simulaciones_invalidadas` (también en la bitácora).
+- `simulacion.perfil` no se expone nunca (grant por columna, RN-36); el ingreso diario solo se guarda en uso comercial (RN-33).
+- La respuesta se arma solo desde la instantánea; `prima = costoRealAnual − desembolsoEsperado` (los sin dato no suman, RN-30).
+  Si faltan datos, `warning: DATOS_COBERTURA_INCOMPLETOS`.
 
 Decisiones propias de Ola 2 parte 1 (revisables):
 - Lo que el doc ubicaba en 0009/0014 va en 0024/0025 (las de número bajo ya estaban aplicadas).
@@ -95,6 +109,8 @@ Notas:
   (ASESOR, ADMIN lee), `POST /asesorias/:id/{tomar, descuentos, resultado}` (ASESOR), `GET /seguimientos?estado=`,
   `GET /seguimientos/:id`, `POST /seguimientos/:id/{intentos, aceptacion, cierre}`, `GET /retoma/:token` (público, 10/min).
   Jobs en `application/retencion.jobs.ts` con `@nestjs/schedule` 12.0.2: detector `0 * * * *` y caducidad `0 8 * * *` (America/Lima).
+- `modules/prueba-choque`: `GET /prueba-choque/escenarios?uso=` (público), `POST|GET /cotizaciones/:id/prueba-choque`
+  (Bearer o `X-Cotizacion-Token`, POST 20/min).
 - `integracion/estrategias`: `EstrategiaBase` + Rímac, Pacífico, La Positiva, Mapfre, Qualitas (§17.5), con `parametrosSchema` (zod),
   `pesosRequeridos` / `pesosOpcionales`. `NotificadorSimulado` registra en el log (fuera de producción muestra el enlace;
   en producción lo oculta). Resto de adaptadores (pagos, emisión, PDF, clasificador): stubs `NotImplemented`.
@@ -106,7 +122,7 @@ Notas:
 ### Bruno (`svas-backend/bruno/`)
 Credenciales en `bruno/.env` (ignorado). `.env.example` **siempre vacío**. Carpetas: 01 Auth · 02 Salud · 03 Catálogo admin ·
 04 Tarifas admin (incluye simulaciones del caso dorado) · 05 Catálogo público · 06 Cotizaciones (guarda solas
-`cotizacionId`, `tokenAcceso`, `rimacId`) · 07 Asesoría y retención (usa ASESOR_* y CLIENTE_* de `bruno/.env`).
+`cotizacionId`, `tokenAcceso`, `rimacId`) · 07 Asesoría y retención (usa ASESOR_* y CLIENTE_* de `bruno/.env`) · 08 Prueba de choque (anónimo; crea su cotización).
 
 ## 4. Convenciones que hay que respetar
 

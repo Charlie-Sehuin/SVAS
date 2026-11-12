@@ -328,4 +328,50 @@ describe('App (e2e)', () => {
       expect(res.body).toMatchObject({ message: 'Este enlace no es válido' });
     });
   });
+
+  describe('prueba de choque (sin escribir en la base)', () => {
+    const ID = '00000000-0000-4000-8000-000000000000';
+
+    it('GET /prueba-choque/escenarios?uso=PARTICULAR → los 6 escenarios del seed con probabilidad', async () => {
+      const res = await http()
+        .get('/api/v1/prueba-choque/escenarios?uso=PARTICULAR')
+        .expect(200);
+      const escenarios = res.body as {
+        codigo: string;
+        probabilidadReferencial: string;
+      }[];
+      expect(escenarios.map((e) => e.codigo)).toEqual([
+        'CHOQUE_LEVE',
+        'CHOQUE_FUERTE',
+        'ROBO_AUTOPARTES',
+        'ROBO_TOTAL',
+        'DANO_TERCEROS',
+        'PERDIDA_TOTAL',
+      ]);
+      expect(escenarios[0]!.probabilidadReferencial).toBe('0.2000');
+    });
+
+    it('GET /prueba-choque/escenarios con uso inválido → 400', () =>
+      http().get('/api/v1/prueba-choque/escenarios?uso=AVION').expect(400));
+
+    it.each([
+      ['post', `/api/v1/cotizaciones/${ID}/prueba-choque`],
+      ['get', `/api/v1/cotizaciones/${ID}/prueba-choque`],
+    ] as const)('%s %s sin JWT ni token → 401', (metodo, ruta) =>
+      http()[metodo](ruta).expect(401),
+    );
+
+    it('POST …/prueba-choque con token de otra cotización → 403', () =>
+      http()
+        .post(`/api/v1/cotizaciones/${ID}/prueba-choque`)
+        .set('X-Cotizacion-Token', 'token-inventado')
+        .send({
+          perfil: {
+            estacionaCochera: true,
+            kmMesAlto: false,
+            usoNocturno: false,
+          },
+        })
+        .expect(403));
+  });
 });

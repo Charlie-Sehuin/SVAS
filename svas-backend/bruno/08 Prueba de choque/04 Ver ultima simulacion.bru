@@ -1,0 +1,24 @@
+meta {
+  name: 04 Ver ultima simulacion
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/cotizaciones/{{cotChoqueId}}/prueba-choque
+  body: none
+  auth: none
+}
+
+headers {
+  X-Cotizacion-Token: {{tokenChoque}}
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("está vigente", () => expect(res.body.simulacion.vigente).to.equal(true));
+}
+
+docs {
+  La misma instantánea guardada en 03; nunca se recalcula (RN-32).
+}

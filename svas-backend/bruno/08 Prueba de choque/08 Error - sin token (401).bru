@@ -1,0 +1,15 @@
+meta {
+  name: 08 Error - sin token (401)
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/cotizaciones/{{cotChoqueId}}/prueba-choque
+  body: none
+  auth: none
+}
+
+tests {
+  test("responde 401", () => expect(res.status).to.equal(401));
+}
