@@ -5,6 +5,7 @@ import type {
   EstrategiaCotizacion,
 } from '../../modules/cotizacion/domain/estrategia-cotizacion.port';
 import type {
+  PesoNombre,
   PlanTarifa,
   ResultadoPlan,
   TarifaAseguradora,
@@ -15,12 +16,14 @@ import { noImplementado } from '../no-implementado';
 /**
  * Pasos comunes a las 5 aseguradoras: rango, suma, pesos, redondeo, mensual,
  * desglose (arquitectura backend §3.6.1).
- * PENDIENTE (Ola 1): pesosRequeridos() + primaAnual() abstractos y la lógica
- * de cotizar(). Hoy solo fija el contrato.
+ * Ya definidos: qué pesos usa y cómo valida sus `parametros` (los usa el
+ * administrador al editar tarifas). PENDIENTE (Ola 1): primaAnual() y cotizar().
  */
 export abstract class EstrategiaBase implements EstrategiaCotizacion {
   abstract readonly codigo: CodigoEstrategia;
-  readonly parametrosSchema: z.ZodType = z.object({});
+  readonly parametrosSchema: z.ZodType = z.object({}).strict();
+  readonly pesosRequeridos: readonly PesoNombre[] = ['marca', 'modelo', 'anio'];
+  readonly pesosOpcionales: readonly PesoNombre[] = [];
 
   cotizar(
     _v: VehiculoCotizable,

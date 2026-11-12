@@ -1,6 +1,7 @@
 import type Decimal from 'decimal.js';
 import type { z } from 'zod';
 import type {
+  PesoNombre,
   PlanTarifa,
   ResultadoPlan,
   TarifaAseguradora,
@@ -21,6 +22,10 @@ export type CodigoEstrategia = (typeof CODIGOS_ESTRATEGIA)[number];
 export interface EstrategiaCotizacion {
   readonly codigo: CodigoEstrategia;
   readonly parametrosSchema: z.ZodType; // valida tarifa_plan.parametros al guardar y al cargar
+  /** Pesos sin los que no hay prima (RN-39: falta uno → PESO_FALTANTE). */
+  readonly pesosRequeridos: readonly PesoNombre[];
+  /** Pesos que usa pero tienen valor por defecto (ubigeo de Pacífico = 1,00). */
+  readonly pesosOpcionales: readonly PesoNombre[];
 
   /** Un ResultadoPlan por plan. Sin `suma` usa el punto medio del rango (RN-37).
    *  Suma fuera de rango → lanza SumaFueraDeRangoException (400, no "no disponible"). */
