@@ -10,6 +10,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -122,4 +123,26 @@ export class GuardarRangosDto extends AseguradoraQuery {
   @ValidateNested({ each: true })
   @Type(() => FilaRangoDto)
   filas!: FilaRangoDto[];
+}
+
+export class SimularTarifaDto {
+  @IsUUID('all', { message: 'El modelo no es válido' })
+  modeloId!: string;
+
+  @IsInt({ message: 'El año debe ser un número entero' })
+  @Min(1950, { message: 'El año debe estar entre 1950 y 2100' })
+  @Max(2100, { message: 'El año debe estar entre 1950 y 2100' })
+  anio!: number;
+
+  @Matches(/^\d{6}$/, { message: 'El ubigeo tiene 6 dígitos (p. ej. 150122)' })
+  ubigeo!: string;
+
+  /** Opcional: sin suma, cada aseguradora usa el punto medio de su rango (RN-37). */
+  @IsOptional()
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'La suma asegurada debe ser un monto con hasta 2 decimales' },
+  )
+  @Min(1, { message: 'La suma asegurada debe ser mayor que 0' })
+  sumaAsegurada?: number;
 }

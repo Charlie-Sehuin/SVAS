@@ -1,0 +1,37 @@
+meta {
+  name: Simular Corolla 2022 (S 15000)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/admin/tarifas/simular
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "modeloId": "{{corollaId}}",
+    "anio": 2022,
+    "ubigeo": "150122",
+    "sumaAsegurada": 15000
+  }
+}
+
+tests {
+  // Tabla dorada del doc de dominio §17.6
+  const primas = {};
+  for (const a of res.body.aseguradoras) for (const p of a.planes) primas[`${a.codigoEstrategia} ${p.plan}`] = p.prima;
+  test("Rímac Oro = 640.40", () => expect(primas["RIMAC Oro"]).to.equal("640.40"));
+  test("Pacífico Premium = 615.36", () => expect(primas["PACIFICO Premium"]).to.equal("615.36"));
+  test("La Positiva Full = 651.79", () => expect(primas["LA_POSITIVA Full"]).to.equal("651.79"));
+  test("Mapfre Total = 610.47", () => expect(primas["MAPFRE Total"]).to.equal("610.47"));
+  test("Qualitas Plus = 635.36", () => expect(primas["QUALITAS Plus"]).to.equal("635.36"));
+}
+
+docs {
+  Caso dorado (doc de dominio §17.6): Toyota Corolla 2022 en Miraflores con suma USD 15 000.
+  Antes ejecuta **05 / Marcas** y **05 / Modelos Toyota** (guardan `corollaId`).
+  No guarda nada: solo calcula con las fórmulas de cada aseguradora y muestra el desglose.
+}

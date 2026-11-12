@@ -1,0 +1,16 @@
+meta {
+  name: Modelos Toyota
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/catalogo/vehiculos/marcas/{{toyotaId}}/modelos
+  body: none
+  auth: none
+}
+
+script:post-response {
+  const corolla = (res.body || []).find((m) => m.nombre === "Corolla");
+  if (corolla) bru.setVar("corollaId", corolla.id);
+}

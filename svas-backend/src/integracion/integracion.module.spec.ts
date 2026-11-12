@@ -77,16 +77,6 @@ describe('IntegracionModule', () => {
     const m = await compilar();
     const llamadas: Array<() => unknown> = [
       () =>
-        m
-          .get<RegistroEstrategias>(REGISTRO_ESTRATEGIAS)
-          .obtener('RIMAC')
-          .totalEnCuotas(new Decimal(1), {
-            planId: 'p',
-            nombre: 'Oro',
-            tasaBase: new Decimal(0),
-            parametros: {},
-          }),
-      () =>
         m.get<PasarelaPago>(PASARELA_PAGO).cobrar({
           ordenId: 'o',
           monto: new Decimal(1),
