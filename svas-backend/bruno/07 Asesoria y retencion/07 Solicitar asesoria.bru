@@ -1,0 +1,39 @@
+meta {
+  name: 07 Solicitar asesoria
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/asesorias
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+body:json {
+  {
+    "cotizacionId": "{{cotAsesoriaId}}",
+    "motivo": "DESCUENTO",
+    "canal": "WHATSAPP"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) bru.setVar("solicitudId", res.body.id);
+}
+
+tests {
+  test("responde 201", () => expect(res.status).to.equal(201));
+  test("PENDIENTE y origen CLIENTE", () => {
+    expect(res.body.estado).to.equal("PENDIENTE");
+    expect(res.body.origen).to.equal("CLIENTE");
+  });
+}
+
+docs {
+  CU-03. Guarda `solicitudId`.
+}

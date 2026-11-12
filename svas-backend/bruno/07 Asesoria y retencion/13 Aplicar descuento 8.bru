@@ -1,0 +1,31 @@
+meta {
+  name: 13 Aplicar descuento 8
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/asesorias/{{solicitudId}}/descuentos
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{asesorToken}}
+}
+
+body:json {
+  {
+    "planId": "{{planDescuentoId}}",
+    "porcentaje": "8.00"
+  }
+}
+
+tests {
+  test("responde 201", () => expect(res.status).to.equal(201));
+  test("NEGOCIADO 8.00 aceptado", () => {
+    expect(res.body.tipo).to.equal("NEGOCIADO");
+    expect(res.body.porcentaje).to.equal("8.00");
+    expect(res.body.aceptado).to.equal(true);
+  });
+}

@@ -1,0 +1,24 @@
+meta {
+  name: 11 Tomar solicitud
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/asesorias/{{solicitudId}}/tomar
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{asesorToken}}
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("EN_ATENCION", () => expect(res.body.estado).to.equal("EN_ATENCION"));
+}
+
+docs {
+  Si otro asesor ya la tomó responde 409 "La solicitud ya fue tomada por otro asesor".
+}

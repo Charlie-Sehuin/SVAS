@@ -2,8 +2,8 @@
  * Errores de Postgres/PostgREST → HTTP (arquitectura backend §3.4).
  * supabase-js no lanza: devuelve { error }. rpc.helper (y los repositorios)
  * lo convierten en ErrorBaseDatos y HttpExceptionFilter lo traduce aquí.
- * Nunca se filtran nombres de tabla ni SQL: solo los RAISE propios (P0001)
- * pasan su mensaje al usuario.
+ * Nunca se filtran nombres de tabla ni SQL: solo los RAISE propios (P0001,
+ * P0002, PT409) pasan su mensaje al usuario.
  */
 export const MENSAJE_ERROR_INTERNO =
   'Ocurrió un error inesperado. Intenta de nuevo o comunícate con soporte.';
@@ -38,6 +38,8 @@ export function traducirErrorPostgres(error: ErrorBaseDatos): {
       return { statusCode: 400, message: error.message };
     case 'P0002': // RAISE ... USING ERRCODE = 'P0002' de un RPC: "no existe"
       return { statusCode: 404, message: error.message };
+    case 'PT409': // RAISE ... USING ERRCODE = 'PT409' de un RPC: conflicto con mensaje propio
+      return { statusCode: 409, message: error.message };
     case '42501': // insufficient_privilege / exigir_rol()
       return {
         statusCode: 403,

@@ -1,0 +1,36 @@
+meta {
+  name: 03 Login asesor
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{supabaseUrl}}/auth/v1/token?grant_type=password
+  body: json
+  auth: none
+}
+
+headers {
+  apikey: {{process.env.SUPABASE_ANON_KEY}}
+}
+
+body:json {
+  {
+    "email": "{{process.env.ASESOR_EMAIL}}",
+    "password": "{{process.env.ASESOR_PASSWORD}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar("asesorToken", res.body.access_token);
+  }
+}
+
+tests {
+  test("login correcto", () => expect(res.status).to.equal(200));
+}
+
+docs {
+  Guarda `asesorToken`. Si falla, revisa ASESOR_EMAIL y ASESOR_PASSWORD en `bruno/.env`.
+}

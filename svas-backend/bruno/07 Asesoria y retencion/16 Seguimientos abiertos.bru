@@ -1,0 +1,30 @@
+meta {
+  name: 16 Seguimientos abiertos
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/seguimientos
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{asesorToken}}
+}
+
+script:post-response {
+  const s = (res.body || [])[0];
+  if (s) bru.setVar("seguimientoId", s.id);
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("solo EN_SEGUIMIENTO", () => (res.body || []).forEach((s) => expect(s.estado).to.equal("EN_SEGUIMIENTO")));
+}
+
+docs {
+  Los seguimientos los abre el detector, a cada hora en punto, con las cotizaciones
+  de más de 24 h sin comprar. Si la lista sale vacía, 17 y 18 no tienen caso que usar.
+}

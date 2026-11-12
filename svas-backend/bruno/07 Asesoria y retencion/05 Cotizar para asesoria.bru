@@ -1,0 +1,42 @@
+meta {
+  name: 05 Cotizar para asesoria
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/cotizaciones
+  body: json
+  auth: none
+}
+
+script:pre-request {
+  if (!bru.getVar("corollaId") || !bru.getVar("toyotaId")) {
+    await bru.runRequest("05 Catalogo publico/Marcas");
+    await bru.runRequest("05 Catalogo publico/Modelos Toyota");
+  }
+}
+
+body:json {
+  {
+    "vehiculo": { "uso": "PARTICULAR", "marcaId": "{{toyotaId}}", "modeloId": "{{corollaId}}", "anio": 2022, "clase": null },
+    "ubicacion": { "ubigeo": "150122" },
+    "contacto": { "nombres": "Cliente", "apellidos": "Prueba", "telefono": "900000002",
+                  "email": "prueba.asesoria@example.com", "canalPreferido": "WHATSAPP" }
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("cotAsesoriaId", res.body.cotizacion.id);
+    bru.setVar("tokenAsesoria", res.body.tokenAcceso);
+  }
+}
+
+tests {
+  test("responde 201", () => expect(res.status).to.equal(201));
+}
+
+docs {
+  Cotización anónima nueva para este flujo (crea una fila real en la base).
+}

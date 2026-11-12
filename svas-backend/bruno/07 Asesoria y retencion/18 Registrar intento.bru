@@ -1,0 +1,34 @@
+meta {
+  name: 18 Registrar intento
+  type: http
+  seq: 18
+}
+
+post {
+  url: {{baseUrl}}/seguimientos/{{seguimientoId}}/intentos
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{asesorToken}}
+}
+
+body:json {
+  {
+    "canal": "{{canalSeguimiento}}",
+    "resultado": "NO_RESPONDE"
+  }
+}
+
+tests {
+  test("responde 201", () => expect(res.status).to.equal(201));
+  test("suma un intento", () => expect(res.body.intentos).to.be.at.least(1));
+}
+
+docs {
+  Necesita 16 y 17. Usa el canal preferido del cliente (RN-10).
+  Al llegar al máximo de intentos el caso se cierra como DESCARTADO / NO_RESPONDE
+  y en la terminal de `npm run start:dev` aparece el mensaje final simulado
+  (NotificadorSimulado) con el enlace de retoma.
+}

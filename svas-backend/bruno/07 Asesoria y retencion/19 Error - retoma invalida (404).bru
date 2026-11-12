@@ -1,0 +1,20 @@
+meta {
+  name: 19 Error - retoma invalida (404)
+  type: http
+  seq: 19
+}
+
+get {
+  url: {{baseUrl}}/retoma/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  body: none
+  auth: none
+}
+
+tests {
+  test("responde 404", () => expect(res.status).to.equal(404));
+  test("mensaje claro", () => expect(res.body.message).to.equal("Este enlace no es válido"));
+}
+
+docs {
+  Público. Un enlace real llega por mensaje (en local: lo muestra el log del NotificadorSimulado).
+}

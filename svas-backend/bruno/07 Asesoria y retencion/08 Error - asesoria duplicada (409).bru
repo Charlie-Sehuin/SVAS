@@ -1,0 +1,29 @@
+meta {
+  name: 08 Error - asesoria duplicada (409)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/asesorias
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+body:json {
+  {
+    "cotizacionId": "{{cotAsesoriaId}}",
+    "motivo": "DUDA",
+    "canal": "LLAMADA"
+  }
+}
+
+tests {
+  test("responde 409", () => expect(res.status).to.equal(409));
+  test("mensaje propio del RPC", () =>
+    expect(res.body.message).to.equal("Ya tienes una solicitud de asesoría abierta para esta cotización"));
+}

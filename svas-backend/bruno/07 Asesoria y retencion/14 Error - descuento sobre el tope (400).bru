@@ -1,0 +1,27 @@
+meta {
+  name: 14 Error - descuento sobre el tope (400)
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{baseUrl}}/asesorias/{{solicitudId}}/descuentos
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{asesorToken}}
+}
+
+body:json {
+  {
+    "planId": "{{planDescuentoId}}",
+    "porcentaje": "50.00"
+  }
+}
+
+tests {
+  test("responde 400", () => expect(res.status).to.equal(400));
+  test("mensaje del tope (T2, RN-07)", () => expect(res.body.message).to.match(/^El descuento no puede superar el/));
+}
