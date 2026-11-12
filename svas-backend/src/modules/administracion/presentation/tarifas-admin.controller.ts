@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Post,
   Put,
   Query,
 } from '@nestjs/common';
@@ -18,6 +19,7 @@ import {
   GuardarRangosDto,
   GuardarTarifaPlanDto,
   RangosQuery,
+  SimularTarifaDto,
   TablaPesoParam,
 } from './dto/tarifas-admin.dto';
 
@@ -27,8 +29,7 @@ const planValido = new ParseUUIDPipe({
 
 /**
  * Tarifas (contexto §17): tasas base, parámetros por plan, pesos y rangos de
- * suma. Secreto comercial: solo ADMINISTRADOR (§7). POST /admin/tarifas/simular
- * llega en la Ola 1, cuando las Estrategias ya calculen.
+ * suma. Secreto comercial: solo ADMINISTRADOR (§7).
  */
 @Roles('ADMINISTRADOR')
 @Controller('admin/tarifas')
@@ -93,5 +94,11 @@ export class TarifasAdminController {
     @Query() q: AseguradoraOpcionalQuery,
   ) {
     return this.tarifas.completitud(token, q.aseguradoraId);
+  }
+
+  /** Calcula las primas de todas las aseguradoras con el desglose (no guarda nada). */
+  @Post('simular')
+  simular(@Body() dto: SimularTarifaDto) {
+    return this.tarifas.simular(dto);
   }
 }

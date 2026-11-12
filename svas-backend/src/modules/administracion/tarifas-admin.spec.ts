@@ -36,9 +36,32 @@ function crear(parcial: Partial<TarifasAdminRepository> = {}) {
     listarFaltantes: jest.fn().mockResolvedValue([]),
     ...parcial,
   } as unknown as jest.Mocked<TarifasAdminRepository>;
+  const cache = { invalidar: jest.fn() };
+  const calculadora = { calcular: jest.fn().mockResolvedValue([]) };
+  const catalogo = {
+    resolverVehiculo: jest.fn().mockResolvedValue({
+      marcaId: 'm',
+      modeloId: UUID,
+      tipoId: 't',
+      anio: 2022,
+      ubigeo: '150122',
+      marca: 'Toyota',
+      modelo: 'Corolla',
+      tipo: 'Sedán',
+    }),
+  };
   return {
     repo,
-    servicio: new TarifasAdminService(repo, new EstrategiaRegistry()),
+    cache,
+    calculadora,
+    catalogo,
+    servicio: new TarifasAdminService(
+      repo,
+      new EstrategiaRegistry(),
+      cache,
+      calculadora,
+      catalogo,
+    ),
   };
 }
 
@@ -163,21 +186,19 @@ describe('TarifasAdminService', () => {
 
   it('completitud: solo aseguradoras activas y con los pesos de su fórmula', async () => {
     const { repo, servicio } = crear({
-      listarFaltantes: jest
-        .fn()
-        .mockImplementation((_t, id: string) =>
-          Promise.resolve(
-            id === 'a-lp'
-              ? [
-                  {
-                    aseguradoraId: id,
-                    sinRango: false,
-                    pesosFaltantes: ['tipo'],
-                  },
-                ]
-              : [],
-          ),
+      listarFaltantes: jest.fn().mockImplementation((_t, id: string) =>
+        Promise.resolve(
+          id === 'a-lp'
+            ? [
+                {
+                  aseguradoraId: id,
+                  sinRango: false,
+                  pesosFaltantes: ['tipo'],
+                },
+              ]
+            : [],
         ),
+      ),
     });
     const r = await servicio.completitud('t');
     expect(repo.listarFaltantes).toHaveBeenCalledTimes(3); // Mapfre está inactiva
@@ -191,6 +212,46 @@ describe('TarifasAdminService', () => {
       completa: false,
       sinRango: 0,
       conPesosFaltantes: 1,
+    });
+  });
+
+  it('guardar pesos o rangos limpia el caché de esa aseguradora', async () => {
+    const { cache, servicio } = crear();
+    await servicio.guardarPesos('t', 'marca', 'a-rimac', [
+      { clave: UUID, peso: 1 },
+    ]);
+    await servicio.guardarRangos('t', 'a-pac', [
+      { modeloId: UUID, anio: 2022, sumaMinima: 1, sumaMaxima: 2 },
+    ]);
+    expect(cache.invalidar.mock.calls).toEqual([['a-rimac'], ['a-pac']]);
+  });
+
+  it('simular: 404 si el modelo o ubigeo no existen', async () => {
+    const { catalogo, servicio } = crear();
+    catalogo.resolverVehiculo.mockResolvedValue(null);
+    await expect(
+      servicio.simular({ modeloId: UUID, anio: 2022, ubigeo: '150122' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('simular: pasa la suma como Decimal y devuelve el vehículo', async () => {
+    const { calculadora, servicio } = crear();
+    const r = await servicio.simular({
+      modeloId: UUID,
+      anio: 2022,
+      ubigeo: '150122',
+      sumaAsegurada: 15000,
+    });
+    const opciones = calculadora.calcular.mock.calls[0][1] as {
+      suma: { toFixed(n: number): string };
+    };
+    expect(opciones.suma.toFixed(0)).toBe('15000');
+    expect(r.vehiculo).toEqual({
+      marca: 'Toyota',
+      modelo: 'Corolla',
+      tipo: 'Sedán',
+      anio: 2022,
+      ubigeo: '150122',
     });
   });
 });

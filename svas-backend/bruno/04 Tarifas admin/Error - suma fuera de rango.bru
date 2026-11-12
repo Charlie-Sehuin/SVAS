@@ -1,0 +1,33 @@
+meta {
+  name: Error - suma fuera de rango
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/admin/tarifas/simular
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  // Si aún no se ejecutaron 05 / Marcas y 05 / Modelos Toyota, se ejecutan solos.
+  if (!bru.getVar("corollaId")) {
+    await bru.runRequest("05 Catalogo publico/Marcas");
+    await bru.runRequest("05 Catalogo publico/Modelos Toyota");
+  }
+}
+
+body:json {
+  {
+    "modeloId": "{{corollaId}}",
+    "anio": 2022,
+    "ubigeo": "150122",
+    "sumaAsegurada": 16700
+  }
+}
+
+docs {
+  16 700 está dentro del rango de Rímac (hasta 16 800) pero fuera del de las demás:
+  esas aseguradoras traen `errorSuma` con su rango permitido (RN-37) y Rímac sí calcula.
+}

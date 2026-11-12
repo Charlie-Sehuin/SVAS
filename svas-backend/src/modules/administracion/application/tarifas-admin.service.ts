@@ -4,11 +4,24 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import Decimal from 'decimal.js';
 import type { ErrorCampo } from '../../../common/types/usuario-autenticado';
+import {
+  CalculadoraPrimasService,
+  type PrimasAseguradora,
+} from '../../cotizacion/application/calculadora-primas.service';
+import {
+  CATALOGO_PUBLICO_REPOSITORY,
+  type CatalogoPublicoRepository,
+} from '../../cotizacion/domain/catalogo-publico.port';
 import {
   REGISTRO_ESTRATEGIAS,
   type RegistroEstrategias,
 } from '../../cotizacion/domain/estrategia-cotizacion.port';
+import {
+  TARIFA_REPOSITORY,
+  type TarifaRepository,
+} from '../../cotizacion/domain/tarifa.repository.port';
 import {
   claveValida,
   type FaltanteTarifa,
@@ -46,6 +59,15 @@ export class TarifasAdminService {
     private readonly repo: TarifasAdminRepository,
     @Inject(REGISTRO_ESTRATEGIAS)
     private readonly estrategias: RegistroEstrategias,
+    @Inject(TARIFA_REPOSITORY)
+    private readonly cacheTarifas: Pick<TarifaRepository, 'invalidar'>,
+    @Inject(CalculadoraPrimasService)
+    private readonly calculadora: Pick<CalculadoraPrimasService, 'calcular'>,
+    @Inject(CATALOGO_PUBLICO_REPOSITORY)
+    private readonly catalogo: Pick<
+      CatalogoPublicoRepository,
+      'resolverVehiculo'
+    >,
   ) {}
 
   // ── Tasa base y parámetros ────────────────────────────────────────────────
@@ -76,12 +98,14 @@ export class TarifasAdminService {
         })),
       );
     }
-    return this.repo.guardarTarifaPlan(
+    const guardada = await this.repo.guardarTarifaPlan(
       token,
       planId,
       tasaBase,
       r.data as Record<string, unknown>,
     );
+    this.cacheTarifas.invalidar(guardada?.aseguradoraId);
+    return guardada;
   }
 
   // ── Pesos ─────────────────────────────────────────────────────────────────
@@ -125,7 +149,14 @@ export class TarifasAdminService {
     });
     if (errores.length) throw errorDeCampos(errores);
 
-    return this.repo.guardarPesos(token, tabla, aseguradoraId, filas);
+    const resumen = await this.repo.guardarPesos(
+      token,
+      tabla,
+      aseguradoraId,
+      filas,
+    );
+    this.cacheTarifas.invalidar(aseguradoraId);
+    return resumen;
   }
 
   // ── Rangos de suma asegurada ──────────────────────────────────────────────
@@ -163,7 +194,9 @@ export class TarifasAdminService {
     });
     if (errores.length) throw errorDeCampos(errores);
 
-    return this.repo.guardarRangos(token, aseguradoraId, filas);
+    const resumen = await this.repo.guardarRangos(token, aseguradoraId, filas);
+    this.cacheTarifas.invalidar(aseguradoraId);
+    return resumen;
   }
 
   // ── Completitud (§17.9) ───────────────────────────────────────────────────
@@ -194,6 +227,34 @@ export class TarifasAdminService {
     };
   }
 
+  // ── Simulador (§17.6): mismas Estrategias que el cotizador, sin guardar nada ─
+  async simular(d: {
+    modeloId: string;
+    anio: number;
+    ubigeo: string;
+    sumaAsegurada?: number;
+  }) {
+    const v = await this.catalogo.resolverVehiculo(
+      d.modeloId,
+      d.anio,
+      d.ubigeo,
+    );
+    if (!v) throw new NotFoundException('El modelo o el ubigeo no existen');
+    const suma =
+      d.sumaAsegurada === undefined ? undefined : new Decimal(d.sumaAsegurada);
+    const aseguradoras = await this.calculadora.calcular(v, { suma });
+    return {
+      vehiculo: {
+        marca: v.marca,
+        modelo: v.modelo,
+        tipo: v.tipo,
+        anio: v.anio,
+        ubigeo: v.ubigeo,
+      },
+      aseguradoras: aseguradoras.map(aSimulacion),
+    };
+  }
+
   private async aseguradora(
     token: string,
     id: string,
@@ -204,4 +265,32 @@ export class TarifasAdminService {
     if (!aseg) throw new NotFoundException('La aseguradora no existe');
     return aseg;
   }
+}
+
+const fijo = (d: Decimal | undefined, n: number) => (d ? d.toFixed(n) : null);
+
+/** Decimal → string (montos en JSON siempre como string, doc conexión §5). */
+function aSimulacion(a: PrimasAseguradora) {
+  return {
+    aseguradoraId: a.aseguradoraId,
+    aseguradora: a.aseguradora,
+    codigoEstrategia: a.codigoEstrategia,
+    rangoSuma: a.rangoSuma
+      ? {
+          minima: a.rangoSuma.minima.toFixed(2),
+          maxima: a.rangoSuma.maxima.toFixed(2),
+        }
+      : null,
+    ...(a.errorSuma ? { errorSuma: a.errorSuma } : {}),
+    planes: a.planes.map((p) => ({
+      planId: p.planId,
+      plan: p.plan,
+      disponible: p.disponible,
+      motivoNoDisponible: p.motivoNoDisponible ?? null,
+      sumaAsegurada: fijo(p.sumaAsegurada, 2),
+      prima: fijo(p.prima, 2),
+      primaMensual: fijo(p.primaMensual, 2),
+      detalleCalculo: p.detalleCalculo ?? null,
+    })),
+  };
 }

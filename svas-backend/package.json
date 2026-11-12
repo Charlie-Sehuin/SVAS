@@ -20,6 +20,7 @@
     "test:debug": "node --inspect-brk --experimental-vm-modules -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
     "crear-admin": "node --env-file=.env scripts/crear-admin.mts",
+    "cambiar-password": "node --env-file=.env scripts/cambiar-password.mts",
     "verificar-env": "node --env-file=.env scripts/verificar-env.mts"
   },
   "dependencies": {

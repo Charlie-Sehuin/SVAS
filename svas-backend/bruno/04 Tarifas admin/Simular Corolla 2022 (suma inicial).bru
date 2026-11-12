@@ -1,0 +1,32 @@
+meta {
+  name: Simular Corolla 2022 (suma inicial)
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/admin/tarifas/simular
+  body: json
+  auth: inherit
+}
+
+script:pre-request {
+  // Si aún no se ejecutaron 05 / Marcas y 05 / Modelos Toyota, se ejecutan solos.
+  if (!bru.getVar("corollaId")) {
+    await bru.runRequest("05 Catalogo publico/Marcas");
+    await bru.runRequest("05 Catalogo publico/Modelos Toyota");
+  }
+}
+
+body:json {
+  {
+    "modeloId": "{{corollaId}}",
+    "anio": 2022,
+    "ubigeo": "150122"
+  }
+}
+
+docs {
+  Sin suma: cada aseguradora usa el punto medio de su rango redondeado a USD 100 (RN-37).
+  Rímac 14 400 · Pacífico 14 600 · La Positiva 14 300 · Mapfre 14 500 · Qualitas 13 700.
+}
