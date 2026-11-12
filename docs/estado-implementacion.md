@@ -168,6 +168,36 @@ npm run dev          # http://localhost:5173 (el backend local debe tener FRONTE
 npm run typecheck; npm run lint; npm test; npm run build
 ```
 
+## 1c. Siguiente paso del frontend (pendiente de decidir: Ola 3 o Ola 2)
+
+**Qué se ve hoy al pulsar "Comprar este plan".** Aparece "Tu cuenta está lista… el pago en línea se activa en la siguiente etapa". Es un
+**reemplazo temporal**: la ruta `/compra/:cotizacionId` ya existe y resuelve la sesión (sin cuenta abre el registro dentro del embudo; con cuenta de
+CLIENTE muestra ese aviso; asesor y administrador ven "sin acceso"), pero el asistente de compra en sí no está construido. Está en
+`src/features/compra/pages/CompraPage.tsx`; el aviso se reemplaza por el asistente.
+
+**Lo que ya funciona**: cotizar, comparar, ajustar la suma asegurada con una barra única y crear la cuenta sin salir del flujo.
+
+**Lo que falta para cerrar una venta (Ola 3, arquitectura frontend §6.2 y §16.2)**. El backend de todo esto ya está hecho y probado; falta la parte visual:
+- Datos que faltan: documento de identidad y placa si no se dieron (`GET /compras/:cotizacionId/campos-faltantes`, `PUT /compras/:cotizacionId/datos`; solo se pide lo no capturado, RNF-08).
+- Resumen con el descuento de primera compra y el contenido del plan (`GET /compras/resumen?cotizacionId=&primaCotizadaId=`).
+- Firma simulada y aceptación de condiciones (`POST /compras`, `aceptaCondiciones` y `firmaSimulada`).
+- Pago único o en cuotas con la pasarela simulada (`POST /compras/:id/pago` con `Idempotency-Key` nueva por intento; la cuota y el total los devuelve el backend, no se calculan; un total terminado en .13 simula un rechazo).
+- Confirmación y póliza en PDF (`GET /compras/:id/estado`, `GET /polizas/mias`, `GET /polizas/:id/pdf`, que puede responder 202 mientras se genera); y "Mis pólizas" en `/mi-cuenta/polizas`.
+
+**Decisión de orden (hay que elegir).** El instructivo pone antes la **Ola 2**: Prueba de Choque, detalle y comparador de planes, asesoría y retención,
+y las pantallas de administración de esas reglas. La Ola 3 **no depende** de la 2 para funcionar; solo mostraría el contenido del plan contratado
+(RN-45), que se puede dejar para después.
+- **Recomendación: Ola 3 primero**, si el objetivo es una demostración de compra completa de punta a punta (es lo que más se nota). La Prueba de Choque
+  (el diferenciador) vendría después.
+- Alternativa: seguir el orden del instructivo y hacer la Ola 2 primero.
+
+**Otros pendientes del frontend** (ninguno bloquea):
+- Recorrer en el navegador, con datos reales, las pantallas de la Ola 0 que falten (campos, reglas de inspección, parámetros, pesos, rangos, completitud) y la Ola 1 (cotizar, barra de suma, comprar sin cuenta; revisar a 360 px).
+- Crear el proyecto en Vercel y poner su URL en `FRONTEND_URL` de Railway (instructivo §16.1, paso 7). Mientras tanto el CORS solo permite `http://localhost:5173`.
+- Actualizar los textos que aún dicen "un control de suma por aseguradora" (arquitectura §4.2 y §6.9, diseño §8.3 y §9.3, dominio §14): ahora es una barra única.
+- Decidir si el backend admitirá campos extra en `POST /cotizaciones` (hoy el formulario dinámico solo puede enviar `placa` y `clase`).
+- Si se quiere editar fórmulas desde pantalla: `docs/propuesta-editar-formulas-desde-frontend.md` (no implementado; exige enmendar RN-40).
+
 ## 2. Siguiente paso concreto
 
 1. **Ola 3 — cerrar la venta** (arquitectura backend §10.2): `pagos` → `polizas` → `compra`.
