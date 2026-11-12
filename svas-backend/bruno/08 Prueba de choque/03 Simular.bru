@@ -1,0 +1,48 @@
+meta {
+  name: 03 Simular
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/cotizaciones/{{cotChoqueId}}/prueba-choque
+  body: json
+  auth: none
+}
+
+headers {
+  X-Cotizacion-Token: {{tokenChoque}}
+}
+
+body:json {
+  {
+    "perfil": {
+      "estacionaCochera": true,
+      "kmMesAlto": false,
+      "usoNocturno": true,
+      "ingresoDiarioSoles": null,
+      "preocupaciones": ["ROBO_AUTOPARTES"]
+    }
+  }
+}
+
+tests {
+  const s = res.body.simulacion || {};
+  test("responde 201", () => expect(res.status).to.equal(201));
+  test("zona BAJA (Miraflores)", () => expect(s.zona).to.equal("BAJA"));
+  test("10 planes en el ranking", () => expect(s.ranking.length).to.equal(10));
+  test("6 escenarios en la matriz", () => expect(s.matriz.length).to.equal(6));
+  test("prima + esperado = costo real anual", () => {
+    for (const p of s.ranking) {
+      expect((Number(p.prima) + Number(p.desembolsoEsperado)).toFixed(2)).to.equal(p.costoRealAnual);
+    }
+  });
+  test("posiciones 1..10", () => expect(s.ranking.map((p) => p.posicion)).to.eql([1,2,3,4,5,6,7,8,9,10]));
+  test("leyenda RN-29", () => expect(s.leyenda).to.contain("Prevalece el condicionado"));
+  test("no devuelve el perfil (RN-36)", () => expect(JSON.stringify(res.body)).to.not.contain("perfil"));
+}
+
+docs {
+  Anónimo con X-Cotizacion-Token. El backend calcula y guarda la instantánea (RPC 6.2).
+  Con Bearer, solo el CLIENTE dueño puede simular.
+}

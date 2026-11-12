@@ -1,0 +1,44 @@
+meta {
+  name: 02 Cotizar para prueba de choque
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/cotizaciones
+  body: json
+  auth: none
+}
+
+script:pre-request {
+  if (!bru.getVar("corollaId") || !bru.getVar("toyotaId")) {
+    await bru.runRequest("05 Catalogo publico/Marcas");
+    await bru.runRequest("05 Catalogo publico/Modelos Toyota");
+  }
+}
+
+body:json {
+  {
+    "vehiculo": { "uso": "PARTICULAR", "marcaId": "{{toyotaId}}", "modeloId": "{{corollaId}}", "anio": 2022, "clase": null },
+    "ubicacion": { "ubigeo": "150122" },
+    "contacto": { "nombres": "Cliente", "apellidos": "Choque", "telefono": "900000003",
+                  "email": "prueba.choque@example.com", "canalPreferido": "WHATSAPP" }
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("cotChoqueId", res.body.cotizacion.id);
+    bru.setVar("tokenChoque", res.body.tokenAcceso);
+    const rimac = res.body.cotizacion.primas.find((p) => p.aseguradora === "Rímac");
+    if (rimac) bru.setVar("rimacChoqueId", rimac.aseguradoraId);
+  }
+}
+
+tests {
+  test("responde 201", () => expect(res.status).to.equal(201));
+}
+
+docs {
+  Cotización anónima nueva en Miraflores (zona BAJA). OJO: crea una fila real en la base.
+}

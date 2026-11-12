@@ -23,6 +23,7 @@ import { SeguridadModule } from './modules/seguridad/seguridad.module';
 import { AdministracionModule } from './modules/administracion/administracion.module';
 import { CotizacionModule } from './modules/cotizacion/cotizacion.module';
 import { AsesoriaRetencionModule } from './modules/asesoria-retencion/asesoria-retencion.module';
+import { PruebaChoqueModule } from './modules/prueba-choque/prueba-choque.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { AsesoriaRetencionModule } from './modules/asesoria-retencion/asesoria-r
     AdministracionModule,
     CotizacionModule,
     AsesoriaRetencionModule,
+    PruebaChoqueModule,
   ],
   controllers: [HealthController],
   providers: [

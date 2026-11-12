@@ -1,0 +1,23 @@
+meta {
+  name: 01 Escenarios (publico)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/prueba-choque/escenarios?uso=PARTICULAR
+  body: none
+  auth: none
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("6 escenarios del seed", () => expect(res.body.length).to.equal(6));
+  test("choque leve 0.2000 en zona MEDIA", () => expect(res.body[0].probabilidadReferencial).to.equal("0.2000"));
+  test("robo total sin monto (usa la suma asegurada)", () =>
+    expect(res.body.find((e) => e.codigo === "ROBO_TOTAL").montoDanoReferencial).to.equal(null));
+}
+
+docs {
+  Público. Con `uso` devuelve la probabilidad de referencia (zona MEDIA). Sin `uso`, no la trae.
+}

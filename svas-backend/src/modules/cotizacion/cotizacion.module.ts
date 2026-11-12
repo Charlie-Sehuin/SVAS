@@ -43,6 +43,9 @@ import { CotizacionesController } from './presentation/cotizaciones.controller';
     TARIFA_REPOSITORY,
     CATALOGO_PUBLICO_REPOSITORY,
     CalculadoraPrimasService,
+    // prueba-choque usa la cotización y el mismo control de acceso (Bearer o X-Cotizacion-Token).
+    COTIZACION_REPOSITORY,
+    CotizacionAccesoGuard,
   ],
 })
 export class CotizacionModule {}

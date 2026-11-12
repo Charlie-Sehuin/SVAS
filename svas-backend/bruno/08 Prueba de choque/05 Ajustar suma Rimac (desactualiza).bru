@@ -1,0 +1,27 @@
+meta {
+  name: 05 Ajustar suma Rimac (desactualiza)
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/cotizaciones/{{cotChoqueId}}/aseguradoras/{{rimacChoqueId}}/suma-asegurada
+  body: json
+  auth: none
+}
+
+headers {
+  X-Cotizacion-Token: {{tokenChoque}}
+}
+
+body:json {
+  { "sumaAsegurada": "15000.00" }
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+}
+
+docs {
+  Al cambiar la suma, la simulación anterior deja de estar vigente (ver 06).
+}

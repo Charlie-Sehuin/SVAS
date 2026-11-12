@@ -1,0 +1,23 @@
+meta {
+  name: 07 Error - perfil incompleto (400)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/cotizaciones/{{cotChoqueId}}/prueba-choque
+  body: json
+  auth: none
+}
+
+headers {
+  X-Cotizacion-Token: {{tokenChoque}}
+}
+
+body:json {
+  { "perfil": { "estacionaCochera": true } }
+}
+
+tests {
+  test("responde 400", () => expect(res.status).to.equal(400));
+}
