@@ -3,7 +3,7 @@
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
 > `arquitectura-backend-seguro-simple.md` (orden de construcción en §10).
-> Última actualización: 2026-11-12 (Ola 3, tanda 1: base de compra + pagos).
+> Última actualización: 2026-11-12 (Ola 3, tanda 2: pólizas).
 
 ## 1. Dónde estamos
 
@@ -18,8 +18,9 @@
 | Ola 2 · `prueba-choque` tanda 2 (admin del catálogo) | ✅ hecho y probado en Bruno (09: 01–14), 0029 **aplicada** | en `main` |
 | Ola 2 · contenido de planes (`planes`) | ✅ hecho y probado en Bruno (10: 01–11), 0030–0032 **aplicadas** | en `main` |
 | Ola 3 · tanda 1 (base de compra + `pagos`) | ✅ hecho; 0033–0034 **aplicadas**; regresión en Bruno 06 y 08 ✅ | en `main` |
+| Ola 3 · tanda 2 (`polizas`) | ✅ hecho y probado en Bruno (11: 01–05) | en `main` |
 
-Tests al cierre: **323 unitarios + 62 e2e** en verde (`npm test`, `npm run test:e2e`).
+Tests al cierre: **343 unitarios + 64 e2e** en verde (`npm test`, `npm run test:e2e`).
 El e2e verifica la tabla dorada §17.6 contra los datos reales de Supabase. Los e2e de
 cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públicas (no escriben en la base);
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
@@ -42,13 +43,19 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
      `actualizar_suma_asegurada` v3 (409 si hay orden) y detector v2 ("sin orden"); ✅ módulo `pagos`
      (pasarela simulada + `ProcesarPagoService`). Bruno 06 y 08 en verde (regresión del ajuste de suma);
      mergeada en `main`.
-   - Tanda 2 `polizas`: emisión simulada (número de póliza), `GeneradorPdf` con PDFKit desde
-     `orden_compra.contenido_plan` + leyenda de demostración (RNF-20), subida a Storage y
-     `poliza.pdf_generado_en`; `GET /polizas/mias`, `GET /polizas/:id/pdf` (URL firmada 10 min);
-     job que regenera los PDF pendientes.
+   - Tanda 2 `polizas`: ✅ emisión simulada (PREFIJO-AÑO-8 hex, idempotente por orden);
+     ✅ PDF con PDFKit 0.20.2 desde `orden_compra.contenido_plan`, leyenda RNF-20 arriba y en el pie de
+     cada página; ✅ subida a Storage + `pdf_generado_en`; ✅ `GET /polizas/mias` y `GET /polizas/:id/pdf`
+     (200 PDF o 202 + `PDF_EN_GENERACION`); ✅ job cada 5 min; ✅ Bruno 11 (01–05); mergeada en `main`.
+     La subida real a Storage y el PDF de una póliza real se prueban en la tanda 3 (aún no hay compras).
+     Decisiones: el backend entrega el archivo (doc conexión §7) en vez de una URL firmada; `GeneradorPdf`
+     solo dibuja (devuelve Buffer) y el repositorio sube a Storage con la clave `<id>.pdf` dentro del
+     bucket `polizas`; si el PDF falta al descargar, se intenta generar una vez antes de responder 202.
    - Tanda 3 `compra`: resumen, campos faltantes, datos, `POST /compras` (con `ArmarCopiaContenidoService`,
      RN-45), `POST /compras/:id/pago` (+ `Idempotency-Key`; existe `@nestjs/idempotency`), estado;
-     Bruno 11 con el flujo completo (incluido el rechazo con un total terminado en .13).
+     Bruno 12 con el flujo completo (incluido el rechazo con un total terminado en .13). Al pagar,
+     `compra` llama a `EmitirPdfService.intentar()` (exportado por `PolizasModule`) y, si falla, responde
+     201 con `PDF_EN_GENERACION`.
 2. Ola 4 — medir: reportes (incluye impacto de la Prueba de Choque), PDF de la simulación, clasificador LLM
    de preocupaciones (opcional) y resumen RN-35 en el mensaje final (`domain/mensajes.ts → mensajeFinal`).
 3. Bruno 07 16–18 cuando exista un seguimiento abierto (el detector corre a cada hora en punto con el backend encendido).

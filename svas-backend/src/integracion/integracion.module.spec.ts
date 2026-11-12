@@ -25,7 +25,10 @@ import {
   CLASIFICADOR_PREOCUPACIONES,
   type ClasificadorPreocupaciones,
 } from '../modules/prueba-choque/domain/clasificador-preocupaciones.port';
+import type { DatosPolizaPdf } from '../modules/polizas/domain/poliza';
 import { ClasificadorLlmAdapter } from './clasificador/clasificador-llm.adapter';
+import { AseguradoraSimuladaAdapter } from './emision/aseguradora-simulada.adapter';
+import { fecha, usd } from './pdf/pdfkit-generador.adapter';
 import { ClasificadorPalabrasClaveAdapter } from './clasificador/clasificador-palabras-clave.adapter';
 import { IntegracionModule } from './integracion.module';
 import {
@@ -77,23 +80,150 @@ describe('IntegracionModule', () => {
 
   it('los adaptadores aún no implementados lanzan NotImplementedException', async () => {
     const m = await compilar();
-    const llamadas: Array<() => unknown> = [
-      () =>
-        m
-          .get<EmisionAseguradora>(EMISION_ASEGURADORA)
-          .emitir({ codigoEstrategia: 'RIMAC', ordenId: 'o' }),
-      () =>
-        m
-          .get<GeneradorPdf>(GENERADOR_PDF)
-          .generarPoliza({ polizaId: 'p', numeroPoliza: 'n', datos: {} }),
-      () =>
-        m
-          .get<ClasificadorPreocupaciones>(CLASIFICADOR_PREOCUPACIONES)
-          .clasificar('texto'),
-    ];
-    for (const llamar of llamadas) {
-      expect(llamar).toThrow(NotImplementedException);
-    }
+    expect(() =>
+      m
+        .get<ClasificadorPreocupaciones>(CLASIFICADOR_PREOCUPACIONES)
+        .clasificar('texto'),
+    ).toThrow(NotImplementedException);
+  });
+
+  describe('AseguradoraSimulada', () => {
+    const emision = async () => {
+      const e = (await compilar()).get<EmisionAseguradora>(EMISION_ASEGURADORA);
+      jest
+        .spyOn(e as AseguradoraSimuladaAdapter, 'ahora')
+        .mockReturnValue(new Date('2027-01-01T03:00:00Z')); // 31/12/2026 en Lima
+      return e;
+    };
+
+    it('número PREFIJO-AÑO-8 hex, con el año de Lima', async () => {
+      const r = await (
+        await emision()
+      ).emitir({ codigoEstrategia: 'LA_POSITIVA', ordenId: 'o1' });
+      expect(r.numeroPoliza).toMatch(/^LPV-2026-[0-9A-F]{8}$/);
+      expect(r.numeroPoliza.length).toBeLessThanOrEqual(30); // poliza.numero varchar(30)
+    });
+
+    it('la misma orden da el mismo número; otra orden, otro número', async () => {
+      const e = await emision();
+      const a = await e.emitir({ codigoEstrategia: 'RIMAC', ordenId: 'o1' });
+      expect(
+        (await e.emitir({ codigoEstrategia: 'RIMAC', ordenId: 'o1' }))
+          .numeroPoliza,
+      ).toBe(a.numeroPoliza);
+      expect(
+        (await e.emitir({ codigoEstrategia: 'RIMAC', ordenId: 'o2' }))
+          .numeroPoliza,
+      ).not.toBe(a.numeroPoliza);
+    });
+
+    it('tiene prefijo para las 5 aseguradoras y rechaza una desconocida', async () => {
+      const e = await emision();
+      for (const codigo of CODIGOS_ESTRATEGIA) {
+        await expect(
+          e.emitir({ codigoEstrategia: codigo, ordenId: 'o' }),
+        ).resolves.toBeDefined();
+      }
+      await expect(
+        e.emitir({ codigoEstrategia: 'OTRA', ordenId: 'o' }),
+      ).rejects.toThrow(/OTRA/);
+    });
+  });
+
+  describe('PdfkitGenerador', () => {
+    const datos = (cuotas = 0): DatosPolizaPdf => ({
+      polizaId: 'p1',
+      numeroPoliza: 'RIM-2026-4F3A9C21',
+      fechaEmision: '2026-11-12T17:40:00Z',
+      canalVenta: 'AUTONOMO',
+      titular: {
+        nombres: 'Ana María',
+        apellidos: 'Núñez Peña',
+        numeroDocumento: '87654321',
+      },
+      vehiculo: {
+        marca: 'Toyota',
+        modelo: 'Corolla',
+        anio: 2022,
+        placa: 'ABC-123',
+      },
+      sumaAsegurada: '15000.00',
+      primaAnual: '700.00',
+      descuento: { tipo: 'PRIMERA_COMPRA', porcentaje: '5.00' },
+      primaFinal: '665.00',
+      pago: {
+        modo: cuotas ? 'CUOTAS' : 'UNICO',
+        montoTotal: '665.00',
+        numeroCuotas: cuotas || null,
+        cuotas: Array.from({ length: cuotas }, (_, i) => ({
+          numero: i + 1,
+          monto: '55.42',
+          fechaVencimiento: `2027-${String(i + 1).padStart(2, '0')}-12`,
+          estado: i === 0 ? ('CONFIRMADO' as const) : ('PENDIENTE' as const),
+        })),
+      },
+      contenidoPlan: {
+        planId: 'plan-oro',
+        aseguradora: 'Rímac',
+        plan: 'Oro',
+        resumen:
+          'Cobertura ampliada con lunas, autopartes y asistencia completa',
+        descripcion: null,
+        idealPara: null,
+        coberturas: Array.from({ length: 13 }, (_, i) => ({
+          codigo: `C${i}`,
+          nombre: `Cobertura número ${i}`,
+          categoria: 'DANOS_PROPIOS' as const,
+          incluida: i % 4 !== 0,
+          detalle: i === 1 ? 'Hasta USD 200,000' : null,
+          limiteMonto: null,
+          orden: i,
+        })),
+        exclusiones: ['Conducir con alcohol sobre el límite legal'],
+        requisitos: [
+          { tipo: 'CONDUCTOR', texto: 'Licencia vigente', obligatorio: true },
+        ],
+        congeladoEn: '2026-11-12T17:39:00Z',
+      },
+    });
+    const generar = async (d: DatosPolizaPdf) =>
+      (await compilar()).get<GeneradorPdf>(GENERADOR_PDF).generarPoliza(d);
+
+    it('genera un PDF válido', async () => {
+      const pdf = await generar(datos());
+      expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+      expect(pdf.subarray(-6).toString('latin1')).toContain('%%EOF');
+    });
+
+    it('lleva la leyenda de demostración en los metadatos (RNF-20)', async () => {
+      // PDFKit guarda los metadatos en UTF-16 big-endian.
+      const utf16be = (s: string) =>
+        Buffer.from(s, 'utf16le').swap16().toString('latin1');
+      expect((await generar(datos())).toString('latin1')).toContain(
+        utf16be('Documento de demostraci'),
+      );
+    });
+
+    it('un plan largo pasa a una segunda página', async () => {
+      const paginas = (pdf: Buffer) =>
+        Number(
+          /\/Type \/Pages\n\/Count (\d+)/.exec(pdf.toString('latin1'))?.[1],
+        );
+      expect(paginas(await generar(datos(12)))).toBe(1);
+      const largo = datos(12);
+      largo.contenidoPlan.exclusiones = Array.from(
+        { length: 30 },
+        (_, i) => `Exclusión de prueba número ${i + 1}`,
+      );
+      expect(paginas(await generar(largo))).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('formatea montos y fechas para el PDF', () => {
+    expect(usd('1234567.50')).toBe('USD 1,234,567.50');
+    expect(usd('665.00')).toBe('USD 665.00');
+    expect(fecha('2027-01-12')).toBe('12/01/2027');
+    expect(fecha('2027-01-01T03:00:00Z')).toBe('31/12/2026'); // hora de Lima
   });
 
   describe('PasarelaSimulada', () => {

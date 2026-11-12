@@ -1,0 +1,19 @@
+meta {
+  name: 04 Error - admin no ve polizas (403)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/polizas/mias
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("responde 403", () => expect(res.status).to.equal(403));
+}
+
+docs {
+  Usa el token del administrador (01 Auth / Login admin). Solo el CLIENTE tiene pólizas.
+}
