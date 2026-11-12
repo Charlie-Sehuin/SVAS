@@ -19,6 +19,7 @@ import { DatabaseModule } from './infrastructure/database/database.module';
 import { HealthController } from './infrastructure/observability/health.controller';
 import { IntegracionModule } from './integracion/integracion.module';
 import { SeguridadModule } from './modules/seguridad/seguridad.module';
+import { AdministracionModule } from './modules/administracion/administracion.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SeguridadModule } from './modules/seguridad/seguridad.module';
     CommonModule,
     IntegracionModule,
     SeguridadModule,
+    AdministracionModule,
   ],
   controllers: [HealthController],
   providers: [

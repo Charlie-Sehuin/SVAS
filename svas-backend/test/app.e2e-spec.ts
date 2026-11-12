@@ -94,6 +94,17 @@ describe('App (e2e)', () => {
       expect(res.body.message).toBe('Tu sesión expiró o no es válida');
     });
 
+    it.each([
+      ['get', '/api/v1/admin/panel'],
+      ['get', '/api/v1/admin/aseguradoras'],
+      ['get', '/api/v1/admin/tarifas/completitud'],
+      ['put', '/api/v1/admin/tarifas/pesos/marca'],
+      ['put', '/api/v1/admin/parametros'],
+      ['delete', '/api/v1/admin/campos/6f1c2b1e-8a3d-4c2e-9b7a-1d2e3f4a5b6c'],
+    ] as const)('%s %s sin token → 401', (metodo, ruta) =>
+      http()[metodo](ruta).expect(401),
+    );
+
     it('reutiliza un X-Correlation-Id válido que envía el cliente', () =>
       http()
         .get('/api/v1/usuarios/me')

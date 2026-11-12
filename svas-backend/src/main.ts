@@ -12,6 +12,8 @@ async function bootstrap() {
   // Railway está detrás de un proxy: necesario para ver la IP real (throttler).
   app.set('trust proxy', 1);
   app.use(helmet());
+  // Cargas masivas de tarifas (816 rangos por aseguradora) superan los 100 kB por defecto.
+  app.useBodyParser('json', { limit: '1mb' });
   app.setGlobalPrefix('api/v1');
   app.enableCors({
     origin: config.get('FRONTEND_URL', { infer: true }),
