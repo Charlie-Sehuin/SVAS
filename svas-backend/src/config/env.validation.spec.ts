@@ -25,6 +25,40 @@ describe('validateEnv', () => {
     expect(() => validateEnv(sinClave)).toThrow(/SUPABASE_SERVICE_ROLE_KEY/);
   });
 
+  it('FEATURE_CLASIFICADOR_LLM es false por defecto y acepta "true"/"false"', () => {
+    expect(validateEnv(base).FEATURE_CLASIFICADOR_LLM).toBe(false);
+    expect(
+      validateEnv({
+        ...base,
+        FEATURE_CLASIFICADOR_LLM: 'true',
+        ANTHROPIC_API_KEY: 'k',
+      }).FEATURE_CLASIFICADOR_LLM,
+    ).toBe(true);
+  });
+
+  it('exige ANTHROPIC_API_KEY si el clasificador LLM está activo', () => {
+    expect(() =>
+      validateEnv({ ...base, FEATURE_CLASIFICADOR_LLM: 'true' }),
+    ).toThrow(/ANTHROPIC_API_KEY/);
+  });
+
+  it('arranca con el .env.example copiado tal cual (ANTHROPIC_API_KEY vacía)', () => {
+    expect(() =>
+      validateEnv({
+        ...base,
+        FEATURE_CLASIFICADOR_LLM: 'false',
+        ANTHROPIC_API_KEY: '',
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateEnv({
+        ...base,
+        FEATURE_CLASIFICADOR_LLM: 'true',
+        ANTHROPIC_API_KEY: '',
+      }),
+    ).toThrow(/ANTHROPIC_API_KEY/);
+  });
+
   it('falla si SUPABASE_URL no es una URL', () => {
     expect(() => validateEnv({ ...base, SUPABASE_URL: 'no-es-url' })).toThrow(
       /SUPABASE_URL/,

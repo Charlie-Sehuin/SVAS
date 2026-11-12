@@ -19,11 +19,13 @@ import { validateEnv } from './config/env.validation';
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { HealthController } from './infrastructure/observability/health.controller';
 import { WhoamiController } from './infrastructure/observability/whoami.controller';
+import { IntegracionModule } from './integracion/integracion.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     DatabaseModule,
+    IntegracionModule,
   ],
   controllers: [HealthController, WhoamiController],
   providers: [

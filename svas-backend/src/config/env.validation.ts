@@ -5,17 +5,26 @@ import { z } from 'zod';
  * Ajuste: el proyecto usa JWT Signing Keys (ES256), así que en lugar de
  * SUPABASE_JWT_SECRET se valida SUPABASE_JWKS_URL.
  */
-export const envSchema = z.object({
-  NODE_ENV: z
-    .enum(['development', 'test', 'production'])
-    .default('development'),
-  PORT: z.coerce.number().int().positive().default(3000),
-  FRONTEND_URL: z.url().default('http://localhost:5173'),
-  SUPABASE_URL: z.url(),
-  SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-  SUPABASE_JWKS_URL: z.url(),
-});
+export const envSchema = z
+  .object({
+    NODE_ENV: z
+      .enum(['development', 'test', 'production'])
+      .default('development'),
+    PORT: z.coerce.number().int().positive().default(3000),
+    FRONTEND_URL: z.url().default('http://localhost:5173'),
+    SUPABASE_URL: z.url(),
+    SUPABASE_ANON_KEY: z.string().min(1),
+    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+    SUPABASE_JWKS_URL: z.url(),
+    // Opcionales
+    FEATURE_CLASIFICADOR_LLM: z.stringbool().default(false),
+    // Vacía (ANTHROPIC_API_KEY= en el .env) cuenta como no definida.
+    ANTHROPIC_API_KEY: z.string().optional(),
+  })
+  .refine((env) => !env.FEATURE_CLASIFICADOR_LLM || env.ANTHROPIC_API_KEY, {
+    path: ['ANTHROPIC_API_KEY'],
+    message: 'es obligatoria cuando FEATURE_CLASIFICADOR_LLM=true',
+  });
 
 export type Env = z.infer<typeof envSchema>;
 
