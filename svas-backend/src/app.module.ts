@@ -25,6 +25,7 @@ import { CotizacionModule } from './modules/cotizacion/cotizacion.module';
 import { AsesoriaRetencionModule } from './modules/asesoria-retencion/asesoria-retencion.module';
 import { PruebaChoqueModule } from './modules/prueba-choque/prueba-choque.module';
 import { PlanesModule } from './modules/planes/planes.module';
+import { PagosModule } from './modules/pagos/pagos.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { PlanesModule } from './modules/planes/planes.module';
     AsesoriaRetencionModule,
     PruebaChoqueModule,
     PlanesModule,
+    PagosModule,
   ],
   controllers: [HealthController],
   providers: [
