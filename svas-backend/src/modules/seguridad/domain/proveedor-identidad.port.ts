@@ -1,21 +1,14 @@
-import type { Sesion } from './usuario';
-
 /** Errores del proveedor de identidad, independientes de Supabase. */
-export class CredencialesInvalidasError extends Error {}
-export class CuentaBloqueadaError extends Error {}
-export class SesionInvalidaError extends Error {}
 export class EmailYaRegistradoError extends Error {}
 export class ContrasenaDebilError extends Error {}
 
 /**
- * Puerto hacia el proveedor de identidad (hoy Supabase Auth). Gestiona
- * cuentas y contraseñas; el perfil de negocio lo gestiona UsuarioRepository.
+ * Puerto hacia el proveedor de identidad (hoy Supabase Auth) para las
+ * operaciones que el navegador no puede hacer: crear cuentas (el registro
+ * público está desactivado) y bloquearlas. Login, refresh y logout los hace
+ * el frontend con supabase-js (doc frontend §9.3).
  */
 export interface ProveedorIdentidad {
-  /** @throws CredencialesInvalidasError | CuentaBloqueadaError */
-  iniciarSesion(email: string, password: string): Promise<Sesion>;
-  /** @throws SesionInvalidaError (incluye cuentas bloqueadas) */
-  refrescar(refreshToken: string): Promise<Sesion>;
   /** Crea la cuenta con el email ya confirmado. @throws EmailYaRegistradoError | ContrasenaDebilError */
   crearCuenta(email: string, password: string): Promise<{ id: string }>;
   /** Compensación cuando falla el registro del perfil. */

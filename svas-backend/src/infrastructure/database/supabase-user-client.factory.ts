@@ -35,11 +35,4 @@ export class SupabaseUserClientFactory {
   paraToken(accessToken: string): SupabaseUserClient {
     return crearClienteUsuario(this.url, this.anonKey, accessToken);
   }
-
-  /** Cliente sin sesión (solo anon key): login y refresh contra Supabase Auth. */
-  anonimo() {
-    return createClient(this.url, this.anonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-  }
 }

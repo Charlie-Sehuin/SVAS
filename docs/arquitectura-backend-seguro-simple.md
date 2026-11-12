@@ -166,7 +166,7 @@ svas-backend/
 │   │
 │   ├── modules/
 │   │   ├── seguridad/                       # Ola 0
-│   │   │   ├── auth.controller.ts           # /auth/login, /auth/registro, /auth/refresh
+│   │   │   ├── auth.controller.ts           # /auth/registro (login/refresh: supabase-js)
 │   │   │   ├── usuarios.controller.ts       # /usuarios/me, /admin/usuarios
 │   │   │   ├── application/ …
 │   │   │   └── seguridad.module.ts
@@ -352,7 +352,7 @@ Variables obligatorias: `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
 
 | Módulo | Endpoints | Roles | RPCs que usa |
 |---|---|---|---|
-| `seguridad` | `POST /auth/login`, `POST /auth/registro`, `POST /auth/refresh`, `GET /usuarios/me`, `GET /admin/usuarios`, `POST /admin/usuarios`, `PATCH /admin/usuarios/:id/rol`, `PATCH /admin/usuarios/:id/estado` | público / todos / ADMIN | `admin_cambiar_rol_usuario` |
+| `seguridad` | `POST /auth/registro`, `GET /usuarios/me`, `GET /admin/usuarios`, `POST /admin/usuarios`, `PATCH /admin/usuarios/:id/rol`, `PATCH /admin/usuarios/:id/estado` | público / todos / ADMIN | `admin_cambiar_rol_usuario` |
 | `administracion` | `GET /admin/panel`, `GET/PATCH /admin/aseguradoras[/:id]`, `GET/POST/PATCH /admin/planes[/:id]`, `GET/POST/PUT/DELETE /admin/campos[/:id]`, `GET/PUT /admin/reglas-inspeccion`, `GET/PUT /admin/parametros`, `GET /admin/bitacora`, **`GET /admin/tarifas/planes`, `PUT /admin/tarifas/planes/:planId`, `GET/PUT /admin/tarifas/pesos/:tabla`, `GET/PUT /admin/tarifas/rangos-suma`, `POST /admin/tarifas/simular`, `GET /admin/tarifas/completitud`** | ADMIN | 6.12 (`admin_guardar_tarifa_plan`, `admin_guardar_pesos`, `admin_guardar_rangos_suma`) |
 | `administracion` (contenido) ★ | `GET /admin/planes/:planId/contenido`, `PUT /admin/planes/:planId/contenido`, `GET/POST/PUT /admin/coberturas[/:id]`, `GET /admin/contenido-planes/completitud` | ADMIN | `admin_guardar_plan_contenido`, `admin_guardar_cobertura_catalogo` |
 | `planes` ★ | `GET /planes/:planId/contenido`, `GET /planes/comparar?ids=` | público+token / CLIENTE / ASESOR | — (lectura) |

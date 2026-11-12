@@ -12,7 +12,7 @@ import {
   USUARIO_REPOSITORY,
   type UsuarioRepository,
 } from '../domain/usuario.repository.port';
-import { traducirErrorIdentidad } from './sesion-autorizada.service';
+import { traducirErrorIdentidad } from './errores-identidad';
 
 /** Casos de uso del ADMINISTRADOR sobre usuarios (RF-31, RF-32). */
 

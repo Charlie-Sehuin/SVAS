@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { crearValidationPipe } from '../../../../common/pipes/validation.pipe';
 import { limpiarBusqueda } from '../../infrastructure/usuario-supabase.repository';
-import { RegistroDto } from './auth.dto';
+import { RegistroDto } from './registro.dto';
 import { CrearUsuarioDto, ListarUsuariosQuery } from './usuarios.dto';
 
 const pipe = crearValidationPipe();

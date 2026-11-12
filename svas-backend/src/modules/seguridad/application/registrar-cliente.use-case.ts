@@ -3,16 +3,12 @@ import {
   PROVEEDOR_IDENTIDAD,
   type ProveedorIdentidad,
 } from '../domain/proveedor-identidad.port';
-import { armarNombreCompleto } from '../domain/usuario';
+import { armarNombreCompleto, type Usuario } from '../domain/usuario';
 import {
   USUARIO_REPOSITORY,
   type UsuarioRepository,
 } from '../domain/usuario.repository.port';
-import {
-  type RespuestaSesion,
-  SesionAutorizadaService,
-  traducirErrorIdentidad,
-} from './sesion-autorizada.service';
+import { traducirErrorIdentidad } from './errores-identidad';
 
 export interface DatosRegistro {
   nombres: string;
@@ -25,6 +21,8 @@ export interface DatosRegistro {
 
 /**
  * Registro mínimo dentro del embudo (doc conexión §2): siempre CLIENTE.
+ * Devuelve el perfil; el frontend inicia sesión después con supabase-js y el
+ * token ya trae app_metadata.roles = ['CLIENTE'].
  * PENDIENTE (Ola 1, migraciones 0007/0008): crear la fila de `cliente` con
  * el teléfono y vincular `cotizacionId` si llega con X-Cotizacion-Token.
  */
@@ -35,16 +33,15 @@ export class RegistrarClienteUseCase {
   constructor(
     @Inject(PROVEEDOR_IDENTIDAD) private readonly identidad: ProveedorIdentidad,
     @Inject(USUARIO_REPOSITORY) private readonly usuarios: UsuarioRepository,
-    private readonly sesiones: SesionAutorizadaService,
   ) {}
 
-  async ejecutar(d: DatosRegistro): Promise<RespuestaSesion> {
+  async ejecutar(d: DatosRegistro): Promise<Usuario> {
     const { id } = await this.identidad
       .crearCuenta(d.email, d.password)
       .catch(traducirErrorIdentidad);
 
     try {
-      await this.usuarios.registrarCliente({
+      return await this.usuarios.registrarCliente({
         id,
         email: d.email,
         nombreCompleto: armarNombreCompleto(d.nombres, d.apellidos),
@@ -58,11 +55,5 @@ export class RegistrarClienteUseCase {
         );
       throw error;
     }
-
-    // Login después de crear el perfil: el token ya trae app_metadata.roles = ['CLIENTE'].
-    const sesion = await this.identidad
-      .iniciarSesion(d.email, d.password)
-      .catch(traducirErrorIdentidad);
-    return this.sesiones.autorizar(sesion);
   }
 }

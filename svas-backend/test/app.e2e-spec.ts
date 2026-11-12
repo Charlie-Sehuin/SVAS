@@ -36,22 +36,25 @@ describe('App (e2e)', () => {
   });
 
   describe('auth (público)', () => {
-    it('POST /auth/login con credenciales inválidas → 401 genérico', async () => {
+    it('POST /auth/registro sin datos → 400 con errores por campo', async () => {
       const res = await http()
-        .post('/api/v1/auth/login')
-        .send({
-          email: 'no-existe@seguro-simple.test',
-          password: 'incorrecta-123',
-        })
-        .expect(401);
-      expect(res.body.message).toBe('Email o contraseña incorrectos');
+        .post('/api/v1/auth/registro')
+        .send({})
+        .expect(400);
+      expect(res.body.errors.map((e: { campo: string }) => e.campo)).toEqual(
+        expect.arrayContaining([
+          'nombres',
+          'apellidos',
+          'email',
+          'password',
+          'telefono',
+        ]),
+      );
     });
 
-    it('POST /auth/login sin datos → 400 con errores por campo', async () => {
-      const res = await http().post('/api/v1/auth/login').send({}).expect(400);
-      expect(res.body.errors.map((e: { campo: string }) => e.campo)).toEqual(
-        expect.arrayContaining(['email', 'password']),
-      );
+    it('login y refresh no existen en el backend (los hace supabase-js)', async () => {
+      await http().post('/api/v1/auth/login').send({}).expect(404);
+      await http().post('/api/v1/auth/refresh').send({}).expect(404);
     });
 
     it('POST /auth/registro rechaza auto-asignarse un rol (no crea nada)', async () => {
@@ -68,12 +71,6 @@ describe('App (e2e)', () => {
         .expect(400);
       expect(JSON.stringify(res.body.errors)).toContain('rol');
     });
-
-    it('POST /auth/refresh con token inventado → 401', () =>
-      http()
-        .post('/api/v1/auth/refresh')
-        .send({ refresh_token: 'inventado' })
-        .expect(401));
   });
 
   describe('rutas protegidas', () => {

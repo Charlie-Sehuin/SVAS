@@ -1,7 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
-  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
@@ -10,26 +9,8 @@ import {
   MinLength,
 } from 'class-validator';
 
-const aEmail = ({ value }: { value: unknown }) =>
-  typeof value === 'string' ? value.trim().toLowerCase() : value;
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
-
-export class LoginDto {
-  @Transform(aEmail)
-  @IsEmail({}, { message: 'Ingresa un email válido' })
-  email!: string;
-
-  @IsString({ message: 'Ingresa tu contraseña' })
-  @IsNotEmpty({ message: 'Ingresa tu contraseña' })
-  password!: string;
-}
-
-export class RefreshDto {
-  @IsString({ message: 'Falta el refresh_token' })
-  @IsNotEmpty({ message: 'Falta el refresh_token' })
-  refresh_token!: string;
-}
 
 /** Registro mínimo en el embudo (doc conexión §2). No acepta `rol`: siempre CLIENTE. */
 export class RegistroDto {
@@ -45,7 +26,9 @@ export class RegistroDto {
   @MaxLength(79, { message: 'Los apellidos no pueden pasar de 79 caracteres' })
   apellidos!: string;
 
-  @Transform(aEmail)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   @IsEmail({}, { message: 'Ingresa un email válido' })
   @MaxLength(254, { message: 'El email es demasiado largo' })
   email!: string;
