@@ -1,0 +1,40 @@
+meta {
+  name: 02 Contenido Rimac Oro (publico)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/planes/{{oroId}}/contenido
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  if (!bru.getVar("oroId")) {
+    await bru.runRequest("10 Contenido de planes/01 Completitud (admin)");
+  }
+}
+
+tests {
+  const b = res.body || {};
+  const rc = (b.coberturas || []).find((c) => c.codigo === "RC_TERCEROS") || {};
+  test("responde 200 sin token", () => expect(res.status).to.equal(200));
+  test("las 13 coberturas, todas incluidas", () => {
+    expect(b.coberturas.length).to.equal(13);
+    expect(b.coberturas.every((c) => c.incluida)).to.equal(true);
+  });
+  test("RC hasta USD 200,000", () => {
+    expect(rc.detalle).to.equal("Hasta USD 200,000");
+    expect(rc.limiteMonto).to.equal("200000.00");
+  });
+  test("7 exclusiones y 4 requisitos", () => {
+    expect(b.exclusiones.length).to.equal(7);
+    expect(b.requisitos.length).to.equal(4);
+  });
+  test("leyenda RN-46", () => expect(b.leyenda).to.contain("Contenido ilustrativo"));
+}
+
+docs {
+  Público (RN-46): sin JWT ni token de cotización.
+}

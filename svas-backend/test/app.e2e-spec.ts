@@ -110,6 +110,17 @@ describe('App (e2e)', () => {
       ['put', '/api/v1/admin/prueba-choque/frecuencias'],
       ['put', '/api/v1/admin/prueba-choque/zonas'],
       ['get', '/api/v1/admin/prueba-choque/factores'],
+      [
+        'get',
+        '/api/v1/admin/planes/6f1c2b1e-8a3d-4c2e-9b7a-1d2e3f4a5b6c/contenido',
+      ],
+      [
+        'put',
+        '/api/v1/admin/planes/6f1c2b1e-8a3d-4c2e-9b7a-1d2e3f4a5b6c/contenido',
+      ],
+      ['get', '/api/v1/admin/coberturas'],
+      ['put', '/api/v1/admin/coberturas/LUNAS'],
+      ['get', '/api/v1/admin/contenido-planes/completitud'],
     ] as const)('%s %s sin token → 401', (metodo, ruta) =>
       http()[metodo](ruta).expect(401),
     );
@@ -333,6 +344,69 @@ describe('App (e2e)', () => {
         .get(`/api/v1/retoma/${'A'.repeat(43)}`)
         .expect(404);
       expect(res.body).toMatchObject({ message: 'Este enlace no es válido' });
+    });
+  });
+
+  describe('contenido de planes (público, validaciones)', () => {
+    const A = '6f1c2b1e-8a3d-4c2e-9b7a-1d2e3f4a5b6c';
+    const B = '0b5e9c4d-2f1a-4b3c-8d7e-6a5b4c3d2e1f';
+    const C = '1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d';
+    const D = '2b3c4d5e-6f7a-4b2c-9d3e-4f5a6b7c8d9e';
+
+    it('GET /planes/abc/contenido → 400', () =>
+      http().get('/api/v1/planes/abc/contenido').expect(400));
+
+    it('GET /planes/comparar con 4 planes → 400 (máximo 3)', async () => {
+      const res = await http()
+        .get(`/api/v1/planes/comparar?ids=${A},${B},${C},${D}`)
+        .expect(400);
+      expect(res.body.message).toBe('Puedes comparar hasta 3 planes');
+    });
+
+    it('GET /planes/comparar con 1 plan → 400', () =>
+      http().get(`/api/v1/planes/comparar?ids=${A}`).expect(400));
+  });
+
+  describe('contenido de planes (lecturas del seed 0031)', () => {
+    const PLATA = '3b39a8e1-902b-49be-b25f-e674a08173c9';
+    const ORO = '2ec4c025-104a-4e3e-b492-39ca0f5552c7';
+
+    it('GET /planes/:id/contenido de Rímac Oro → 200 con las 13 coberturas', async () => {
+      const res = await http()
+        .get(`/api/v1/planes/${ORO}/contenido`)
+        .expect(200);
+      expect(res.body).toMatchObject({
+        planId: ORO,
+        plan: 'Oro',
+        resumen:
+          'Cobertura ampliada con lunas, autopartes y asistencia completa',
+      });
+      expect(res.body.coberturas).toHaveLength(13);
+      expect(res.body.exclusiones.length).toBeGreaterThan(0);
+      expect(res.body.requisitos.length).toBeGreaterThan(0);
+    });
+
+    it('GET /planes/:id/contenido de un plan inexistente → 404', async () => {
+      const res = await http()
+        .get('/api/v1/planes/00000000-0000-4000-8000-000000000000/contenido')
+        .expect(404);
+      expect(res.body.message).toBe(
+        'El contenido de este plan no está disponible',
+      );
+    });
+
+    it('GET /planes/comparar Plata y Oro → matriz de 13 filas × 2 planes', async () => {
+      const res = await http()
+        .get(`/api/v1/planes/comparar?ids=${PLATA},${ORO}`)
+        .expect(200);
+      expect(res.body.planes.map((p: { plan: string }) => p.plan)).toEqual([
+        'Plata',
+        'Oro',
+      ]);
+      expect(res.body.filas).toHaveLength(13);
+      for (const f of res.body.filas as { valores: unknown[] }[]) {
+        expect(f.valores).toHaveLength(2);
+      }
     });
   });
 

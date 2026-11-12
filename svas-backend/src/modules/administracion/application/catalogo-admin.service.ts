@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import type { ErrorCampo } from '../../../common/types/usuario-autenticado';
 import {
@@ -21,6 +22,10 @@ import {
   type FiltrosBitacora,
   type GuardarCampo,
 } from '../domain/catalogo-admin.repository.port';
+import {
+  CONTENIDO_PLAN_REPOSITORY,
+  type ContenidoPlanRepository,
+} from '../../planes/domain/contenido-plan.repository.port';
 
 function errorDeCampos(errors: ErrorCampo[]): BadRequestException {
   return new BadRequestException({ message: errors[0].mensaje, errors });
@@ -35,6 +40,10 @@ export class CatalogoAdminService {
   constructor(
     @Inject(CATALOGO_ADMIN_REPOSITORY)
     private readonly repo: CatalogoAdminRepository,
+    /** El contenido público solo muestra planes activos: se invalida al cambiar planes o aseguradoras. */
+    @Optional()
+    @Inject(CONTENIDO_PLAN_REPOSITORY)
+    private readonly contenido?: Pick<ContenidoPlanRepository, 'invalidar'>,
   ) {}
 
   panel(token: string) {
@@ -46,8 +55,10 @@ export class CatalogoAdminService {
     return this.repo.listarAseguradoras(token);
   }
 
-  cambiarEstadoAseguradora(token: string, id: string, activa: boolean) {
-    return this.repo.cambiarEstadoAseguradora(token, id, activa);
+  async cambiarEstadoAseguradora(token: string, id: string, activa: boolean) {
+    const r = await this.repo.cambiarEstadoAseguradora(token, id, activa);
+    this.contenido?.invalidar();
+    return r;
   }
 
   // ── Planes ────────────────────────────────────────────────────────────────
@@ -55,16 +66,18 @@ export class CatalogoAdminService {
     return this.repo.listarPlanes(token, aseguradoraId);
   }
 
-  crearPlan(
+  async crearPlan(
     token: string,
     d: { aseguradoraId: string; nombre: string; descripcion?: string | null },
   ) {
-    return this.repo.crearPlan(
+    const plan = await this.repo.crearPlan(
       token,
       d.aseguradoraId,
       d.nombre,
       d.descripcion ?? null,
     );
+    this.contenido?.invalidar();
+    return plan;
   }
 
   /** PATCH parcial: nombre/descripción por un RPC y el estado por otro. */
@@ -88,6 +101,7 @@ export class CatalogoAdminService {
     if (d.activo !== undefined && d.activo !== plan.activo) {
       plan = await this.repo.cambiarEstadoPlan(token, id, d.activo);
     }
+    this.contenido?.invalidar();
     return plan;
   }
 

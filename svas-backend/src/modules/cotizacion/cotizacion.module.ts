@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { IntegracionModule } from '../../integracion/integracion.module';
+import { PlanesModule } from '../planes/planes.module';
 import { CalculadoraPrimasService } from './application/calculadora-primas.service';
 import { CatalogoPublicoService } from './application/catalogo-publico.service';
 import {
@@ -21,7 +22,7 @@ import { CotizacionesController } from './presentation/cotizaciones.controller';
 
 /** Ola 1: catálogo público, cálculo de primas y cotizaciones (0007/0008/0009/0012). */
 @Module({
-  imports: [IntegracionModule],
+  imports: [IntegracionModule, PlanesModule],
   controllers: [CatalogoController, CotizacionesController],
   providers: [
     { provide: TARIFA_REPOSITORY, useClass: TarifaSupabaseRepository },

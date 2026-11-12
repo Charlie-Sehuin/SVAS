@@ -1,0 +1,36 @@
+meta {
+  name: 11 Cotizacion con resumen de planes
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/cotizaciones/{{cotizacionId}}/resumen
+  body: none
+  auth: none
+}
+
+headers {
+  X-Cotizacion-Token: {{tokenAcceso}}
+}
+
+script:pre-request {
+  // Si no hay cotización en esta sesión, crea una (06 / Cotizar Corolla 2022).
+  if (!bru.getVar("cotizacionId")) {
+    await bru.runRequest("06 Cotizaciones/Cotizar Corolla 2022");
+  }
+}
+
+tests {
+  const primas = (res.body.cotizacion || {}).primas || [];
+  const oro = primas.find((p) => p.aseguradora === "Rímac" && p.plan === "Oro") || {};
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("cada plan trae su resumen", () => expect(primas.every((p) => typeof p.resumen === "string")).to.equal(true));
+  test("resumen de Rímac Oro", () =>
+    expect(oro.resumen).to.equal("Cobertura ampliada con lunas, autopartes y asistencia completa"));
+}
+
+docs {
+  La tarjeta del comparativo muestra `resumen` y, si llega null, no ofrece
+  "Ver detalle" ni "Comparar" (arquitectura frontend §6.11).
+}

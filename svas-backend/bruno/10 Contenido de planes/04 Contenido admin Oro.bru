@@ -1,0 +1,31 @@
+meta {
+  name: 04 Contenido admin Oro
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/admin/planes/{{oroId}}/contenido
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("oroId")) {
+    await bru.runRequest("10 Contenido de planes/01 Completitud (admin)");
+  }
+}
+
+script:post-response {
+  if (res.status === 200) bru.setVar("contenidoOro", JSON.stringify(res.body));
+}
+
+tests {
+  const b = res.body || {};
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("13 coberturas definidas", () => expect(b.coberturas.filter((c) => c.definida).length).to.equal(13));
+  test("completo y sin advertencias", () => {
+    expect(b.completitud.completo).to.equal(true);
+    expect(b.advertencias).to.eql([]);
+  });
+}

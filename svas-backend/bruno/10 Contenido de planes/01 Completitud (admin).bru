@@ -1,0 +1,36 @@
+meta {
+  name: 01 Completitud (admin)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/contenido-planes/completitud
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const items = (res.body && res.body.items) || [];
+  const oro = items.find((i) => i.aseguradora === "Rímac" && i.plan === "Oro");
+  const plata = items.find((i) => i.aseguradora === "Rímac" && i.plan === "Plata");
+  if (oro) bru.setVar("oroId", oro.planId);
+  if (plata) bru.setVar("plataId", plata.planId);
+}
+
+tests {
+  const b = res.body || {};
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("10 planes", () => expect((b.items || []).length).to.equal(10));
+  test("todos completos", () => {
+    expect(b.completo).to.equal(true);
+    expect(b.planesActivosIncompletos).to.equal(0);
+  });
+  test("sin contradicciones con la Prueba de Choque", () =>
+    expect(b.items.every((i) => i.incoherenciasPruebaChoque === 0)).to.equal(true));
+}
+
+docs {
+  Por plan: coberturas faltantes, textos, requisitos, exclusiones e
+  incoherencias con la Prueba de Choque (RN-42, RN-43). Guarda oroId y plataId.
+}

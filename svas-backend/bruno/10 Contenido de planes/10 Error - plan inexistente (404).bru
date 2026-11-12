@@ -1,0 +1,15 @@
+meta {
+  name: 10 Error - plan inexistente (404)
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/planes/00000000-0000-4000-8000-000000000000/contenido
+  body: none
+  auth: none
+}
+
+tests {
+  test("responde 404", () => expect(res.status).to.equal(404));
+}
