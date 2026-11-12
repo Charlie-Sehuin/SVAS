@@ -1,0 +1,27 @@
+meta {
+  name: 13 Estado de la compra
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/compras/{{ordenCompraId}}/estado
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+tests {
+  const b = res.body;
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("confirmada", () => expect(b.estado).to.equal("CONFIRMADO"));
+  test("póliza de la compra", () => expect(b.poliza.id).to.equal(bru.getVar("polizaCompraId")));
+  test("pago en 6 cuotas", () => {
+    expect(b.pago.modo).to.equal("CUOTAS");
+    expect(b.pago.cuotas.length).to.equal(6);
+  });
+  test("sin rechazos", () => expect(b.pagosRechazados).to.equal(0));
+}

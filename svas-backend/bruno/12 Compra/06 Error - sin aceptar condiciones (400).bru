@@ -1,0 +1,29 @@
+meta {
+  name: 06 Error - sin aceptar condiciones (400)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/compras
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+body:json {
+  {
+    "cotizacionId": "{{cotCompraId}}",
+    "primaCotizadaId": "{{primaCompraId}}",
+    "aceptaCondiciones": false,
+    "firmaSimulada": "Cliente Prueba"
+  }
+}
+
+tests {
+  test("responde 400", () => expect(res.status).to.equal(400));
+  test("pide aceptar", () => expect(JSON.stringify(res.body)).to.include("aceptar las condiciones"));
+}

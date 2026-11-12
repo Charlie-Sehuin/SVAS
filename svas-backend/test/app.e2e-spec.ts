@@ -326,6 +326,24 @@ describe('App (e2e)', () => {
     );
   });
 
+  describe('compra (sin escribir en la base)', () => {
+    const ID = '00000000-0000-4000-8000-000000000000';
+
+    it.each([
+      [
+        'get',
+        `/api/v1/compras/resumen?cotizacionId=${ID}&primaCotizadaId=${ID}`,
+      ],
+      ['get', `/api/v1/compras/${ID}/campos-faltantes`],
+      ['put', `/api/v1/compras/${ID}/datos`],
+      ['post', '/api/v1/compras'],
+      ['post', `/api/v1/compras/${ID}/pago`],
+      ['get', `/api/v1/compras/${ID}/estado`],
+    ] as const)('%s %s sin token → 401', (metodo, ruta) =>
+      http()[metodo](ruta).expect(401),
+    );
+  });
+
   describe('asesoría y retención (sin escribir en la base)', () => {
     const ID = '00000000-0000-4000-8000-000000000000';
 

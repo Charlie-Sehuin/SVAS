@@ -1,0 +1,29 @@
+meta {
+  name: 15 Descargar PDF de la poliza
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/polizas/{{polizaCompraId}}/pdf
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+tests {
+  test("responde 200 con el PDF", () => {
+    expect(res.status).to.equal(200);
+    expect(res.headers["content-type"]).to.include("application/pdf");
+  });
+  test("se descarga como archivo", () =>
+    expect(res.headers["content-disposition"]).to.include("attachment"));
+}
+
+docs {
+  Prueba la subida real a Storage y el PDF de una póliza real. Si responde 202
+  (PDF_EN_GENERACION), espera unos segundos y repite: el job lo regenera.
+}

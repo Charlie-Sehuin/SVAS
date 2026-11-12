@@ -1,0 +1,22 @@
+meta {
+  name: 14 Mis polizas incluye la nueva
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/polizas/mias
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+tests {
+  const p = (res.body || []).find((x) => x.id === bru.getVar("polizaCompraId"));
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("aparece la póliza nueva", () => expect(p).to.not.equal(undefined));
+  test("con su contenido congelado", () => expect(p.contenidoPlan.congeladoEn).to.be.a("string"));
+}

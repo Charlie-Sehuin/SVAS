@@ -27,6 +27,7 @@ import { PruebaChoqueModule } from './modules/prueba-choque/prueba-choque.module
 import { PlanesModule } from './modules/planes/planes.module';
 import { PagosModule } from './modules/pagos/pagos.module';
 import { PolizasModule } from './modules/polizas/polizas.module';
+import { CompraModule } from './modules/compra/compra.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { PolizasModule } from './modules/polizas/polizas.module';
     PlanesModule,
     PagosModule,
     PolizasModule,
+    CompraModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -1,0 +1,28 @@
+meta {
+  name: 08 Error - orden duplicada (409)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/compras
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+body:json {
+  {
+    "cotizacionId": "{{cotCompraId}}",
+    "primaCotizadaId": "{{primaCompraId}}",
+    "aceptaCondiciones": true,
+    "firmaSimulada": "Cliente Prueba"
+  }
+}
+
+tests {
+  test("responde 409", () => expect(res.status).to.equal(409));
+}

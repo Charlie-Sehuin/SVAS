@@ -1,0 +1,32 @@
+meta {
+  name: 04 Campos faltantes
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/compras/{{cotCompraId}}/campos-faltantes
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{clienteToken}}
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar("camposCompra", res.body.campos.map((c) => c.campo).join(","));
+  }
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("pide la placa (la cotización no la captura)", () =>
+    expect(res.body.campos.map((c) => c.campo)).to.include("placa"));
+}
+
+docs {
+  Solo lo no capturado (RNF-08). El documento aparece solo la primera vez:
+  después queda guardado en el cliente de prueba.
+}
