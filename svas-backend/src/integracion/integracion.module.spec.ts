@@ -79,13 +79,6 @@ describe('IntegracionModule', () => {
     const m = await compilar();
     const llamadas: Array<() => unknown> = [
       () =>
-        m.get<PasarelaPago>(PASARELA_PAGO).cobrar({
-          ordenId: 'o',
-          monto: new Decimal(1),
-          modo: 'UNICO',
-          idempotencyKey: 'k',
-        }),
-      () =>
         m
           .get<EmisionAseguradora>(EMISION_ASEGURADORA)
           .emitir({ codigoEstrategia: 'RIMAC', ordenId: 'o' }),
@@ -101,6 +94,45 @@ describe('IntegracionModule', () => {
     for (const llamar of llamadas) {
       expect(llamar).toThrow(NotImplementedException);
     }
+  });
+
+  describe('PasarelaSimulada', () => {
+    const cobrar = async (monto: string, ordenId = 'o1', key = 'k1') =>
+      (await compilar()).get<PasarelaPago>(PASARELA_PAGO).cobrar({
+        ordenId,
+        monto: new Decimal(monto),
+        modo: 'UNICO',
+        idempotencyKey: key,
+      });
+
+    it('aprueba los montos que no terminan en .13', async () => {
+      const r = await cobrar('665.00');
+      expect(r.estado).toBe('APROBADO');
+      expect(r.referencia).toMatch(/^SIM-[0-9A-F]{20}$/);
+    });
+
+    it('rechaza los montos terminados en .13', async () => {
+      expect((await cobrar('619.13')).estado).toBe('RECHAZADO');
+      expect((await cobrar('0.13')).estado).toBe('RECHAZADO');
+      expect((await cobrar('1.135')).estado).toBe('APROBADO'); // redondea a 1.14
+    });
+
+    it('es idempotente: misma orden y misma clave → misma referencia', async () => {
+      const a = await cobrar('100.00', 'o1', 'k1');
+      expect((await cobrar('100.00', 'o1', 'k1')).referencia).toBe(
+        a.referencia,
+      );
+      expect((await cobrar('100.00', 'o1', 'k2')).referencia).not.toBe(
+        a.referencia,
+      );
+      expect((await cobrar('100.00', 'o2', 'k1')).referencia).not.toBe(
+        a.referencia,
+      );
+    });
+
+    it('rechaza montos menores o iguales a 0', async () => {
+      await expect(cobrar('0')).rejects.toThrow(/mayores/);
+    });
   });
 
   describe('NotificadorSimulado', () => {

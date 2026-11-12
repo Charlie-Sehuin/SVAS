@@ -3,7 +3,7 @@
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
 > `arquitectura-backend-seguro-simple.md` (orden de construcción en §10).
-> Última actualización: 2026-11-12 (Ola 2 completa; sigue la Ola 3).
+> Última actualización: 2026-11-12 (Ola 3, tanda 1: base de compra + pagos).
 
 ## 1. Dónde estamos
 
@@ -17,12 +17,13 @@
 | Ola 2 · `prueba-choque` tanda 1 (motor + endpoints) | ✅ hecho y probado en Bruno (08: 01–09), 0026–0028 **aplicadas** | en `main` |
 | Ola 2 · `prueba-choque` tanda 2 (admin del catálogo) | ✅ hecho y probado en Bruno (09: 01–14), 0029 **aplicada** | en `main` |
 | Ola 2 · contenido de planes (`planes`) | ✅ hecho y probado en Bruno (10: 01–11), 0030–0032 **aplicadas** | en `main` |
+| Ola 3 · tanda 1 (base de compra + `pagos`) | ✅ hecho; 0033–0034 **aplicadas**; regresión en Bruno 06 y 08 ✅ | en `main` |
 
-Tests al cierre: **303 unitarios + 62 e2e** en verde (`npm test`, `npm run test:e2e`).
+Tests al cierre: **323 unitarios + 62 e2e** en verde (`npm test`, `npm run test:e2e`).
 El e2e verifica la tabla dorada §17.6 contra los datos reales de Supabase. Los e2e de
 cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públicas (no escriben en la base);
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
-Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos) y 0030–0031 (27 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
+Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos) y 0033–0034 (25 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
 
 ### Último cierre (2026-11-12): Prueba de Choque, tanda 2 (admin del catálogo)
 
@@ -36,14 +37,18 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
 
 ## 2. Siguiente paso concreto
 
-1. **Ola 3 — cerrar la venta** (arquitectura backend §10.2): `pagos` → `polizas` → `compra`, en ese orden
-   (`compra` orquesta a los otros dos). Migraciones: lo que el plan ubicaba en 0010/0013 va en ≥ 0033.
-   Al hacerla:
-   - Crear `orden_compra`: `actualizar_suma_asegurada` rechaza si hay orden; 6.10 suma "sin orden".
-   - La compra con descuento negociado/retoma cierra el seguimiento como `CONVERTIDO`
-     (`cerrar_seguimiento` ya acepta service_role).
-   - `ArmarCopiaContenidoService` (RN-45): copia del contenido del plan en la orden.
-   - Interceptor de idempotencia en `POST /compras/:id/pago` (existe `@nestjs/idempotency`).
+1. **Ola 3 — cerrar la venta** (arquitectura backend §10.2): `pagos` → `polizas` → `compra`.
+   - Tanda 1: ✅ 0033 tablas + T3/T4 + RLS; ✅ 0034 RPCs de compra,
+     `actualizar_suma_asegurada` v3 (409 si hay orden) y detector v2 ("sin orden"); ✅ módulo `pagos`
+     (pasarela simulada + `ProcesarPagoService`). Bruno 06 y 08 en verde (regresión del ajuste de suma);
+     mergeada en `main`.
+   - Tanda 2 `polizas`: emisión simulada (número de póliza), `GeneradorPdf` con PDFKit desde
+     `orden_compra.contenido_plan` + leyenda de demostración (RNF-20), subida a Storage y
+     `poliza.pdf_generado_en`; `GET /polizas/mias`, `GET /polizas/:id/pdf` (URL firmada 10 min);
+     job que regenera los PDF pendientes.
+   - Tanda 3 `compra`: resumen, campos faltantes, datos, `POST /compras` (con `ArmarCopiaContenidoService`,
+     RN-45), `POST /compras/:id/pago` (+ `Idempotency-Key`; existe `@nestjs/idempotency`), estado;
+     Bruno 11 con el flujo completo (incluido el rechazo con un total terminado en .13).
 2. Ola 4 — medir: reportes (incluye impacto de la Prueba de Choque), PDF de la simulación, clasificador LLM
    de preocupaciones (opcional) y resumen RN-35 en el mensaje final (`domain/mensajes.ts → mensajeFinal`).
 3. Bruno 07 16–18 cuando exista un seguimiento abierto (el detector corre a cada hora en punto con el backend encendido).
@@ -61,6 +66,20 @@ Migraciones **aplicadas**: 0001 enums · 0002 usuario + `rol_actual()` / `exigir
 0023 RPCs tarifas · 0024 seguimiento/intento_contacto/descuento + T2 · 0025 RPCs asesoría y retención ·
 0026 tablas Prueba de Choque · 0027 seed Prueba de Choque · 0028 `registrar_simulacion` + `actualizar_suma_asegurada` v2.
 0029 RPCs admin de la Prueba de Choque · 0030 contenido de planes · 0031 seed del contenido (§18) · 0032 arreglo: la vista de completitud daba 403 (permiso de `fn_incoherencias_plan`) (**aplicadas** 2026-11-12).
+0033 orden_compra/pago/cuota/poliza + T3/T4 · 0034 RPCs de compra + `actualizar_suma_asegurada` v3 + detector v2 (**aplicadas** 2026-11-12).
+
+Decisiones propias de Ola 3 tanda 1 (0033/0034, revisables):
+- Lo que el doc ubicaba en 0010/0013 va en 0033/0034.
+- `orden_compra` guarda además `prima_anual`, `descuento_id/tipo/porcentaje`; `poliza.pdf_generado_en` (null = PDF pendiente).
+- `crear_orden_compra` recibe además `p_acepta_condiciones` y `p_firma_simulada`; solo CLIENTE dueño
+  (la compra exige cuenta, también después de la retoma).
+- Canal (RN-27) por evidencia en la base: enlace de retoma usado o intento `ACEPTA` → TELEMARKETING;
+  descuento negociado aplicado → ASESORIA; si no, AUTONOMO. `p_origen` solo acepta null o `RETOMA` y va a la bitácora.
+- RN-09: entre el negociado aceptado (del mismo plan) y el de primera compra queda el mayor; empate → negociado.
+- Rechaza con 409 si el plan no tiene resumen o le falta alguna cobertura activa (`CONTENIDO_PLAN_INCOMPLETO`).
+- En CUOTAS la cuota 1 queda CONFIRMADO y las demás PENDIENTE, una por mes (fecha de Lima); la última absorbe el redondeo.
+- `actualizar_suma_asegurada` v3: la cotización CONVERTIDA también responde 409 (antes 400 desde el RPC; el backend ya daba 409).
+- Pasarela simulada: rechaza totales terminados en .13; la referencia es `SIM-` + sha256(ordenId:idempotencyKey), sin estado en memoria.
 
 Decisiones propias de Ola 2 parte 3 (0030/0031, revisables):
 - Lo que el doc ubicaba en 0020/0021 va en 0030/0031. Las descripciones de las 13 coberturas las propuso Claude.
