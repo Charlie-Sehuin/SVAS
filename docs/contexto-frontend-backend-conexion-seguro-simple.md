@@ -10,10 +10,10 @@
 
 | Entorno | URL base |
 |---|---|
-| **Producción (Railway)** | `https://svas-backend-production.up.railway.app/api/v1` *(reemplazar por la URL real)* |
+| **Producción (Railway)** | `https://svas-production.up.railway.app/api/v1` |
 | **Swagger** | `https://<backend>/api/docs` |
 | **Local** | `http://localhost:3000/api/v1` |
-| **Frontend (Vercel)** | `https://svas-frontend.vercel.app` *(CORS permitido)* |
+| **Frontend (Render)** | `https://svas-frontend.onrender.com` *(único origen que permite el CORS de Railway; ver `despliegue-frontend.md`)* |
 
 > **Plan gratuito**: si el servicio se suspende por inactividad, la primera
 > request puede tardar. El frontend muestra "Estamos despertando el

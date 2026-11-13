@@ -69,7 +69,7 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  SPA React (Vercel) — cliente móvil · asesor · administrador   │
+│  SPA React (Render) — cliente móvil · asesor · administrador   │
 └──────────────────────────┬───────────────────────────────────┘
                            │ HTTPS · Authorization: Bearer <JWT>
                            │         X-Cotizacion-Token (flujo anónimo)
@@ -301,7 +301,7 @@ svas-backend/
 ## 3. Explicación detallada de cada carpeta y módulo
 
 ### 3.1 `main.ts`
-Prefijo global `/api/v1`, Helmet, CORS solo para el dominio de Vercel y
+Prefijo global `/api/v1`, Helmet, CORS solo para el dominio del frontend (hoy Render, `FRONTEND_URL`; un único origen) y
 `localhost:5173`, `ValidationPipe({ whitelist: true,
 forbidNonWhitelisted: true, transform: true })`, Swagger en `/api/docs`
 con esquemas `bearer` y `X-Cotizacion-Token`, filtros globales y

@@ -70,7 +70,7 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
 | Parte | Estado |
 |---|---|
 | Config inicial (§16.1, pasos 1–6) | ✅ hecho el 2026-11-12: Vite 8 + React 18 + TS estricto, Tailwind 4 con los tokens de la guía visual, `shared/lib` (api-client con ky 2, Supabase solo sesión, query-client, query-keys, format), `AuthProvider` + `RoleGuard` + `LoginPage`, `PublicLayout` + `BackofficeLayout` (sidebar por rol), router completo con `<PantallaPendiente>` en las rutas sin construir, componentes de dominio base (`MoneyValue`, `StatusBadge`, `WarningToast`/`ErrorToast`, `RoleGate`, `DemoLegend`), MSW (`/health`, `/catalogo/campos`, `/usuarios/me`) y landing |
-| Config inicial paso 7 (deploy a Vercel) | ⏳ pendiente: `vercel.json` listo; falta crear el proyecto en Vercel y poner `FRONTEND_URL` en Railway |
+| Config inicial paso 7 (publicar el frontend) | ✅ hecho el 2026-11-12 en **Render** (sitio estático, no Vercel): https://svas-frontend.onrender.com. Configuración en `render.yaml` del repo del frontend; guía y diagnóstico en `docs/despliegue-frontend.md`. Probado a mano (portada, iniciar sesión, cotizar) |
 | Ola 0 · login + admin (catálogo, parámetros, usuarios, bitácora, tarifas, simulador) | ✅ hecho el 2026-11-12 (ver abajo); login probado contra Railway; las pantallas se probaron con MSW (12 pruebas) y las 13 rutas `/admin/*` existen en Railway (401 sin sesión), pero falta recorrerlas en el navegador con el ADMINISTRADOR |
 | Ola 1 · cotizar + comparativo | ✅ hecho el 2026-11-12 (ver abajo): asistente de 3 pasos, comparativo con suma asegurada por aseguradora, derivación y "Mis cotizaciones". Contrato verificado contra Railway; falta recorrerlo en el navegador |
 | Ola 2 · Prueba de Choque, planes, asesoría/retención | ✅ construida el 2026-11-12 (ver abajo): cliente (Prueba de Choque, detalle y comparador de planes, "Hablar con un asesor", retoma), asesor (cola, caso, seguimientos) y administración (reglas de la Prueba de Choque y contenido de planes). 121 pruebas con MSW. **Sin recorrer en el navegador con datos reales**: las pantallas del asesor y las de administración (con una cuenta ASESOR y la del ADMINISTRADOR) |
@@ -277,17 +277,17 @@ Decisiones propias del frontend (revisables):
 Comandos:
 ```powershell
 cd C:\Users\Charlie\Desktop\Office\svas\svas-frontend
-npm run dev          # http://localhost:5173 (el backend local debe tener FRONTEND_URL=http://localhost:5173)
+npm run dev          # http://localhost:5173 (con el backend LOCAL y su FRONTEND_URL=http://localhost:5173; contra Railway el CORS lo bloquea, ver docs/despliegue-frontend.md)
 npm run typecheck; npm run lint; npm test; npm run build
 ```
 
-## 1c. Siguiente paso del frontend (publicar y recorrer con datos reales)
+## 1c. Siguiente paso del frontend (recorrer con datos reales)
 
 **El frontend quedó completo** (ver 1b): Olas 0, 1, 2, 3 y 4. Ya no hay pantallas en "pendiente" salvo la búsqueda global del backoffice (`/app/buscar`, que ninguna ola pide construir).
 
 **Lo que sigue**
-- **Publicar el frontend** (instructivo §16.1, paso 7): crear el sitio estático, poner sus variables (`VITE_API_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) y la URL pública en `FRONTEND_URL` de Railway (hoy el CORS solo permite
-  `http://localhost:5173`). Hay que volver a probar el login y una cotización desde la URL pública.
+- **Hecho · publicar el frontend** (instructivo §16.1, paso 7): sitio estático en Render, con `FRONTEND_URL` de Railway apuntando a su URL. Cada push a `main` de `SVAS-frontend` lo vuelve a desplegar. Ver `docs/despliegue-frontend.md`.
+  **Consecuencia**: el backend acepta un único origen (CORS), así que `npm run dev` ya no funciona contra Railway; para desarrollar en local hay que levantar el backend local o cambiar el backend para aceptar una lista de orígenes (no hecho).
 - **Recorrer en el navegador, con datos reales**, lo que escribe en producción y por eso se hace solo con permiso expreso: la cola, el caso y los seguimientos (con una cuenta ASESOR; se crea desde Usuarios), las pantallas de administración
   de la Prueba de Choque y del contenido de los planes (con el ADMINISTRADOR; un cambio afecta a todas las simulaciones nuevas y a lo que ven los clientes), y los reportes con ventas reales.
 

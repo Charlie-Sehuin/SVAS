@@ -461,7 +461,7 @@ Detalle completo en `despliegue.md`. Lo esencial:
   |---|---|
   | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWKS_URL` | las de Supabase |
   | `NODE_ENV` | `production` |
-  | `FRONTEND_URL` | el dominio del frontend (hoy `http://localhost:5173`) |
+  | `FRONTEND_URL` | el dominio del frontend (hoy `https://svas-frontend.onrender.com`) |
   | `PORT` | **no se define**: la pone Railway |
 
 - **Si agregas una variable de entorno nueva**: añádela a `src/config/env.validation.ts`, a `.env.example`
