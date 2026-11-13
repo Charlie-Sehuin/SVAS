@@ -1,4 +1,4 @@
-﻿# Estado de la implementación — SVAS / SeguroSimple
+# Estado de la implementación — SVAS / SeguroSimple
 
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
