@@ -41,7 +41,7 @@ La versión de Node sale de `engines.node` en `package.json` (24.x).
 | `SUPABASE_SERVICE_ROLE_KEY` | ídem (secreta: solo aquí y en el `.env`, nunca en el repo) |
 | `SUPABASE_JWKS_URL` | ídem |
 | `NODE_ENV` | `production` |
-| `FRONTEND_URL` | por ahora `http://localhost:5173`; cuando exista el frontend, su dominio de Vercel |
+| `FRONTEND_URL` | `https://svas-frontend.onrender.com` (el frontend publicado en Render, sin barra final). Para trabajar en local con el backend local: `http://localhost:5173` |
 
 No definir `PORT`: Railway la inyecta y la app escucha en ella. Si falta o es inválida una variable, la app no arranca
 y el log del deploy dice cuál (validación con zod).
@@ -63,7 +63,8 @@ Con eso el despliegue está bien. El resto de carpetas se puede correr igual que
   `regenerar-pdf-pendiente` cada 5 min) y el rate limiting viven en memoria. Con dos réplicas los jobs correrían
   dos veces y el límite por IP se repartiría.
 - **Los jobs solo corren con el servicio encendido.** No activar "App Sleeping" / serverless en Railway.
-- **CORS** acepta un único origen (`FRONTEND_URL`). Bruno no se ve afectado (CORS lo aplica el navegador).
+- **CORS** acepta un único origen (`FRONTEND_URL`), hoy el frontend de Render; desde `http://localhost:5173` el navegador no puede
+  llamar a Railway. Bruno no se ve afectado (CORS lo aplica el navegador). Guía del frontend: `despliegue-frontend.md`.
 - **Mensajes de retención**: con `NODE_ENV=production` el log oculta el token del enlace de retoma (es simulado).
 - **Supabase Auth**: la arquitectura pide activar la confirmación de correo en producción
   (Authentication → Providers → Email → Confirm email).

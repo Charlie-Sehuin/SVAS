@@ -833,7 +833,7 @@ PruebaChoquePage
 
 GitHub Actions por PR: `typecheck` → `lint` → `vitest` → `build` →
 Playwright contra preview de Vercel con backend de staging. En `main`:
-deploy a Vercel. Variables: `VITE_API_URL`, `VITE_SUPABASE_URL`,
+deploy del frontend (en el proyecto, a **Render**; ver `despliegue-frontend.md`). Variables: `VITE_API_URL`, `VITE_SUPABASE_URL`,
 `VITE_SUPABASE_ANON_KEY`. `vercel.json` con rewrite de todas las rutas a
 `index.html` (SPA) y cabeceras de seguridad (`Content-Security-Policy`
 que solo permite `connect-src` a la API y a Supabase).
@@ -852,7 +852,7 @@ que solo permite `connect-src` a la API y a Supabase).
 5. Componentes de dominio base: `MoneyValue`, `StatusBadge`, `WarningToast`,
    `ErrorToast`, `RoleGate`, `DemoLegend`.
 6. MSW con handlers de `/health` y `/catalogo/campos`.
-7. Deploy inicial a Vercel con la landing.
+7. Deploy inicial con la landing (hecho en Render el 2026-11-12; ver `despliegue-frontend.md`).
 
 ### 16.2 Parte 2 — Orden por olas (sigue al backend)
 - **Ola 0**: login, `UsuariosPage`, páginas de catálogo y parámetros del
