@@ -75,9 +75,9 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
 | Ola 1 · cotizar + comparativo | ✅ hecho el 2026-11-12 (ver abajo): asistente de 3 pasos, comparativo con suma asegurada por aseguradora, derivación y "Mis cotizaciones". Contrato verificado contra Railway; falta recorrerlo en el navegador |
 | Ola 2 · Prueba de Choque, planes, asesoría/retención | ✅ construida el 2026-11-12 (ver abajo): cliente (Prueba de Choque, detalle y comparador de planes, "Hablar con un asesor", retoma), asesor (cola, caso, seguimientos) y administración (reglas de la Prueba de Choque y contenido de planes). 121 pruebas con MSW. **Sin recorrer en el navegador con datos reales**: las pantallas del asesor y las de administración (con una cuenta ASESOR y la del ADMINISTRADOR) |
 | Ola 3 · compra + pólizas | ✅ hecho el 2026-11-12 (ver abajo): asistente de compra, confirmación con PDF y "Mis pólizas". 26 pruebas con MSW; las rutas existen en Railway (401 sin sesión) y las formas coinciden con el código del backend y con Bruno 12. Recorrida a mano con cuentas de prueba (compra en cuotas y al contado, PDF y "Mis pólizas") y corregida con lo que salió (ver abajo) |
-| Ola 4 · dashboard + reportes | ⏳ |
+| Ola 4 · dashboard + reportes | ✅ construida el 2026-11-12 (ver abajo): dashboard por rol y los cinco reportes (ventas con PDF, retención, descuentos, ★ impacto de la Prueba de Choque y mi desempeño). 21 pruebas con MSW. **Sin recorrer en el navegador con datos reales** (son pantallas de solo lectura) |
 
-Verificación al cierre: `npm run typecheck`, `npm run lint` y `npm test` (283 pruebas, incluida la guardia de contraste del modo claro y oscuro) en verde; `npm run build` OK.
+Verificación al cierre: `npm run typecheck`, `npm run lint` y `npm test` (304 pruebas, incluida la guardia de contraste del modo claro y oscuro) en verde; `npm run build` OK.
 JS inicial de la landing ≈ 161 KB gzip (meta < 180 KB, arquitectura §6.2): Supabase, los formularios (zod y react-hook-form, en su
 propio chunk `formularios`) y cada pantalla van aparte y el embudo no los descarga. Ojo: si una pantalla del arranque importa
 un formulario, ese chunk se vuelve a precargar; se vigila mirando `dist/index.html` después de `npm run build`.
@@ -236,6 +236,27 @@ Ola 2 construida · administración (`features/administracion/`, rutas `/app/adm
 - Decisiones: (1) frecuencias y zonas comparten pantalla (el menú tiene un solo ítem "Frecuencias y zonas"); (2) los porcentajes de las frecuencias se muestran como "20 % al año" solo como ayuda de lectura: no interviene en ningún
   monto; (3) una celda de factor o de frecuencia que ya existe no se puede **borrar** desde aquí (el backend solo reemplaza); (4) desactivar un escenario o una cobertura no pide confirmación porque es reversible.
 
+Ola 4 construida (`features/reportes/` y `features/dashboard/`, rutas `/app` y `/app/reportes/*`):
+- **Marco común** (`ReporteShell`, `FiltroPeriodo`): título, selector de periodo y los tres estados (cargando, error, datos). El periodo vive en la dirección (`?desde=&hasta=`; compartible y sobrevive a una recarga) con atajos
+  (este mes, mes pasado, últimos 30 días, este año) y dos fechas; se valida como el backend (fechas reales, "desde" no posterior a "hasta", máximo un año) y un periodo inválido, aunque venga escrito a mano en la dirección, se explica sin llamar
+  al backend. Sin fechas el backend usa el mes en curso y la pantalla dice el periodo usado en texto. Mientras llega un periodo nuevo se conserva lo anterior, atenuado y marcado como ocupado.
+- **Reglas de presentación**: los montos y porcentajes los calcula el backend (el frontend solo formatea); un porcentaje `null` se muestra "Sin datos" y **nunca 0 %**; los gráficos son barras hechas con CSS (sin `recharts`, que el
+  doc nombraba pero no hace falta) y **cada barra lleva su cifra en texto**; la serie principal va en `navy` y `accent` se reserva a la Prueba de Choque (diseño §10.2).
+- **Ventas** (`/app/reportes/ventas`): pólizas, prima final, cobrado hasta hoy (en cuotas solo lo ya pagado), ticket promedio, descontado, agrupación por canal / aseguradora / plan (en la dirección), barras con la participación, tabla y
+  **Descargar PDF** del mismo reporte con el periodo y la agrupación en pantalla. Los canales se rotulan "Compra autónoma", "Con asesoría", "Telemarketing".
+- **Retención** (`/app/reportes/retencion`): embudo de seguimientos (abiertos → con intento → contactados → aceptaron → usaron el enlace → compraron), tasa de conversión, días promedio hasta comprar y desgloses de descartados por motivo e intentos
+  por resultado y por canal. El mismo componente (`EmbudoRetencionVista`) lo usa "Mi desempeño".
+- **Descuentos** (`/app/reportes/descuentos`): negociados (otorgados, aceptados, terminaron en compra, promedio, máximo, monto), los de primera compra y la tabla por asesor.
+- **★ Impacto de la Prueba de Choque** (`/app/reportes/prueba-choque`, dominio §16.7): cotizaciones que la usan, conversión con y sin la prueba (con la aclaración de que es una comparación y no prueba causa), cuántos eligen un plan distinto
+  al más barato o el primero del ranking, preocupaciones por uso y zona, y la conversión del mensaje final con y sin la frase de contraste RN-35. Los vacíos se dicen en texto.
+- **Mi desempeño** (`/app/reportes/mi-desempeno`, solo ASESOR): sus asesorías por motivo, las ventas que se le atribuyen (asesoría y telemarketing), sus descuentos y su embudo. El administrador no tiene este reporte (el backend responde 403): se le
+  explica sin pedirlo.
+- **Dashboard** (`/app`, por rol): el ADMINISTRADOR ve las ventas del mes (4 indicadores y ventas por canal), "Para revisar" (solicitudes de asesoría pendientes, seguimientos abiertos y planes activos con contenido incompleto, con enlace
+  cada uno) y el estado del catálogo (`PanelAdminContenido`, antes `PanelAdminPage`, que sigue existiendo). El ASESOR ve su cola (pendientes y sus casos en atención), sus seguimientos abiertos y su mes.
+- "Compartir el resultado de la Prueba de Choque en PDF" (parte de la Ola 4 en la arquitectura) ya existía desde la Ola 2 (`Descargar resumen en PDF`).
+- Decisiones: (1) las barras se dibujan con la proporción respecto del mayor (solo visual); (2) los atajos de periodo se calculan con el día de hoy de quien mira; (3) el dashboard del asesor y el del administrador piden sus propios datos y no
+  comparten consultas entre sí.
+
 Decisiones propias del frontend (revisables):
 - Versiones actuales en vez de las del doc donde no cambia la API: Vite 8 (rolldown), Tailwind 4 (tokens en `@theme`
   dentro de `design-system/tokens/colors.css`; no hay `tailwind.config.ts`), ky 2 (`prefix` en vez de `prefixUrl`),
@@ -260,22 +281,20 @@ npm run dev          # http://localhost:5173 (el backend local debe tener FRONTE
 npm run typecheck; npm run lint; npm test; npm run build
 ```
 
-## 1c. Siguiente paso del frontend (Ola 4 y recorrido con datos reales)
+## 1c. Siguiente paso del frontend (publicar y recorrer con datos reales)
 
-**La Ola 2 quedó completa en el frontend** (ver 1b): Prueba de Choque, detalle y comparador de planes, asesoría y retención (cliente, asesor y retoma) y la administración de las reglas de la Prueba de Choque y del contenido de los planes.
-Junto con las Olas 0, 1 y 3, solo falta la **Ola 4** (arquitectura frontend §16.2).
+**El frontend quedó completo** (ver 1b): Olas 0, 1, 2, 3 y 4. Ya no hay pantallas en "pendiente" salvo la búsqueda global del backoffice (`/app/buscar`, que ninguna ola pide construir).
 
 **Lo que sigue**
-- **Ola 4 · dashboard y reportes**: dashboard por rol (el asesor ve su cola; el administrador, ventas por canal), reportes de ventas, retención, descuentos y desempeño del asesor, **el impacto de la Prueba de Choque (★)** y compartir el
-  resultado de la Prueba de Choque en PDF. Hoy `/app` del asesor y las rutas `/app/reportes/*` siguen en "pendiente"; el backend de reportes ya está hecho y probado (Ola 4, tandas 1 y 2).
-- **Recorrer en el navegador, con datos reales**, lo que escribe en producción y por eso se hace solo con permiso expreso: la cola, el caso y los seguimientos (con una cuenta ASESOR; se crea desde Usuarios), y las pantallas de
-  administración de la Prueba de Choque y del contenido de los planes (con el ADMINISTRADOR; un cambio afecta a todas las simulaciones nuevas y a lo que ven los clientes).
+- **Publicar el frontend** (instructivo §16.1, paso 7): crear el sitio estático, poner sus variables (`VITE_API_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) y la URL pública en `FRONTEND_URL` de Railway (hoy el CORS solo permite
+  `http://localhost:5173`). Hay que volver a probar el login y una cotización desde la URL pública.
+- **Recorrer en el navegador, con datos reales**, lo que escribe en producción y por eso se hace solo con permiso expreso: la cola, el caso y los seguimientos (con una cuenta ASESOR; se crea desde Usuarios), las pantallas de administración
+  de la Prueba de Choque y del contenido de los planes (con el ADMINISTRADOR; un cambio afecta a todas las simulaciones nuevas y a lo que ven los clientes), y los reportes con ventas reales.
 
 **Otros pendientes del frontend** (ninguno bloquea):
 - **Vista previa del precio con descuento al negociar** ("USD 84.67 → USD 76.20"): requiere un endpoint del backend que lo calcule; el frontend no calcula dinero.
 - Botón "Te llamamos" de la portada: sigue siendo un enlace `tel:` (en la computadora abre "Elegir una aplicación"). Hay que decidir si se cambia por el cuadro con el teléfono.
 - Pantallas de la Ola 0 que falten por recorrer (campos, reglas de inspección, parámetros, pesos, rangos, completitud) y la Ola 1 a 360 px.
-- Crear el proyecto en Vercel y poner su URL en `FRONTEND_URL` de Railway (instructivo §16.1, paso 7). Mientras tanto el CORS solo permite `http://localhost:5173`.
 - Actualizar los textos que aún dicen "un control de suma por aseguradora" (arquitectura §4.2 y §6.9, diseño §8.3 y §9.3, dominio §14): ahora es una barra única.
 - Decidir si el backend admitirá campos extra en `POST /cotizaciones` (hoy el formulario dinámico solo puede enviar `placa` y `clase`).
 - Si se quiere editar fórmulas desde pantalla: `docs/propuesta-editar-formulas-desde-frontend.md` (no implementado; exige enmendar RN-40).
