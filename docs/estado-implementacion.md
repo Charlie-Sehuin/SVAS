@@ -1,4 +1,4 @@
-# Estado de la implementación — SVAS / SeguroSimple
+﻿# Estado de la implementación — SVAS / SeguroSimple
 
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
@@ -73,12 +73,12 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
 | Config inicial paso 7 (deploy a Vercel) | ⏳ pendiente: `vercel.json` listo; falta crear el proyecto en Vercel y poner `FRONTEND_URL` en Railway |
 | Ola 0 · login + admin (catálogo, parámetros, usuarios, bitácora, tarifas, simulador) | ✅ hecho el 2026-11-12 (ver abajo); login probado contra Railway; las pantallas se probaron con MSW (12 pruebas) y las 13 rutas `/admin/*` existen en Railway (401 sin sesión), pero falta recorrerlas en el navegador con el ADMINISTRADOR |
 | Ola 1 · cotizar + comparativo | ✅ hecho el 2026-11-12 (ver abajo): asistente de 3 pasos, comparativo con suma asegurada por aseguradora, derivación y "Mis cotizaciones". Contrato verificado contra Railway; falta recorrerlo en el navegador |
-| Ola 2 · Prueba de Choque, planes, asesoría/retención | ⏳ |
-| Ola 3 · compra + pólizas | ⏳ |
+| Ola 2 · Prueba de Choque, planes, asesoría/retención | 🟡 hecho el 2026-11-12 lo de **cliente y asesor** (ver abajo): Prueba de Choque, detalle y comparador de planes, "Hablar con un asesor", retoma, cola, caso y seguimientos. 80 pruebas con MSW. **Falta la administración**: reglas de la Prueba de Choque y contenido de planes. Las pantallas del asesor no se han recorrido con una cuenta ASESOR real |
+| Ola 3 · compra + pólizas | ✅ hecho el 2026-11-12 (ver abajo): asistente de compra, confirmación con PDF y "Mis pólizas". 26 pruebas con MSW; las rutas existen en Railway (401 sin sesión) y las formas coinciden con el código del backend y con Bruno 12. Recorrida a mano con cuentas de prueba (compra en cuotas y al contado, PDF y "Mis pólizas") y corregida con lo que salió (ver abajo) |
 | Ola 4 · dashboard + reportes | ⏳ |
 
-Verificación al cierre: `npm run typecheck`, `npm run lint` y `npm test` (133 pruebas, incluida la guardia de contraste del modo claro y oscuro) en verde; `npm run build` OK.
-JS inicial de la landing ≈ 158 KB gzip (meta < 180 KB, arquitectura §6.2): Supabase, los formularios (zod y react-hook-form, en su
+Verificación al cierre: `npm run typecheck`, `npm run lint` y `npm test` (242 pruebas, incluida la guardia de contraste del modo claro y oscuro) en verde; `npm run build` OK.
+JS inicial de la landing ≈ 161 KB gzip (meta < 180 KB, arquitectura §6.2): Supabase, los formularios (zod y react-hook-form, en su
 propio chunk `formularios`) y cada pantalla van aparte y el embudo no los descarga. Ojo: si una pantalla del arranque importa
 un formulario, ese chunk se vuelve a precargar; se vigila mirando `dist/index.html` después de `npm run build`.
 
@@ -131,11 +131,11 @@ Ola 1 construida (`features/cotizacion/`, rutas públicas `/cotizar` y `/cotizac
 - **Comprar sin cuenta** (CU-02): la ruta `/compra/:cotizacionId` es pública y, sin sesión, abre `RegistroMinimoDialog` en lugar de mandar a un login.
   El contacto que se escribió al cotizar queda en sessionStorage y viene prellenado: solo falta la contraseña (mínimo 8, con la sugerencia de una frase
   fácil de recordar). Llama a `POST /auth/registro` con `cotizacionId` y el `X-Cotizacion-Token` (a mano, porque esa URL no es de una cotización), e inicia
-  sesión. Si el correo ya existe ofrece "Inicia sesión" y, desde el login, "Créala para comprar" vuelve a la compra. Con la cuenta lista aparece un aviso:
-  el asistente de compra (datos que faltan, firma, pago) es la Ola 3. Solo un CLIENTE compra; asesor y administrador ven "sin acceso".
+  sesión. Si el correo ya existe ofrece "Inicia sesión" y, desde el login, "Créala para comprar" vuelve a la compra. Con la cuenta lista se entra al
+  asistente de compra (Ola 3, abajo). Solo un CLIENTE compra; asesor y administrador ven "sin acceso".
 - Decisiones: (1) el `api-client` manda el Bearer **y** el `X-Cotizacion-Token` si tiene ambos, porque con sesión el backend solo usa el token si la
   cotización no es del usuario; (2) la clasificación por precio compara números con `decimal.js` (no calcula); (3) "Hablar con un asesor" es por ahora
-  un enlace `tel:` y "Comprar este plan" va a `/compra/:id?prima=…` (pantalla de la Ola 3); el diálogo de asesoría llega en la Ola 2.
+  un enlace `tel:` y "Comprar este plan" va a `/compra/:id?prima=…` (asistente de la Ola 3); el diálogo de asesoría llega en la Ola 2.
 - **Fuera de esta ola** (llegan en la Ola 2): "Ver detalle", "Comparar", el botón de la Prueba de Choque y la opción de ordenar por costo real.
 - **Límite del formulario dinámico**: `POST /cotizaciones` tiene un cuerpo fijo y el backend rechaza propiedades que no declara. Hoy solo `placa` y
   `clase` pueden dibujarse y enviarse desde el catálogo. Un campo nuevo creado en el administrador **no aparece** en el formulario hasta que el
@@ -143,6 +143,75 @@ Ola 1 construida (`features/cotizacion/`, rutas públicas `/cotizar` y `/cotizac
   desplegar" habría que aceptar un objeto de campos extra en el backend.
 - **Datos de prueba en producción**: al verificar el contrato se creó una cotización con el correo `prueba.frontend@example.com` (Toyota Corolla 2022,
   Miraflores) y se movió la suma de Rímac a su mínimo. Quedan en la bitácora como COTIZAR y AJUSTAR_SUMA.
+
+Ola 3 construida (`features/compra/`, rutas `/compra/:cotizacionId`, `/compra/:id/listo` y `/mi-cuenta/polizas`):
+- **Asistente `/compra/:cotizacionId?prima=<primaCotizadaId>`** (`AsistenteCompra`): Resumen → Tus datos → Firma → Pago, un paso por pantalla, con "Paso X de N",
+  barra de avance, foco al título del paso nuevo y botón principal fijo abajo en móvil; en escritorio, un resumen compacto al costado. Sin `?prima=` ofrece volver
+  a elegir plan. Si la compra ya estaba iniciada (hay orden), va directo al pago sin pedir otra firma; si ya estaba pagada, a la confirmación.
+  - **Resumen** (`GET /compras/resumen`): suma asegurada, prima anual, descuento de primera compra y prima final, tal como llegan. Si el backend responde
+    404/400/409 se muestra su mensaje con un enlace para volver a la cotización.
+  - **Tus datos** (RNF-08): solo aparece si `GET /compras/:cotizacionId/campos-faltantes` trae algo (documento y/o placa); `PUT …/datos`. Los errores por
+    campo del backend se pintan bajo el campo. La decisión de mostrar el paso se toma una vez, así la numeración no cambia a mitad de camino.
+  - **Firma y condiciones**: nombre escrito como firma simulada + casilla de aceptación; recién aquí se llama a `POST /compras` (congela montos y contenido del
+    plan, RN-45). Un 409 (p. ej. `CONTENIDO_PLAN_INCOMPLETO`) muestra el mensaje del backend y el enlace "Volver al comparativo".
+  - **Pago**: dos tarjetas-radio (`SelectorModoPago`): pago único y N cuotas, con el total y la cuota que devuelve el backend y, si hay recargo, la frase
+    "Pagar en cuotas tiene un recargo de X % en {aseguradora}". Si el backend no ofrece cuotas (`CUOTAS: null`) solo aparece el pago único. El botón dice
+    "Pagar USD …" con el total elegido. Mientras se procesa: "Procesando tu pago…" (texto y spinner).
+  - **`Idempotency-Key`**: se genera una por intento (`crypto.randomUUID()`), se **conserva** si falló la red o el servidor (reintentar no cobra dos veces) y se
+    **renueva** si el pago fue rechazado (400) o si cambió el modo de pago. Un 400 muestra la banda roja "Tu pago no pudo procesarse" con el mensaje del backend
+    y el botón "Intentar con otro medio"; un 409 (ya pagada) lleva a la confirmación. Un total terminado en .13 simula el rechazo.
+- **Confirmación `/compra/:id/listo`** (`GET /compras/:id/estado`): "¡Listo! Tu seguro está activo", número de póliza en JetBrains Mono, montos, forma de pago,
+  **Descargar mi póliza (PDF)**, **Ver cronograma de cuotas** (estado de cada cuota con texto), "Lo que contrataste" con la copia congelada del plan y su fecha
+  (RN-45) más la leyenda de contenido (RN-46), y "Documento de demostración sin validez legal" (RNF-20). Si la orden no está pagada no se celebra: ofrece "Continuar con el pago".
+- **PDF** (`GET /polizas/:id/pdf`): se baja como `Blob` con el Bearer y se entrega al navegador con el nombre de `Content-Disposition`. Un 202 (`PDF_EN_GENERACION`)
+  muestra un toast ámbar (la póliza ya existe; el backend reintenta cada 5 min) y el botón queda disponible; la pantalla también lo explica con texto.
+- **Mis pólizas `/mi-cuenta/polizas`** (`GET /polizas/mias`): tarjeta por póliza (aseguradora, plan, vehículo y placa, número, fecha, suma, total pagado o "en N cuotas"),
+  insignia "Activa", descarga y "Lo que contrataste" desplegable; estados de carga, vacío y error con reintento.
+- Decisiones: (1) el frontend no suma, divide ni calcula: solo compara con cero el recargo para decidir si muestra la frase; (2) el detalle del plan **antes** de
+  comprar (drawer "Ver detalle") es de la Ola 2: el resumen aún no lo trae, solo se muestra lo contratado en la confirmación y en Mis pólizas; (3) la
+  pasarela, la emisión y los mensajes siguen simulados a propósito y la pantalla lo dice ("El pago es simulado: no se cobra dinero real"); (4) documento y placa se
+  envían en mayúsculas (el backend ya normaliza); (5) `src/test/setup.ts` ahora define `matchMedia` aunque jsdom lo traiga sin implementar (lo necesita el `Toaster`).
+- Nota de herramientas: en Windows, las pruebas (`npm test`) deben correrse desde PowerShell o CMD; desde Git Bash con la ruta `/c/...` Vitest falla con
+  "failed to find the runner" por la forma de la ruta.
+
+Correcciones de la Ola 3 tras recorrerla a mano (2026-11-12):
+- **"La cotización no existe" al comprar**: quien cotizó sin cuenta y luego entró con una cuenta que ya tenía no tenía la cotización vinculada y las rutas de compra no la veían
+  (RLS). Ahora, si la pestaña guarda el token de esa cotización, se llama a `PATCH /cotizaciones/:id/cliente` antes de cargar la compra (`useVinculoCotizacion`); es idempotente.
+- **En cuotas se paga la 1.ª cuota, no el total**: el botón dice "Pagar mi 1.ª cuota: USD …" con una nota ("las otras N cuotas vencen una cada mes"); la confirmación separa
+  "Pagado hoy (1.ª cuota)", "Cuotas por pagar" y "Total del plan de cuotas". La 1.ª cuota es exactamente la cuota mensual del resumen (la última absorbe el redondeo).
+- **WhatsApp viene preseleccionado** como canal de contacto al cotizar (el backend sigue exigiendo el campo; el frontend lo manda por defecto). El botón final del asistente dice
+  "Ver planes y precios" (el diseño decía "Ver mis cotizaciones", que confundía).
+- **Regla de nicho (RN-05)**: hasta 2 vehículos particulares (5 comerciales) por documento; al pasarse, la cotización no se crea y se informa. Las cuentas de prueba la alcanzan rápido.
+
+Ola 2 construida · cliente (rutas públicas `/cotizacion/:id/prueba`, `/comparar`, `/retoma/:token`):
+- **★ Prueba de Choque** (`features/prueba-choque/`): botón turquesa "Pon a prueba estos planes" en el comparativo; la primera vez se abren 3 preguntas (cochera, muchos km, uso nocturno;
+  ingreso diario solo en uso comercial, RN-33) y chips de preocupación. Resultado: ranking por Costo Real Anual con barra apilada (prima + lo que pagarías tú), sello "Mejor protección
+  por tu dinero" al primero con datos completos (los incompletos llevan "Información incompleta", RN-30), peor caso, matriz por escenario (tabla en escritorio, carrusel en móvil) con
+  celdas "Pagas USD X" + nivel en texto, "Sin información" rayada, banda ámbar si la simulación quedó no vigente (RN-37), resumen en PDF y la leyenda RN-29 fija.
+  **El nivel de cada celda** (escala `out-0…3`) lo clasifica el frontend comparando lo que paga la persona con el daño del escenario (≤ 10 %, ≤ 50 %, más; "alto" si hay algo no cubierto): solo
+  clasifica, no muestra montos nuevos. La matriz espera al catálogo de escenarios antes de pintar para no mostrar un color equivocado.
+- **Detalle y comparador de planes** (`features/planes/`): "Ver detalle" abre un panel lateral (pantalla completa en móvil) con pestañas Qué cubre / Qué no cubre (no incluidas + exclusiones) /
+  Requisitos y la leyenda RN-46 fija; la casilla "Comparar" (hasta 3, "Máximo 3 planes") sube una barra fija abajo; `/comparar?ids=…` es pública y compartible (matriz ✓/✗ con texto,
+  "Total que cubre: X de N"; la primera columna queda fija con fondo sólido). Un plan sin contenido publicado (`resumen: null`) no ofrece ver ni comparar (el backend respondería 404).
+- **Hablar con un asesor** (`features/asesoria-retencion/cliente/`): diálogo con motivo (duda / negociar / descuento) y canal (WhatsApp por defecto); sin cuenta abre el registro en la misma
+  pantalla; con una cuenta que ya existía vincula antes la cotización. Desde la Prueba de Choque abre con "duda" marcada. El botón de la barra azul abre este diálogo cuando hay una cotización a la
+  vista; sin cotización (p. ej. en `/cotizar`) abre un cuadro con el teléfono en vez de un enlace `tel:` (en la computadora el navegador mostraba "Elegir una aplicación"). Asesor y administrador
+  reciben "Solo los clientes pueden pedir asesoría desde aquí".
+- **Retoma** (`/retoma/:token`, RN-12): reabre la cotización con el descuento; el enlace es de un solo uso y el `tokenAcceso` nuevo sale una vez, así que se guarda al recibirlo y el resultado
+  se conserva en sessionStorage para sobrevivir a una recarga. Si se compra desde ahí, `POST /compras` lleva `origen: 'RETOMA'`. Enlace vencido: mensaje del backend + "Cotizar ahora".
+
+Ola 2 construida · asesor (`features/asesoria-retencion/asesor/`, rutas `/app/asesorias`, `/app/asesorias/:id`, `/app/seguimientos`, `/app/seguimientos/:id`):
+- **Cola** (CU-03): tabla (tarjetas en móvil) en el orden de RN-13 que manda el backend, prioridad con icono y texto (Sistema / Cliente), espera con "Espera larga" pasadas 4 h, filtros de estado y origen,
+  "Tomar caso" (409 → mensaje del backend y la cola se refresca). El administrador solo lee.
+- **Caso**: cliente (teléfono y correo completos; documento completo solo en el caso asignado o para el administrador), planes cotizados con precio, Prueba de Choque del cliente (solo si el caso es tuyo o eres
+  administrador), **negociar descuento** (lista de planes con su precio y una etiqueta "Descuento vigente: X %", tope visible "Máximo permitido: 10 %" que el campo respeta) y **cerrar** (resultado ≤ 200
+  caracteres + "el cliente aceptó", con confirmación). **RN-09**: se pueden registrar varios descuentos pero solo uno queda **vigente** por cotización, el mayor; uno igual o menor se guarda como "No vigente";
+  cerrar con "no aceptó" deja sin vigente a los negociados. Por eso el historial dice Vigente / No vigente.
+- **Seguimientos** (CU-04): lista con filtro de estado; detalle con contador "Intentos: 2 de 4 · quedan 5 días" (límites del backend), registrar intento con **solo el canal preferido habilitado** (RN-10), bloqueo
+  con motivo en texto al llegar al máximo o vencer el plazo, aviso ámbar si el mensaje final no salió (`MENSAJE_NO_ENVIADO`), "El cliente aceptó por teléfono → Enviar enlace de compra" y cierre:
+  descartar exige motivo (RN-11), convertir no. Un seguimiento nace cuando el detector (cada hora en punto, backend encendido) marca una cotización abandonada; sin ninguno, la lista sale vacía.
+- Decisiones: (1) los datos personales los enmascara el backend en las listas; el frontend solo los pinta; (2) "quedan N días" se calcula con la fecha de apertura y `diasSeguimiento` (es tiempo, no dinero);
+  (3) la vista previa del precio **con** descuento al negociar no existe: exigiría que el backend la calcule (el frontend no calcula dinero); (4) los hooks de estas pantallas refrescan cola y listas cada 30 s solo con la pestaña visible.
 
 Decisiones propias del frontend (revisables):
 - Versiones actuales en vez de las del doc donde no cambia la API: Vite 8 (rolldown), Tailwind 4 (tokens en `@theme`
@@ -168,35 +237,25 @@ npm run dev          # http://localhost:5173 (el backend local debe tener FRONTE
 npm run typecheck; npm run lint; npm test; npm run build
 ```
 
-## 1c. Siguiente paso del frontend (pendiente de decidir: Ola 3 o Ola 2)
+## 1c. Siguiente paso del frontend (administración de la Ola 2)
 
-**Qué se ve hoy al pulsar "Comprar este plan".** Aparece "Tu cuenta está lista… el pago en línea se activa en la siguiente etapa". Es un
-**reemplazo temporal**: la ruta `/compra/:cotizacionId` ya existe y resuelve la sesión (sin cuenta abre el registro dentro del embudo; con cuenta de
-CLIENTE muestra ese aviso; asesor y administrador ven "sin acceso"), pero el asistente de compra en sí no está construido. Está en
-`src/features/compra/pages/CompraPage.tsx`; el aviso se reemplaza por el asistente.
+**Hecho del lado del cliente y del asesor** (ver 1b): compra y pólizas (Ola 3), Prueba de Choque, detalle y comparador de planes, asesoría (cliente, cola, caso, descuentos), retoma y seguimientos.
 
-**Lo que ya funciona**: cotizar, comparar, ajustar la suma asegurada con una barra única y crear la cuenta sin salir del flujo.
-
-**Lo que falta para cerrar una venta (Ola 3, arquitectura frontend §6.2 y §16.2)**. El backend de todo esto ya está hecho y probado; falta la parte visual:
-- Datos que faltan: documento de identidad y placa si no se dieron (`GET /compras/:cotizacionId/campos-faltantes`, `PUT /compras/:cotizacionId/datos`; solo se pide lo no capturado, RNF-08).
-- Resumen con el descuento de primera compra y el contenido del plan (`GET /compras/resumen?cotizacionId=&primaCotizadaId=`).
-- Firma simulada y aceptación de condiciones (`POST /compras`, `aceptaCondiciones` y `firmaSimulada`).
-- Pago único o en cuotas con la pasarela simulada (`POST /compras/:id/pago` con `Idempotency-Key` nueva por intento; la cuota y el total los devuelve el backend, no se calculan; un total terminado en .13 simula un rechazo).
-- Confirmación y póliza en PDF (`GET /compras/:id/estado`, `GET /polizas/mias`, `GET /polizas/:id/pdf`, que puede responder 202 mientras se genera); y "Mis pólizas" en `/mi-cuenta/polizas`.
-
-**Decisión de orden (hay que elegir).** El instructivo pone antes la **Ola 2**: Prueba de Choque, detalle y comparador de planes, asesoría y retención,
-y las pantallas de administración de esas reglas. La Ola 3 **no depende** de la 2 para funcionar; solo mostraría el contenido del plan contratado
-(RN-45), que se puede dejar para después.
-- **Recomendación: Ola 3 primero**, si el objetivo es una demostración de compra completa de punta a punta (es lo que más se nota). La Prueba de Choque
-  (el diferenciador) vendría después.
-- Alternativa: seguir el orden del instructivo y hacer la Ola 2 primero.
+**Lo que falta de la Ola 2 (arquitectura frontend §6.2 y §16.2)**: las pantallas del ADMINISTRADOR; el backend ya está hecho y probado.
+- Reglas de la Prueba de Choque (`/app/admin/prueba-choque/*`): escenarios, deducibles y topes por plan, frecuencias y zonas, factores de perfil (RF-36).
+- Contenido de los planes: `ContenidoPlanPage` (`/app/admin/planes/:planId/contenido`), catálogo de coberturas y completitud del contenido (RN-42 a RN-46). Hoy esas rutas siguen en "pendiente"; sin
+  contenido publicado un plan no puede activarse (RN-42) ni ofrece "Ver detalle".
 
 **Otros pendientes del frontend** (ninguno bloquea):
-- Recorrer en el navegador, con datos reales, las pantallas de la Ola 0 que falten (campos, reglas de inspección, parámetros, pesos, rangos, completitud) y la Ola 1 (cotizar, barra de suma, comprar sin cuenta; revisar a 360 px).
+- **Recorrer con una cuenta ASESOR real** la cola, el caso y los seguimientos (escriben en producción: tomar casos, descuentos y cierres; se hace solo con permiso expreso). Crear el asesor desde Usuarios.
+- **Vista previa del precio con descuento al negociar** ("USD 84.67 → USD 76.20"): requiere un endpoint del backend que lo calcule; el frontend no calcula dinero.
+- Botón "Te llamamos" de la portada: sigue siendo un enlace `tel:` (en la computadora abre "Elegir una aplicación"). Hay que decidir si se cambia por el cuadro con el teléfono.
+- Pantallas de la Ola 0 que falten por recorrer (campos, reglas de inspección, parámetros, pesos, rangos, completitud) y la Ola 1 a 360 px.
 - Crear el proyecto en Vercel y poner su URL en `FRONTEND_URL` de Railway (instructivo §16.1, paso 7). Mientras tanto el CORS solo permite `http://localhost:5173`.
 - Actualizar los textos que aún dicen "un control de suma por aseguradora" (arquitectura §4.2 y §6.9, diseño §8.3 y §9.3, dominio §14): ahora es una barra única.
 - Decidir si el backend admitirá campos extra en `POST /cotizaciones` (hoy el formulario dinámico solo puede enviar `placa` y `clase`).
 - Si se quiere editar fórmulas desde pantalla: `docs/propuesta-editar-formulas-desde-frontend.md` (no implementado; exige enmendar RN-40).
+- Después de la Ola 2: Ola 4 (dashboard por rol y reportes, incluido el impacto de la Prueba de Choque).
 
 ## 2. Siguiente paso concreto
 
