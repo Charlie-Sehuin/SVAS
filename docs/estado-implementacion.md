@@ -73,11 +73,11 @@ Ola 2 completa (parte 3 en `main`; 0030–0032 aplicadas; Bruno 10: 01–11). El
 | Config inicial paso 7 (deploy a Vercel) | ⏳ pendiente: `vercel.json` listo; falta crear el proyecto en Vercel y poner `FRONTEND_URL` en Railway |
 | Ola 0 · login + admin (catálogo, parámetros, usuarios, bitácora, tarifas, simulador) | ✅ hecho el 2026-11-12 (ver abajo); login probado contra Railway; las pantallas se probaron con MSW (12 pruebas) y las 13 rutas `/admin/*` existen en Railway (401 sin sesión), pero falta recorrerlas en el navegador con el ADMINISTRADOR |
 | Ola 1 · cotizar + comparativo | ✅ hecho el 2026-11-12 (ver abajo): asistente de 3 pasos, comparativo con suma asegurada por aseguradora, derivación y "Mis cotizaciones". Contrato verificado contra Railway; falta recorrerlo en el navegador |
-| Ola 2 · Prueba de Choque, planes, asesoría/retención | 🟡 hecho el 2026-11-12 lo de **cliente y asesor** (ver abajo): Prueba de Choque, detalle y comparador de planes, "Hablar con un asesor", retoma, cola, caso y seguimientos. 80 pruebas con MSW. **Falta la administración**: reglas de la Prueba de Choque y contenido de planes. Las pantallas del asesor no se han recorrido con una cuenta ASESOR real |
+| Ola 2 · Prueba de Choque, planes, asesoría/retención | ✅ construida el 2026-11-12 (ver abajo): cliente (Prueba de Choque, detalle y comparador de planes, "Hablar con un asesor", retoma), asesor (cola, caso, seguimientos) y administración (reglas de la Prueba de Choque y contenido de planes). 121 pruebas con MSW. **Sin recorrer en el navegador con datos reales**: las pantallas del asesor y las de administración (con una cuenta ASESOR y la del ADMINISTRADOR) |
 | Ola 3 · compra + pólizas | ✅ hecho el 2026-11-12 (ver abajo): asistente de compra, confirmación con PDF y "Mis pólizas". 26 pruebas con MSW; las rutas existen en Railway (401 sin sesión) y las formas coinciden con el código del backend y con Bruno 12. Recorrida a mano con cuentas de prueba (compra en cuotas y al contado, PDF y "Mis pólizas") y corregida con lo que salió (ver abajo) |
 | Ola 4 · dashboard + reportes | ⏳ |
 
-Verificación al cierre: `npm run typecheck`, `npm run lint` y `npm test` (242 pruebas, incluida la guardia de contraste del modo claro y oscuro) en verde; `npm run build` OK.
+Verificación al cierre: `npm run typecheck`, `npm run lint` y `npm test` (283 pruebas, incluida la guardia de contraste del modo claro y oscuro) en verde; `npm run build` OK.
 JS inicial de la landing ≈ 161 KB gzip (meta < 180 KB, arquitectura §6.2): Supabase, los formularios (zod y react-hook-form, en su
 propio chunk `formularios`) y cada pantalla van aparte y el embudo no los descarga. Ojo: si una pantalla del arranque importa
 un formulario, ese chunk se vuelve a precargar; se vigila mirando `dist/index.html` después de `npm run build`.
@@ -213,6 +213,29 @@ Ola 2 construida · asesor (`features/asesoria-retencion/asesor/`, rutas `/app/a
 - Decisiones: (1) los datos personales los enmascara el backend en las listas; el frontend solo los pinta; (2) "quedan N días" se calcula con la fecha de apertura y `diasSeguimiento` (es tiempo, no dinero);
   (3) la vista previa del precio **con** descuento al negociar no existe: exigiría que el backend la calcule (el frontend no calcula dinero); (4) los hooks de estas pantallas refrescan cola y listas cada 30 s solo con la pestaña visible.
 
+Ola 2 construida · administración (`features/administracion/`, rutas `/app/admin/prueba-choque/*`, `/app/admin/planes/:planId/contenido`, `/app/admin/coberturas`, `/app/admin/contenido/completitud`):
+- **Reglas de la Prueba de Choque** (RF-36, RN-31): cuatro pantallas con pestañas y un aviso fijo ("supuestos referenciales; un cambio vale desde la siguiente simulación, las ya hechas no cambian, RN-32; cada guardado
+  queda en la bitácora"). Todas editan en línea, envían **solo lo que cambió** y repiten las validaciones del backend (que vuelve a validar); sus mensajes se muestran tal cual, en el campo o en la fila.
+  - **Escenarios**: crear y editar (el código no cambia después), activar o desactivar con un interruptor, "El daño es la suma asegurada" (monto `null`, como robo total y pérdida total) y, en los activos, qué les falta para
+    simular bien: probabilidades sin cargar (el motor las toma como 0) y planes sin cobertura (salen "Sin información", RN-30), con enlaces a la pantalla donde se completan.
+  - **Deducibles y topes**: se elige un plan y hay una fila por escenario (cubre, deducible %, mínimo, tope, taller, días de reemplazo y **fuente**, obligatoria). Si no cubre, deducible, tope y días se apagan y viajan
+    vacíos (el backend los rechaza). Un escenario sin fila dice "Sin información" con "Definir". Los errores del backend por fila (`filas.N`) se pegan a su escenario.
+  - **Frecuencias y zonas**: matriz uso × zona por escenario (0,0001 a 0,95; muestra el porcentaje al año; lo que falta dice "Falta: el motor usa 0") y, debajo, la zona de cada distrito con filtro, búsqueda y
+    "agregar un distrito que no figura" (cuenta como MEDIA hasta asignarle zona).
+  - **Factores de perfil**: escenario × variable (cochera, muchos km, uso nocturno), multiplicador de 0,10 a 3,00; 1,00 no cambia nada; celdas sin factor dicen "Sin factor".
+- **Contenido de los planes** (dominio §18, RN-42..46):
+  - **Contenido del plan**: cuatro pestañas (Descripción, Coberturas, Exclusiones, Requisitos), contador "N de M coberturas definidas" y **Guardar solo con el contenido completo**. El plan debe decir sí o no a TODAS las coberturas
+    activas ("no cubre" es una fila `incluida: false`, nunca una ausencia, RN-42); el límite solo existe si la cobertura está incluida y un detalle vacío viaja `null`. Cada pestaña dice en texto qué falta. Las contradicciones con la
+    Prueba de Choque (RN-43) se guardan igual y salen como lista ámbar con enlace a "Deducibles y topes". La validación vive en `contenido/borrador.ts` (sin React, con su propia prueba unitaria).
+  - **Catálogo de coberturas**: lista y alta/edición (código fijo, categoría, descripción, orden, activa) con los escenarios de la Prueba de Choque que representa (RN-43). Avisa que agregar o activar una cobertura deja
+    incompletos a los planes que aún no la definan.
+  - **Completitud**: tabla con estado Completo / Incompleto / Incoherente por plan, qué le falta en frases, contradicciones y enlace a completar. Un plan inactivo puede estar incompleto.
+  - Guardar el contenido refresca la completitud, la lista de planes (puede cambiar si el plan se puede activar) y el contenido público que ven los clientes en "Ver detalle" y en el comparador.
+- **Pruebas** (infraestructura): `src/test/setup.ts` ahora limpia los toasts entre casos (viven en un estado global y una prueba veía los avisos de la anterior), sube la espera de `findBy…`/`waitFor` a 4 s (la suite creció y
+  con todo en paralelo el segundo por defecto daba falsos fallos) y define `matchMedia` aunque jsdom lo traiga sin implementar.
+- Decisiones: (1) frecuencias y zonas comparten pantalla (el menú tiene un solo ítem "Frecuencias y zonas"); (2) los porcentajes de las frecuencias se muestran como "20 % al año" solo como ayuda de lectura: no interviene en ningún
+  monto; (3) una celda de factor o de frecuencia que ya existe no se puede **borrar** desde aquí (el backend solo reemplaza); (4) desactivar un escenario o una cobertura no pide confirmación porque es reversible.
+
 Decisiones propias del frontend (revisables):
 - Versiones actuales en vez de las del doc donde no cambia la API: Vite 8 (rolldown), Tailwind 4 (tokens en `@theme`
   dentro de `design-system/tokens/colors.css`; no hay `tailwind.config.ts`), ky 2 (`prefix` en vez de `prefixUrl`),
@@ -237,17 +260,18 @@ npm run dev          # http://localhost:5173 (el backend local debe tener FRONTE
 npm run typecheck; npm run lint; npm test; npm run build
 ```
 
-## 1c. Siguiente paso del frontend (administración de la Ola 2)
+## 1c. Siguiente paso del frontend (Ola 4 y recorrido con datos reales)
 
-**Hecho del lado del cliente y del asesor** (ver 1b): compra y pólizas (Ola 3), Prueba de Choque, detalle y comparador de planes, asesoría (cliente, cola, caso, descuentos), retoma y seguimientos.
+**La Ola 2 quedó completa en el frontend** (ver 1b): Prueba de Choque, detalle y comparador de planes, asesoría y retención (cliente, asesor y retoma) y la administración de las reglas de la Prueba de Choque y del contenido de los planes.
+Junto con las Olas 0, 1 y 3, solo falta la **Ola 4** (arquitectura frontend §16.2).
 
-**Lo que falta de la Ola 2 (arquitectura frontend §6.2 y §16.2)**: las pantallas del ADMINISTRADOR; el backend ya está hecho y probado.
-- Reglas de la Prueba de Choque (`/app/admin/prueba-choque/*`): escenarios, deducibles y topes por plan, frecuencias y zonas, factores de perfil (RF-36).
-- Contenido de los planes: `ContenidoPlanPage` (`/app/admin/planes/:planId/contenido`), catálogo de coberturas y completitud del contenido (RN-42 a RN-46). Hoy esas rutas siguen en "pendiente"; sin
-  contenido publicado un plan no puede activarse (RN-42) ni ofrece "Ver detalle".
+**Lo que sigue**
+- **Ola 4 · dashboard y reportes**: dashboard por rol (el asesor ve su cola; el administrador, ventas por canal), reportes de ventas, retención, descuentos y desempeño del asesor, **el impacto de la Prueba de Choque (★)** y compartir el
+  resultado de la Prueba de Choque en PDF. Hoy `/app` del asesor y las rutas `/app/reportes/*` siguen en "pendiente"; el backend de reportes ya está hecho y probado (Ola 4, tandas 1 y 2).
+- **Recorrer en el navegador, con datos reales**, lo que escribe en producción y por eso se hace solo con permiso expreso: la cola, el caso y los seguimientos (con una cuenta ASESOR; se crea desde Usuarios), y las pantallas de
+  administración de la Prueba de Choque y del contenido de los planes (con el ADMINISTRADOR; un cambio afecta a todas las simulaciones nuevas y a lo que ven los clientes).
 
 **Otros pendientes del frontend** (ninguno bloquea):
-- **Recorrer con una cuenta ASESOR real** la cola, el caso y los seguimientos (escriben en producción: tomar casos, descuentos y cierres; se hace solo con permiso expreso). Crear el asesor desde Usuarios.
 - **Vista previa del precio con descuento al negociar** ("USD 84.67 → USD 76.20"): requiere un endpoint del backend que lo calcule; el frontend no calcula dinero.
 - Botón "Te llamamos" de la portada: sigue siendo un enlace `tel:` (en la computadora abre "Elegir una aplicación"). Hay que decidir si se cambia por el cuadro con el teléfono.
 - Pantallas de la Ola 0 que falten por recorrer (campos, reglas de inspección, parámetros, pesos, rangos, completitud) y la Ola 1 a 360 px.
@@ -255,7 +279,6 @@ npm run typecheck; npm run lint; npm test; npm run build
 - Actualizar los textos que aún dicen "un control de suma por aseguradora" (arquitectura §4.2 y §6.9, diseño §8.3 y §9.3, dominio §14): ahora es una barra única.
 - Decidir si el backend admitirá campos extra en `POST /cotizaciones` (hoy el formulario dinámico solo puede enviar `placa` y `clase`).
 - Si se quiere editar fórmulas desde pantalla: `docs/propuesta-editar-formulas-desde-frontend.md` (no implementado; exige enmendar RN-40).
-- Después de la Ola 2: Ola 4 (dashboard por rol y reportes, incluido el impacto de la Prueba de Choque).
 
 ## 2. Siguiente paso concreto
 
