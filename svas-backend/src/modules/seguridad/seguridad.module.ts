@@ -5,7 +5,10 @@ import {
   CrearUsuarioInternoUseCase,
   ListarUsuariosUseCase,
 } from './application/administrar-usuarios.use-cases';
+import { ObtenerContactoUseCase } from './application/obtener-contacto.use-case';
 import { ObtenerPerfilUseCase } from './application/obtener-perfil.use-case';
+import { CONTACTO_CLIENTE_REPOSITORY } from './domain/contacto-cliente.repository.port';
+import { ContactoClienteSupabaseRepository } from './infrastructure/contacto-cliente-supabase.repository';
 import { RegistrarClienteUseCase } from './application/registrar-cliente.use-case';
 import { PROVEEDOR_IDENTIDAD } from './domain/proveedor-identidad.port';
 import { USUARIO_REPOSITORY } from './domain/usuario.repository.port';
@@ -22,8 +25,13 @@ import {
   providers: [
     { provide: PROVEEDOR_IDENTIDAD, useClass: SupabaseProveedorIdentidad },
     { provide: USUARIO_REPOSITORY, useClass: UsuarioSupabaseRepository },
+    {
+      provide: CONTACTO_CLIENTE_REPOSITORY,
+      useClass: ContactoClienteSupabaseRepository,
+    },
     RegistrarClienteUseCase,
     ObtenerPerfilUseCase,
+    ObtenerContactoUseCase,
     ListarUsuariosUseCase,
     CrearUsuarioInternoUseCase,
     CambiarRolUsuarioUseCase,
