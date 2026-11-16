@@ -47,6 +47,12 @@ export interface DatosPolizaPdf {
     anio: number;
     placa: string | null;
   };
+  /** Zona de uso del vehículo (ubicacion_uso → ubigeo). */
+  ubicacion?: {
+    departamento: string;
+    provincia: string;
+    distrito: string;
+  } | null;
   sumaAsegurada: string;
   primaAnual: string;
   descuento: { tipo: TipoDescuento; porcentaje: string } | null;

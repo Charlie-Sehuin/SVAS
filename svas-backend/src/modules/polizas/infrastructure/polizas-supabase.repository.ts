@@ -60,6 +60,9 @@ interface OrdenDb {
           apellidos: string;
           numero_documento: string | null;
         }>;
+        ubicacion_uso?: Uno<{
+          u: Uno<{ departamento: string; provincia: string; distrito: string }>;
+        }>;
       }
     >;
   }>;
@@ -76,7 +79,7 @@ const ORDEN = (vehiculoExtra: string, pagoExtra: string) => `orden_compra!inner(
 
 const SELECT_MIAS = `id, numero, fecha_emision, pdf_generado_en, ${ORDEN('', '')}`;
 const SELECT_PDF = `id, numero, fecha_emision, canal_venta, archivo_pdf, ${ORDEN(
-  ', cliente(nombres, apellidos, numero_documento)',
+  ', cliente(nombres, apellidos, numero_documento), ubicacion_uso(u:ubigeo(departamento, provincia, distrito))',
   ', cuota(numero, monto, fecha_vencimiento, estado)',
 )}`;
 
@@ -187,6 +190,7 @@ export class PolizasSupabaseRepository implements PolizasRepository {
     const o = uno(p.orden_compra)!;
     const v = uno(uno(o.cotizacion)?.vehiculo ?? null);
     const cliente = uno(v?.cliente ?? null);
+    const u = uno(uno(v?.ubicacion_uso ?? null)?.u ?? null);
     const pago = pagoConfirmado(o.pago ?? []);
     if (!pago) throw new Error(`La póliza ${p.id} no tiene pago confirmado`);
     return {
@@ -202,6 +206,11 @@ export class PolizasSupabaseRepository implements PolizasRepository {
           numeroDocumento: cliente?.numero_documento ?? null,
         },
         vehiculo: vehiculo(v),
+        ubicacion: u && {
+          departamento: u.departamento,
+          provincia: u.provincia,
+          distrito: u.distrito,
+        },
         sumaAsegurada: monto(uno(o.prima_cotizada)?.suma_asegurada ?? 0),
         primaAnual: monto(o.prima_anual ?? o.prima_final),
         descuento:
