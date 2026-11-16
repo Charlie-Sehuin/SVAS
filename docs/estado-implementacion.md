@@ -354,6 +354,18 @@ Migraciones **aplicadas**: 0001 enums · 0002 usuario + `rol_actual()` / `exigir
 0035 `completar_datos_compra` + `vista_previa_descuento` (**aplicada** 2026-11-12).
 0036 RPCs de reportes (**aplicada** 2026-11-12).
 0037 `seguimiento.mensaje_final_en/_rn35` + `registrar_mensaje_final` + `reporte_prueba_choque` v2 (**aplicada** 2026-11-12).
+0038 ubigeos, primera parte: 865 distritos del Anexo N.º 1 del DS 026-2019-EF (**probada con `begin … rollback` y
+aplicada** 2026-11-16: dio 865 ubigeos, 25 departamentos y 183 provincias, y los 73 originales quedaron intactos).
+
+Decisiones propias de 0038 (ubigeos, revisables):
+- Solo es una parte: 865 de ~1 890 distritos. Falta una 0039 con una lista que traiga códigos (la del INEI en
+  `proyectos.inei.gob.pe/.../Lib0361/anexo.htm` trae 1 812 nombres pero **sin códigos** y es anterior a "Mi Perú" e "Inkawasi").
+- Nombres: el anexo viene en mayúsculas y casi sin tildes; se pasan a "Tipo Título" y se restauran tildes de palabras
+  comunes (mejor esfuerzo). Los 73 ubigeos existentes no se tocan (`on conflict do nothing`) y su provincia se respeta.
+- Los distritos nuevos no tienen fila en `peso_ubigeo` (solo Pacífico lo usa): cotizan con peso 1,00 y se marcan como
+  «ubigeo por defecto»; la Prueba de Choque usa la zona por defecto. Pesos reales: cargarlos desde Tarifas.
+- Antes de la 0039: `catalogo-publico-supabase.repository.ts → departamentos()` lee todas las filas de `ubigeo` y quita
+  repetidos en el servidor; Supabase corta en 1 000 filas, así que con la lista completa habría que hacerlo en la base.
 
 Decisiones propias de Ola 4 tanda 2 (PDF, RN-35 y 0037, revisables):
 - Frase RN-35: de la última simulación **vigente** con 2+ planes. Plan más barato = menor prima (CRA − esperado,
