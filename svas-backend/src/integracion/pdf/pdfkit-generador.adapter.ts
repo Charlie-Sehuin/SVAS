@@ -36,6 +36,27 @@ const AGRUPAR: Record<string, string> = {
 const COLOR_TEXTO = '#1f2933';
 const COLOR_SUAVE = '#52606d';
 const COLOR_AVISO = '#b42318';
+/** Tamaños de letra del cuerpo de la póliza, del normal al más compacto. */
+const TAMANOS_CUERPO = [10, 9.5, 9, 8.5];
+const CUERPO = new WeakMap<object, number>();
+/** Tamaño de letra del cuerpo para este documento (10 si no se fijó otro). */
+const cuerpo = (doc: PDFKit.PDFDocument) => CUERPO.get(doc) ?? 10;
+
+/**
+ * "maria paredes" o "MARIA PAREDES" → "Maria Paredes". Si ya mezcla mayúsculas
+ * y minúsculas se respeta como lo escribió la persona.
+ */
+export function nombrePropio(texto: string): string {
+  const t = texto.trim().replace(/\s+/g, ' ');
+  if (t !== t.toLowerCase() && t !== t.toUpperCase()) return t;
+  return t
+    .toLowerCase()
+    .replace(
+      /(^|[\s'-])(\p{L})/gu,
+      (_, sep: string, letra: string) => sep + letra.toUpperCase(),
+    );
+}
+
 /** Ancho de la franja vertical del diseño LATERAL. */
 const FRANJA = 16;
 const CANAL: Record<DatosPolizaPdf['canalVenta'], string> = {
@@ -105,15 +126,31 @@ export function fecha(valor: string): string {
  */
 @Injectable()
 export class PdfkitGeneradorAdapter implements GeneradorPdf {
-  generarPoliza(d: DatosPolizaPdf): Promise<Buffer> {
-    return this.documento(
-      {
-        Title: `Póliza ${d.numeroPoliza} (demostración)`,
-        Subject: LEYENDA_DEMOSTRACION,
-      },
-      LEYENDA_DEMOSTRACION,
-      (doc) => this.dibujar(doc, d),
-    );
+  /**
+   * Intenta que la póliza quepa en 1 página: si con la letra normal se pasa,
+   * la vuelve a dibujar con letra algo más chica. Si ni así cabe (plan muy
+   * largo), se queda con la letra normal en varias páginas.
+   */
+  async generarPoliza(d: DatosPolizaPdf): Promise<Buffer> {
+    let normal: Buffer | null = null;
+    for (const tamano of TAMANOS_CUERPO) {
+      let paginas = 0;
+      const pdf = await this.documento(
+        {
+          Title: `Póliza ${d.numeroPoliza} (demostración)`,
+          Subject: LEYENDA_DEMOSTRACION,
+        },
+        LEYENDA_DEMOSTRACION,
+        (doc) => {
+          CUERPO.set(doc, tamano);
+          this.dibujar(doc, d);
+        },
+        (n) => (paginas = n),
+      );
+      if (paginas <= 1) return pdf;
+      normal ??= pdf;
+    }
+    return normal!;
   }
 
   /** Resumen de 1 página de la Prueba de Choque; sin datos del perfil (RN-36). */
@@ -226,6 +263,7 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
     info: { Title: string; Subject: string },
     pie: string,
     dibujar: (doc: PDFKit.PDFDocument) => void,
+    alContarPaginas?: (paginas: number) => void,
   ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({
@@ -241,6 +279,7 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
 
       try {
         dibujar(doc);
+        alContarPaginas?.(doc.bufferedPageRange().count);
         this.pieDePagina(doc, pie);
         doc.end();
       } catch (e) {
@@ -291,6 +330,17 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
 
     this.encabezado(doc, p, c.plan);
 
+    // Saludo personalizado con el nombre del titular y su auto.
+    const nombre = nombrePropio(d.titular.nombres);
+    doc.font('Helvetica-Bold').fontSize(cuerpo(doc)).fillColor(COLOR_TEXTO);
+    doc.text(nombre ? `Hola, ${nombre}: ` : 'Hola: ', { continued: true });
+    doc
+      .font('Helvetica')
+      .text(
+        `gracias por confiar en SeguroSimple para asegurar tu ${d.vehiculo.marca} ${d.vehiculo.modelo} ${d.vehiculo.anio}.`,
+      );
+    doc.moveDown(0.5);
+
     // Logo del corredor a la derecha de los datos generales; el texto no lo pisa.
     const anchoPagina = doc.page.width - 2 * MARGEN;
     const altoCorredor = 30;
@@ -317,26 +367,44 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
       anchoCorredor ? anchoPagina - anchoCorredor - 12 : undefined,
     );
 
-    this.titulo(doc, 'Titular', p);
-    this.datos(doc, [
-      ['Nombre', `${d.titular.nombres} ${d.titular.apellidos}`],
-      ['Documento', d.titular.numeroDocumento ?? '—'],
-    ]);
-
-    this.titulo(doc, 'Vehículo', p);
+    // Titular y Vehículo van lado a lado para ahorrar alto.
     const u = d.ubicacion;
     const zona: [string, string][] = u
       ? [['Zona de uso', `${u.distrito}, ${u.provincia}, ${u.departamento}`]]
       : [];
-    this.datos(doc, [
+    const separacion = 16;
+    const mitad = (anchoPagina - separacion) / 2;
+    const xDerecha = MARGEN + mitad + separacion;
+    const yBloque = doc.y;
+    this.titulo(doc, 'Titular', p, MARGEN, mitad);
+    this.datos(
+      doc,
       [
-        'Vehículo',
-        `${d.vehiculo.marca} ${d.vehiculo.modelo} ${d.vehiculo.anio}`,
+        ['Nombre', nombrePropio(`${d.titular.nombres} ${d.titular.apellidos}`)],
+        ['Documento', d.titular.numeroDocumento ?? '—'],
       ],
-      ['Placa', d.vehiculo.placa ?? '—'],
-      ...zona,
-      ['Suma asegurada', usd(d.sumaAsegurada)],
-    ]);
+      mitad,
+    );
+    const yTitular = doc.y;
+    doc.y = yBloque;
+    doc.fontSize(cuerpo(doc));
+    this.titulo(doc, 'Vehículo', p, xDerecha, mitad);
+    doc.x = xDerecha;
+    this.datos(
+      doc,
+      [
+        [
+          'Vehículo',
+          `${d.vehiculo.marca} ${d.vehiculo.modelo} ${d.vehiculo.anio}`,
+        ],
+        ['Placa', d.vehiculo.placa ?? '—'],
+        ...zona,
+        ['Suma asegurada', usd(d.sumaAsegurada)],
+      ],
+      mitad,
+    );
+    doc.x = MARGEN;
+    doc.y = Math.max(doc.y, yTitular);
 
     this.titulo(doc, 'Prima y pago', p);
     const filas: [string, string][] = [['Prima anual', usd(d.primaAnual)]];
@@ -360,7 +428,7 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
       doc.moveDown(0.3);
       doc
         .font('Helvetica-Bold')
-        .fontSize(9)
+        .fontSize(cuerpo(doc) - 1)
         .fillColor(COLOR_SUAVE)
         .text('Cronograma de cuotas');
       this.cronograma(doc, d.pago.cuotas);
@@ -373,11 +441,11 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
     if (c.resumen)
       doc
         .font('Helvetica-Oblique')
-        .fontSize(10)
+        .fontSize(cuerpo(doc))
         .fillColor(COLOR_TEXTO)
         .text(c.resumen)
         .moveDown(0.3);
-    this.lista(
+    this.listaEnColumnas(
       doc,
       incluidas.map((x) =>
         x.detalle ? `${x.nombre}: ${x.detalle}` : x.nombre,
@@ -398,7 +466,7 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
       ),
     );
 
-    doc.moveDown(1);
+    doc.moveDown(0.6);
     doc
       .font('Helvetica')
       .fontSize(8)
@@ -545,8 +613,8 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
         leyenda();
         doc.moveDown(0.6);
         const y = doc.y;
-        const relleno = 10;
-        const altoLogo = 44;
+        const relleno = 7;
+        const altoLogo = 40;
         const anchoDerecha = 132;
         const w = this.anchoLogo(p.logo, altoLogo);
         const xNombre = MARGEN + relleno + (w ? w + 10 : 0);
@@ -638,7 +706,10 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
 
   /** Cuotas en dos columnas (primero baja la izquierda): 12 cuotas ocupan 6 renglones. */
   private cronograma(doc: PDFKit.PDFDocument, cuotas: CuotaPoliza[]) {
-    doc.font('Helvetica').fontSize(9).fillColor(COLOR_TEXTO);
+    doc
+      .font('Helvetica')
+      .fontSize(cuerpo(doc) - 1)
+      .fillColor(COLOR_TEXTO);
     const columna = (doc.page.width - 2 * MARGEN) / 2;
     const renglon = doc.currentLineHeight(true);
     const filas = Math.ceil(cuotas.length / 2);
@@ -657,13 +728,15 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
     doc.y = y + filas * renglon;
   }
 
-  /** Título de sección. Con plantilla (solo la póliza) toma el estilo y color de la aseguradora. */
+  /** Título de sección. Con plantilla (solo la póliza) toma el estilo y color de la aseguradora; `x` y `anchoTitulo` permiten ponerlo en media página. */
   private titulo(
     doc: PDFKit.PDFDocument,
     texto: string,
     p?: PlantillaAseguradora,
+    x = MARGEN,
+    anchoTitulo?: number,
   ) {
-    doc.moveDown(0.8);
+    doc.moveDown(p ? 0.6 : 0.8);
     if (!p) {
       doc
         .font('Helvetica-Bold')
@@ -676,38 +749,36 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
     // Que el título no quede solo al final de la página.
     if (doc.y + 34 > doc.page.height - doc.page.margins.bottom) doc.addPage();
     const y = doc.y;
-    const ancho = doc.page.width - 2 * MARGEN;
+    const ancho = anchoTitulo ?? doc.page.width - 2 * MARGEN;
     doc.font('Helvetica-Bold').fontSize(12);
     switch (p.diseno) {
       case 'BANDA':
-        doc.rect(MARGEN, y - 3, ancho, 17).fill(p.colorSuave);
-        doc.fillColor(p.color).text(texto, MARGEN + 6, y);
+        doc.rect(x, y - 3, ancho, 17).fill(p.colorSuave);
+        doc.fillColor(p.color).text(texto, x + 6, y);
         break;
       case 'LATERAL':
-        doc.rect(MARGEN, y - 2, 3, 14).fill(p.color);
-        doc.fillColor(COLOR_TEXTO).text(texto, MARGEN + 9, y);
+        doc.rect(x, y - 2, 3, 14).fill(p.color);
+        doc.fillColor(COLOR_TEXTO).text(texto, x + 9, y);
         break;
       case 'DOBLE_LINEA':
-        doc.fillColor(p.color).text(texto, MARGEN, y);
+        doc.fillColor(p.color).text(texto, x, y);
         doc
           .lineWidth(0.75)
           .strokeColor(p.color)
-          .moveTo(MARGEN, doc.y)
-          .lineTo(MARGEN + ancho, doc.y)
+          .moveTo(x, doc.y)
+          .lineTo(x + ancho, doc.y)
           .stroke()
           .lineWidth(1);
         break;
       case 'BLOQUE':
-        doc
-          .rect(MARGEN, y - 3, doc.widthOfString(texto) + 16, 17)
-          .fill(p.color);
-        doc.fillColor('#ffffff').text(texto, MARGEN + 8, y);
+        doc.rect(x, y - 3, doc.widthOfString(texto) + 16, 17).fill(p.color);
+        doc.fillColor('#ffffff').text(texto, x + 8, y);
         break;
       case 'MINIMAL':
-        doc.fillColor(p.color).text(texto, MARGEN, y);
+        doc.fillColor(p.color).text(texto, x, y);
         break;
     }
-    doc.x = MARGEN;
+    doc.x = x;
     doc.moveDown(0.3);
   }
 
@@ -717,7 +788,7 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
     filas: [string, string][],
     ancho?: number,
   ) {
-    doc.fontSize(10);
+    doc.fontSize(cuerpo(doc));
     const limite = ancho ? { width: ancho } : {};
     for (const [etiqueta, valor] of filas) {
       doc
@@ -729,12 +800,57 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
   }
 
   private lista(doc: PDFKit.PDFDocument, items: string[]) {
-    doc.font('Helvetica').fontSize(10).fillColor(COLOR_TEXTO);
+    doc.font('Helvetica').fontSize(cuerpo(doc)).fillColor(COLOR_TEXTO);
     if (items.length === 0) {
       doc.text('—');
       return;
     }
     for (const item of items) doc.text(`•  ${item}`, { indent: 8 });
+  }
+
+  /**
+   * Lista en dos columnas (primero baja la izquierda) para ahorrar alto.
+   * Si es corta o no cabe entera en lo que queda de página, va en una columna,
+   * que sí puede seguir en la página siguiente.
+   */
+  private listaEnColumnas(doc: PDFKit.PDFDocument, items: string[]) {
+    doc.font('Helvetica').fontSize(cuerpo(doc)).fillColor(COLOR_TEXTO);
+    const separacion = 16;
+    const sangria = 8;
+    const vineta = 11;
+    const ancho = (doc.page.width - 2 * MARGEN - separacion) / 2;
+    const opciones = { width: ancho - sangria - vineta };
+    const altos = items.map((item) => doc.heightOfString(item, opciones));
+    const suma = (desde: number, hasta: number) =>
+      altos.slice(desde, hasta).reduce((a, b) => a + b, 0);
+    // Corte que deja las dos columnas lo más parejas posible en alto.
+    let mitad = 1;
+    let altoTotal = Infinity;
+    for (let i = 1; i < items.length; i++) {
+      const alto = Math.max(suma(0, i), suma(i, items.length));
+      if (alto < altoTotal) {
+        altoTotal = alto;
+        mitad = i;
+      }
+    }
+    const columnas = [items.slice(0, mitad), items.slice(mitad)];
+    const fin = doc.page.height - doc.page.margins.bottom;
+    if (items.length < 6 || doc.y + altoTotal > fin) {
+      this.lista(doc, items);
+      return;
+    }
+    const y0 = doc.y;
+    columnas.forEach((columna, i) => {
+      const x = MARGEN + i * (ancho + separacion) + sangria;
+      let y = y0;
+      for (const item of columna) {
+        doc.text('•', x, y, { lineBreak: false });
+        doc.text(item, x + vineta, y, opciones);
+        y = doc.y;
+      }
+    });
+    doc.x = MARGEN;
+    doc.y = y0 + altoTotal;
   }
 
   /** Leyenda (RNF-20 en la póliza) y número de página en el pie de todas las páginas. */
