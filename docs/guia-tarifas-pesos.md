@@ -159,3 +159,21 @@ laxo, el backend responderá con su mensaje y el formulario lo mostrará bajo el
 - [ ] En **Completitud**, la aseguradora no tiene pendientes (o son los esperados).
 - [ ] En el **Simulador**, el desglose de la aseguradora muestra los pasos nuevos y la prima es la esperada.
 - [ ] Actualiza la fila de §17.4 de `contexto-dominio-seguro-simple.md` (qué usa cada aseguradora).
+
+---
+
+## 5. Agregar marcas, modelos o años al catálogo
+
+Un modelo es **cotizable** solo si, por cada aseguradora, tiene su fila en `rango_suma_asegurada` (modelo + año) y los pesos que su
+fórmula exige (marca, modelo y año; tipo en La Positiva). Agregar solo la fila de `modelo` no basta: aparecería sin años o no cotizaría.
+
+La pantalla del administrador edita valores, pero **no agrega marcas ni modelos**. Para eso se usa una migración generada:
+
+- **Ejemplo ya hecho**: `svas-backend/scripts/generar-seed-catalogo-ampliado.py` generó la `0040` (43 marcas, 255 modelos, años 2006–2027).
+- **Para otra ampliación**: copia ese script, cambia el nombre del archivo de salida (el siguiente número libre; haz `git fetch` primero),
+  pon los modelos nuevos en la lista `M` (marca, modelo, tipo, precio base 2026, primer y último año, recargo por robos) y las marcas
+  nuevas en `MARCAS_NUEVAS`, y vuelve a generar. Todo es `ON CONFLICT DO NOTHING`: lo que ya está cargado no se duplica ni se cambia.
+- **Solo hay 5 tipos de vehículo** (Sedán, Hatchback, SUV, Pickup, Minivan). Un tipo nuevo exige además su `peso_tipo` en La Positiva.
+- **Antes de aplicar**: prueba con `begin … rollback` (§6.3 de `guia-equipo.md`) y comprueba que ningún rango se quede sin pesos.
+  El script de 0040 y su prueba comprobaban: 0 filas existentes modificadas, 0 rangos sin peso, 5 aseguradoras por modelo-año.
+- **Los números son estimados** (RN-26): el precio base de cada modelo y los años en que se vendió son aproximaciones, no tarifas reales.

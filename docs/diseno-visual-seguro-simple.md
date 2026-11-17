@@ -78,7 +78,7 @@
 | El flujo termina en "un asesor te llamará" | El flujo termina en **comparar, probar y comprar**; el asesor es la Opción 2, no el único camino | Objetivo 1: cerrar sin asesor (dominio §1) |
 | Formulario de 10 campos en una sola pantalla | **Wizard de 3 pasos** (Vehículo · Ubicación · Contacto), un tema por pantalla en móvil | Menos abandono (P6); RNF-07: compra en ≤ 10 min en móvil |
 | "Valor de mercado (Mín $0 – Máx $0)" confunde | Se reemplaza por **suma asegurada con rango real** por aseguradora (control con slider) | RN-37; el rango sale del catálogo |
-| Año preseleccionado en 2027 | Año **sin valor por defecto** y limitado a 2015–2026 | RN-44: los rangos cargan esos años |
+| Año preseleccionado en 2027 | Año **sin valor por defecto** y limitado a 2006–2027 | RN-44: los rangos cargan esos años (0017 y 0040) |
 | Títulos en MAYÚSCULAS largas | Títulos en **mayúscula inicial** (más legibles); las mayúsculas quedan solo para sellos y etiquetas cortas | Legibilidad en móvil |
 | Ordena por precio (como todos) | Ordena por precio **y** muestra el **Costo Real Anual** con la Prueba de Choque | Diferenciador (dominio §16) |
 | Promoción "SOAT gratis" fija en el hero | Pasa a un **slot de promoción** (`<PromoBanner>`) que se enciende o apaga sin tocar código | La promo cambia; el layout no debe |

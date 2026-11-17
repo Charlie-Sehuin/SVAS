@@ -1645,6 +1645,13 @@ cargarlos a la base se guarda cada peso **una sola vez**:
 | `Base` (marca, modelo, año, tipo, suma mín/máx por compañía) | `marca` 21 · `tipo_vehiculo` 5 · `modelo` 68 · `rango_suma_asegurada` | 816 × 5 compañías = **4 080** |
 | `Pesos Rimac`, `Pesos Pacífico`, `Pesos La Positiva`, `Pesos Mapfre`, `Pesos Qualitas` | `peso_marca`, `peso_modelo`, `peso_anio` (y `peso_tipo` solo La Positiva) | 21 + 68 + 12 por aseguradora → 105, 340 y 60 filas; `peso_tipo` 5 |
 | `Ubigeo Pacífico` | `ubigeo` · `peso_ubigeo` | 73 + 73 (Lima 43 distritos, Callao 7 y 23 capitales de departamento) |
+
+> **Ampliación (2026-11-16, migración 0040).** Los números de arriba son los del seed inicial (0017). La 0040, generada por
+> `svas-backend/scripts/generar-seed-catalogo-ampliado.py` (no sale del Excel), llevó el catálogo a **43 marcas, 255 modelos y
+> años 2006–2027**, con **18 170 rangos de suma**, 215 `peso_marca`, 1 275 `peso_modelo` y 110 `peso_anio`. Sigue siendo
+> **estimado** (RN-26): precio base por modelo, depreciación del 12 % anual de 2026 a 2015 y del 6 % de 2014 hacia atrás, y
+> los mismos factores por aseguradora y niveles de peso del 0017. Los modelos nuevos solo tienen los años en que se vendieron
+> en Perú (aproximados); las filas de 0017 no se tocaron.
 | `Planes Rimac`, `Planes Pacífico`, `Planes La Positiva`, `Planes Mapfre`, `Planes Qualitas` | `plan` + `tarifa_plan` | 10 + 10 |
 
 El script de seed (migración 0017) **verifica la consistencia** antes de
@@ -1887,7 +1894,7 @@ seed lo verifica, 18.10).
 
 | Tipo | Texto (igual en los 10 planes salvo la edad) |
 |---|---|
-| `VEHICULO` | Vehículo del año 2015 al 2026 (antigüedad máxima 12 años) |
+| `VEHICULO` | Vehículo del año 2006 al 2027 (antigüedad máxima 20 años) |
 | `CONDUCTOR` | Conductor habitual con licencia vigente y **edad mínima según el plan** (tabla de abajo) |
 | `DOCUMENTO` | DNI o carné de extranjería vigente y tarjeta de identificación vehicular |
 | `INSPECCION` | Inspección previa si la regla de inspección de la aseguradora la exige para tu uso (se avisa al cotizar) |
@@ -1900,8 +1907,9 @@ Básico y M Esencial.
 > cotizar o comprar sigue siendo: el rango de suma (si el modelo/año no tiene
 > fila, no hay cotización, RN-39), los `campo_requerido` (RF-03), la
 > `regla_inspeccion` (RN-03) y el nicho (RN-05). Por eso el requisito de
-> vehículo coincide con los años que cargan los rangos (2015–2026): si algún
-> día se amplían los años, se actualiza también este texto.
+> vehículo coincide con los años que cargan los rangos (2006–2027): si algún
+> día se amplían los años, se actualiza también este texto (la migración 0040
+> lo hizo al pasar de 2015–2026 a 2006–2027).
 
 ### 18.8 Cómo lo usa el sistema (de punta a punta)
 

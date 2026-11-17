@@ -344,8 +344,9 @@ ruta en el controller + DTO → e2e/Bruno → PR.
 
 ### 6.1 Reglas
 - Una migración aplicada **no se edita nunca**. Si hay que corregir, se crea otra nueva (así se hizo con 0032).
-- Numeración correlativa: la siguiente es **`0038_`**. **Avisa al grupo el número que vas a usar** antes de crearla,
-  para que dos personas no tomen el mismo.
+- Numeración correlativa: la siguiente es **`0041_`** (la última aplicada es la 0040). **Antes de elegir el número**, haz
+  `git fetch` y mira `origin/main` y las ramas abiertas: el 2026-11-16 dos personas tomaron el **0039** a la vez y una tuvo que
+  renumerar. **Avisa al grupo el número que vas a usar** antes de crearla.
 - Nombre: `NNNN_descripcion_corta.sql` en `svas-backend/supabase/migrations/`.
 - Todo vive en el esquema `svas`.
 
