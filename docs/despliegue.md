@@ -42,6 +42,8 @@ La versión de Node sale de `engines.node` en `package.json` (24.x).
 | `SUPABASE_JWKS_URL` | ídem |
 | `NODE_ENV` | `production` |
 | `FRONTEND_URL` | `https://svas-frontend.onrender.com` (el frontend publicado en Render, sin barra final). Para trabajar en local con el backend local: `http://localhost:5173` |
+| `GEMINI_API_KEY` | Clave de Google AI Studio (secreta). Sin ella, `POST /catalogo/vehiculos/reconocer` responde 503 en producción |
+| `GEMINI_MODEL` | Opcional; por defecto `gemini-2.5-flash` |
 
 No definir `PORT`: Railway la inyecta y la app escucha en ella. Si falta o es inválida una variable, la app no arranca
 y el log del deploy dice cuál (validación con zod).

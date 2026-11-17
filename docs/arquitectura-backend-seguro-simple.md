@@ -160,6 +160,9 @@ svas-backend/
 │   │   ├── emision/aseguradora-simulada.adapter.ts
 │   │   ├── pdf/pdfkit-generador.adapter.ts
 │   │   ├── mensajes/notificador-simulado.adapter.ts
+│   │   ├── vehiculo/
+│   │   │   ├── reconocedor-gemini.adapter.ts    # con GEMINI_API_KEY (SDK @google/genai)
+│   │   │   └── reconocedor-simulado.adapter.ts  # sin clave (503 en producción)
 │   │   └── clasificador/
 │   │       ├── clasificador-palabras-clave.adapter.ts
 │   │       └── clasificador-llm.adapter.ts  # opcional, FEATURE_CLASIFICADOR_LLM=true
@@ -319,7 +322,8 @@ todos los módulos.
 Variables obligatorias: `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `FRONTEND_URL`,
 `PORT`, `NODE_ENV`. Opcionales: `FEATURE_CLASIFICADOR_LLM`,
-`ANTHROPIC_API_KEY` (solo si el flag está activo), `REDIS_URL`.
+`ANTHROPIC_API_KEY` (solo si el flag está activo), `REDIS_URL`, `GEMINI_API_KEY` y
+`GEMINI_MODEL` (reconocimiento del auto por foto; sin la clave se usa el reconocedor simulado).
 
 ### 3.4 `common/`
 - **`supabase-auth.guard.ts`**: verifica la firma del JWT con
