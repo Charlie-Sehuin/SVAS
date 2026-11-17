@@ -3,7 +3,7 @@
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
 > `arquitectura-backend-seguro-simple.md` (orden de construcción en §10).
-> Última actualización: 2026-11-12 (backend: Ola 4 cerrada · frontend: configuración inicial y Ola 0, ver §1b).
+> Última actualización: 2026-11-16 (reconocer el auto por foto con Gemini, ver abajo). Antes, 2026-11-12 (backend: Ola 4 cerrada · frontend: configuración inicial y Ola 0, ver §1b).
 
 ## 1. Dónde estamos
 
@@ -29,7 +29,28 @@ cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públ
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
 Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos), 0035 (18 casos), 0036 (16 casos) y 0037 (8 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
 
-### Último cierre (2026-11-12): Ola 4, tanda 2 (PDF + RN-35)
+### Último cierre (2026-11-16): reconocer el auto por foto con Gemini
+
+Backend (`feat/reconocer-vehiculo`, PR #4, en `main` y desplegado en Railway) y frontend (repo `SVAS-frontend`, misma rama):
+el cliente sube o toma una foto de su auto y el paso Vehículo se rellena con la marca y el modelo.
+
+- **Endpoint**: `POST /catalogo/vehiculos/reconocer` (público, 10/min). Multipart, campo `foto`, JPG/PNG/WEBP, máx. 5 MB. Responde
+  `{ reconocido, marca?: {id,nombre}, modelo?: {id,nombre}, aniosProbables: number[], confianza }`. La foto se procesa en memoria y no se guarda.
+- **Cómo decide**: a Gemini (SDK oficial `@google/genai`, API `v1beta`; con `v1` rechaza la salida JSON) se le manda el catálogo de marcas y
+  modelos activos de Supabase y solo puede elegir de ahí. El backend vuelve a comparar el resultado con el catálogo (sin tildes ni mayúsculas): lo
+  que no esté se devuelve como `reconocido: false` y nunca se crea. Cuando se amplíe el catálogo, el reconocimiento lo toma sin tocar código.
+- **El año es una sugerencia**: Gemini estima el rango de años de la generación y el backend deja solo los que alguna aseguradora cotiza
+  (`aniosProbables`). Con una Hilux de la publicación "2012" sugirió 2015. Por eso el frontend rellena marca y modelo pero **deja el año sin elegir**
+  (RN-44) y solo lo sugiere. `confianza` no es fiable (devolvió 1 con el año equivocado): no se muestra.
+- **Sin clave**: la selección es automática. Con `GEMINI_API_KEY` usa Gemini; sin ella, un reconocedor simulado (primer modelo del catálogo) fuera
+  de producción y un 503 "no disponible" en producción (nunca datos inventados). El arranque deja un aviso en el log.
+- **Variables**: `GEMINI_API_KEY` (opcional, secreta; ya está en Railway) y `GEMINI_MODEL` (por defecto `gemini-2.5-flash`).
+- **Frontend**: botón "Rellenar con una foto de tu auto" (`ReconocerVehiculoFoto`); reduce la foto a 1280 px (`shared/lib/imagen.ts`) antes de
+  subirla. Si no reconoce el auto o falla, muestra el mensaje y el formulario se completa a mano.
+- **Pruebas**: 399 en el backend (5 nuevas) y 307 en el frontend (3 nuevas). Probado a mano con Gemini real, local y en Railway.
+- **Pendiente**: recorrerlo desde un celular en el sitio publicado; la reducción de la foto no se puede probar en jsdom (sin canvas).
+
+### Cierre anterior (2026-11-12): Ola 4, tanda 2 (PDF + RN-35)
 
 `feat/reportes-pdf` mergeada en `main` (`--no-ff`) y subida. 0037 se probó con `begin … rollback` (8 casos) y se
 aplicó. Bruno en verde: 08/10 (Resumen en PDF; requiere correr antes 02 y 03 para `cotChoqueId`/`tokenChoque`),
@@ -514,6 +535,9 @@ Notas:
   (Bearer o `X-Cotizacion-Token`, POST 20/min).
 - `modules/planes`: `GET /planes/:planId/contenido` y `GET /planes/comparar?ids=` (públicos, máx. 3); exporta
   `CONTENIDO_PLAN_REPOSITORY` (caché 5 min) y `RESUMEN_PLANES` (lo usa el cotizador).
+- `modules/cotizacion` (reconocer por foto): `POST /catalogo/vehiculos/reconocer` (`ReconocerVehiculoController` → `ReconocerVehiculoUseCase`).
+  Puerto `ReconocedorVehiculo` (token `RECONOCEDOR_VEHICULO`) con `integracion/vehiculo/reconocedor-gemini.adapter.ts` (con `GEMINI_API_KEY`) y
+  `reconocedor-simulado.adapter.ts` (sin clave; 503 en producción).
 - `integracion/estrategias`: `EstrategiaBase` + Rímac, Pacífico, La Positiva, Mapfre, Qualitas (§17.5), con `parametrosSchema` (zod),
   `pesosRequeridos` / `pesosOpcionales`. `NotificadorSimulado` registra en el log (fuera de producción muestra el enlace;
   en producción lo oculta). Resto de adaptadores (pagos, emisión, PDF, clasificador): stubs `NotImplemented`.

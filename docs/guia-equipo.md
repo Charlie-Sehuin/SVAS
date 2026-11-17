@@ -71,6 +71,8 @@ Llena `svas-backend/.env` con los valores que te pasaron:
 | `FRONTEND_URL` | No (`http://localhost:5173`) | Único origen permitido por CORS |
 | `FEATURE_CLASIFICADOR_LLM` | No (`false`) | Clasificador de preocupaciones con LLM (pospuesto) |
 | `ANTHROPIC_API_KEY` | Solo si el flag anterior es `true` | — |
+| `GEMINI_API_KEY` | No | Clave de Google AI Studio para reconocer el auto por foto. Vacía = reconocedor **simulado** (en producción responde 503) |
+| `GEMINI_MODEL` | No (`gemini-2.5-flash`) | Modelo de Gemini que usa el reconocimiento por foto |
 
 Si falta o está mal una variable, la app **no arranca** y te dice cuál (validación con zod en
 `src/config/env.validation.ts`). Para revisar sin arrancar: `npm run verificar-env`.
