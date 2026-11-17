@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.validation';
 import { NOTIFICADOR_MENSAJES } from '../modules/asesoria-retencion/domain/notificador-mensajes.port';
@@ -12,7 +12,10 @@ import { ClasificadorPalabrasClaveAdapter } from './clasificador/clasificador-pa
 import { AseguradoraSimuladaAdapter } from './emision/aseguradora-simulada.adapter';
 import { EstrategiaRegistry } from './estrategias/estrategia.registry';
 import { NotificadorSimuladoAdapter } from './mensajes/notificador-simulado.adapter';
+import { RECONOCEDOR_VEHICULO } from '../modules/cotizacion/domain/reconocedor-vehiculo.port';
 import { PasarelaSimuladaAdapter } from './pagos/pasarela-simulada.adapter';
+import { ReconocedorGeminiAdapter } from './vehiculo/reconocedor-gemini.adapter';
+import { ReconocedorSimuladoAdapter } from './vehiculo/reconocedor-simulado.adapter';
 import { PdfkitGeneradorAdapter } from './pdf/pdfkit-generador.adapter';
 
 /**
@@ -38,8 +41,32 @@ import { PdfkitGeneradorAdapter } from './pdf/pdfkit-generador.adapter';
           ? new ClasificadorLlmAdapter()
           : new ClasificadorPalabrasClaveAdapter(),
     },
+    {
+      // Con GEMINI_API_KEY se usa Gemini; sin ella, el simulado (en producción avisa 503).
+      provide: RECONOCEDOR_VEHICULO,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => {
+        const logger = new Logger('IntegracionModule');
+        const apiKey = config.get('GEMINI_API_KEY', { infer: true });
+        if (apiKey) {
+          return new ReconocedorGeminiAdapter(
+            apiKey,
+            config.get('GEMINI_MODEL', { infer: true }),
+          );
+        }
+        const enProduccion =
+          config.get('NODE_ENV', { infer: true }) === 'production';
+        logger.warn(
+          enProduccion
+            ? 'GEMINI_API_KEY no está definida: el reconocimiento por foto responderá 503'
+            : 'GEMINI_API_KEY no está definida: reconocimiento por foto SIMULADO',
+        );
+        return new ReconocedorSimuladoAdapter(enProduccion);
+      },
+    },
   ],
   exports: [
+    RECONOCEDOR_VEHICULO,
     REGISTRO_ESTRATEGIAS,
     PASARELA_PAGO,
     EMISION_ASEGURADORA,

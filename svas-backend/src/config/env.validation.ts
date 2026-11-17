@@ -20,6 +20,9 @@ export const envSchema = z
     FEATURE_CLASIFICADOR_LLM: z.stringbool().default(false),
     // Vacía (ANTHROPIC_API_KEY= en el .env) cuenta como no definida.
     ANTHROPIC_API_KEY: z.string().optional(),
+    // Reconocimiento de vehículo por foto: sin clave se usa el reconocedor simulado.
+    GEMINI_API_KEY: z.string().trim().optional(),
+    GEMINI_MODEL: z.string().trim().min(1).default('gemini-2.5-flash'),
   })
   .refine((env) => !env.FEATURE_CLASIFICADOR_LLM || env.ANTHROPIC_API_KEY, {
     path: ['ANTHROPIC_API_KEY'],

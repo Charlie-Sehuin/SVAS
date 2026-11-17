@@ -16,14 +16,20 @@ import { CATALOGO_PUBLICO_REPOSITORY } from './domain/catalogo-publico.port';
 import { TARIFA_REPOSITORY } from './domain/tarifa.repository.port';
 import { CatalogoPublicoSupabaseRepository } from './infrastructure/catalogo-publico-supabase.repository';
 import { TarifaSupabaseRepository } from './infrastructure/tarifa-supabase.repository';
+import { ReconocerVehiculoUseCase } from './application/reconocer-vehiculo.use-case';
 import { CatalogoController } from './presentation/catalogo.controller';
+import { ReconocerVehiculoController } from './presentation/reconocer-vehiculo.controller';
 import { CotizacionAccesoGuard } from './presentation/cotizacion-acceso.guard';
 import { CotizacionesController } from './presentation/cotizaciones.controller';
 
 /** Ola 1: catálogo público, cálculo de primas y cotizaciones (0007/0008/0009/0012). */
 @Module({
   imports: [IntegracionModule, PlanesModule],
-  controllers: [CatalogoController, CotizacionesController],
+  controllers: [
+    CatalogoController,
+    ReconocerVehiculoController,
+    CotizacionesController,
+  ],
   providers: [
     { provide: TARIFA_REPOSITORY, useClass: TarifaSupabaseRepository },
     {
@@ -32,6 +38,7 @@ import { CotizacionesController } from './presentation/cotizaciones.controller';
     },
     { provide: COTIZACION_REPOSITORY, useClass: CotizacionSupabaseRepository },
     CatalogoPublicoService,
+    ReconocerVehiculoUseCase,
     CalculadoraPrimasService,
     CotizarUseCase,
     ObtenerResumenUseCase,
