@@ -1,5 +1,5 @@
 """
-Genera supabase/migrations/0039_catalogo_ampliado_2006_2027.sql
+Genera supabase/migrations/0040_catalogo_ampliado_2006_2027.sql
 
 Amplía el catálogo de vehículos y sus tarifas (datos ESTIMADOS, RN-26):
   - años 2006–2027 (antes 2015–2026) para los 68 modelos existentes,
@@ -31,7 +31,7 @@ Cómo se calculan los números (copiado de lo que ya hay en la base, 0017):
 
 from pathlib import Path
 
-SALIDA = Path(__file__).resolve().parent.parent / 'supabase' / 'migrations' / '0039_catalogo_ampliado_2006_2027.sql'
+SALIDA = Path(__file__).resolve().parent.parent / 'supabase' / 'migrations' / '0040_catalogo_ampliado_2006_2027.sql'
 
 ANIO_MIN, ANIO_MAX = 2006, 2027
 ASEGURADORAS = ['RIMAC', 'PACIFICO', 'LA_POSITIVA', 'MAPFRE', 'QUALITAS']
@@ -257,7 +257,7 @@ def generar():
     n_modelos = len(M)
     out = []
     w = out.append
-    w('-- 0039 · Catálogo ampliado: años 2006–2027 y modelos nuevos (datos ESTIMADOS, RN-26)')
+    w('-- 0040 · Catálogo ampliado: años 2006–2027 y modelos nuevos (datos ESTIMADOS, RN-26)')
     w('-- GENERADO por scripts/generar-seed-catalogo-ampliado.py. No editar a mano: cambiar el script y volver a generar')
     w('-- (antes de aplicar). Una migración aplicada no se edita: un cambio posterior va en una migración nueva.')
     w('--')
