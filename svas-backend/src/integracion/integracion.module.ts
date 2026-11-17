@@ -9,6 +9,8 @@ import { EMISION_ASEGURADORA } from '../modules/polizas/domain/emision-asegurado
 import { ENVIADOR_CORREO } from '../modules/polizas/domain/enviador-correo.port';
 import { GENERADOR_PDF } from '../modules/polizas/domain/generador-pdf.port';
 import { CLASIFICADOR_PREOCUPACIONES } from '../modules/prueba-choque/domain/clasificador-preocupaciones.port';
+import { AsistenteConRespaldoAdapter } from './asistente/asistente-con-respaldo.adapter';
+import { AsistenteDeepSeekAdapter } from './asistente/asistente-deepseek.adapter';
 import { AsistenteGeminiAdapter } from './asistente/asistente-gemini.adapter';
 import { AsistenteSimuladoAdapter } from './asistente/asistente-simulado.adapter';
 import { ClasificadorLlmAdapter } from './clasificador/clasificador-llm.adapter';
@@ -89,17 +91,29 @@ import { PdfkitGeneradorAdapter } from './pdf/pdfkit-generador.adapter';
       },
     },
     {
-      // El chatbot usa la misma clave de Gemini; sin ella, el simulado (en producción avisa 503).
+      // El chatbot usa la misma clave de Gemini. Con DEEPSEEK_API_KEY, DeepSeek queda de respaldo si Gemini
+      // falla (o de proveedor único si no hay clave de Gemini). Sin ninguna, el simulado (en producción avisa 503).
       provide: ASISTENTE_CONVERSACIONAL,
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => {
-        const apiKey = config.get('GEMINI_API_KEY', { infer: true });
-        if (apiKey) {
-          return new AsistenteGeminiAdapter(
-            apiKey,
-            config.get('GEMINI_MODEL', { infer: true }),
-          );
-        }
+        const claveGemini = config.get('GEMINI_API_KEY', { infer: true });
+        const claveDeepSeek = config.get('DEEPSEEK_API_KEY', { infer: true });
+        const gemini = claveGemini
+          ? new AsistenteGeminiAdapter(
+              claveGemini,
+              config.get('GEMINI_MODEL', { infer: true }),
+            )
+          : null;
+        const deepseek = claveDeepSeek
+          ? new AsistenteDeepSeekAdapter(
+              claveDeepSeek,
+              config.get('DEEPSEEK_MODEL', { infer: true }),
+            )
+          : null;
+        if (gemini && deepseek)
+          return new AsistenteConRespaldoAdapter(gemini, deepseek);
+        if (gemini) return gemini;
+        if (deepseek) return deepseek;
         const enProduccion =
           config.get('NODE_ENV', { infer: true }) === 'production';
         new Logger('IntegracionModule').warn(

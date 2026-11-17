@@ -29,6 +29,8 @@ import {
 } from '../modules/prueba-choque/domain/clasificador-preocupaciones.port';
 import type { DatosPolizaPdf } from '../modules/polizas/domain/poliza';
 import { ASISTENTE_CONVERSACIONAL } from '../modules/asistente/domain/asistente-conversacional.port';
+import { AsistenteConRespaldoAdapter } from './asistente/asistente-con-respaldo.adapter';
+import { AsistenteDeepSeekAdapter } from './asistente/asistente-deepseek.adapter';
 import { AsistenteGeminiAdapter } from './asistente/asistente-gemini.adapter';
 import { AsistenteSimuladoAdapter } from './asistente/asistente-simulado.adapter';
 import { ClasificadorLlmAdapter } from './clasificador/clasificador-llm.adapter';
@@ -424,6 +426,25 @@ describe('IntegracionModule', () => {
     });
     expect(conClave.get(ASISTENTE_CONVERSACIONAL)).toBeInstanceOf(
       AsistenteGeminiAdapter,
+    );
+  });
+
+  it('con DEEPSEEK_API_KEY, DeepSeek queda de respaldo de Gemini, o solo si no hay clave de Gemini', async () => {
+    const ambas = await compilar({
+      GEMINI_API_KEY: 'clave-de-prueba',
+      GEMINI_MODEL: 'gemini-3.5-flash',
+      DEEPSEEK_API_KEY: 'clave-de-prueba',
+      DEEPSEEK_MODEL: 'deepseek-v4-flash',
+    });
+    expect(ambas.get(ASISTENTE_CONVERSACIONAL)).toBeInstanceOf(
+      AsistenteConRespaldoAdapter,
+    );
+    const soloDeepSeek = await compilar({
+      DEEPSEEK_API_KEY: 'clave-de-prueba',
+      DEEPSEEK_MODEL: 'deepseek-v4-flash',
+    });
+    expect(soloDeepSeek.get(ASISTENTE_CONVERSACIONAL)).toBeInstanceOf(
+      AsistenteDeepSeekAdapter,
     );
   });
 });

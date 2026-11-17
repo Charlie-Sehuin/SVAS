@@ -3,7 +3,7 @@
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
 > `arquitectura-backend-seguro-simple.md` (orden de construcción en §10).
-> Última actualización: 2026-11-17 (chatbot del sitio público, backend, ver abajo). Antes, 2026-11-16 (catálogo ampliado a 2006–2027 y reconocer el auto por foto con Gemini, ver abajo). Antes, 2026-11-12 (backend: Ola 4 cerrada · frontend: configuración inicial y Ola 0, ver §1b).
+> Última actualización: 2026-11-17 (chatbot: arreglos posteriores, respaldo con DeepSeek y guardia de precios ampliada, ver abajo). Antes, 2026-11-17 (chatbot del sitio público, backend, ver abajo). Antes, 2026-11-16 (catálogo ampliado a 2006–2027 y reconocer el auto por foto con Gemini, ver abajo). Antes, 2026-11-12 (backend: Ola 4 cerrada · frontend: configuración inicial y Ola 0, ver §1b).
 
 ## 1. Dónde estamos
 
@@ -59,9 +59,10 @@ Esta rama es solo el backend; la burbuja de chat va en el repo `SVAS-frontend` (
   (crear una cotización escribe en producción); la cubren las pruebas unitarias.
 - **La foto en el chat** reutiliza `POST /catalogo/vehiculos/reconocer`; el frontend manda el resultado en `vehiculo`.
 - **Pruebas**: 18 unitarias nuevas (435 en total) y 10 e2e que solo prueban validaciones y accesos (no llaman a la IA). Bruno: carpeta `14 Asistente` (01–05).
-- **Límites que hay que tener presentes**: (1) el plan gratuito de Gemini tiene un tope diario que comparten el chat y la foto; (2) el corte es de 12 s por respuesta;
+- **Límites que hay que tener presentes**: (1) el plan gratuito de Gemini tiene un tope diario que comparten el chat y la foto; (2) el corte general de la API es de
+  15 s (`TimeoutInterceptor`) y cada intento a Gemini se corta a los 6,5 s (ver "Arreglos posteriores");
   (3) el historial del lado del asistente lo manda el navegador, así que alguien podría falsearlo, pero solo afecta a su propia conversación;
-  (4) la guardia de precios mira montos con moneda ("USD 300", "300 dólares"), no números sueltos.
+  (4) la guardia de precios mira montos con moneda y, desde `fix/chatbot-pendientes`, también números sueltos en contexto de precio (ver abajo).
 
 Frontend del chatbot (repo `SVAS-frontend`, rama `feat/chatbot`, `features/asistente/`): burbuja abajo a la derecha en todo el sitio público (`PublicLayout`; no en el
 backoffice). La ventana (`AsistentePanel`) se descarga solo al abrirla (~4 KB comprimidos), así que la portada casi no cambia de peso. La conversación vive en
@@ -69,7 +70,46 @@ sessionStorage (`svas.asistente`) y se reenvía completa en cada turno (últimos
 (`/cotizacion/:id`, `/compra/:id`) usa `POST /cotizaciones/:id/asistente/mensajes` (el api-client pone el `X-Cotizacion-Token`) y las tarjetas de plan muestran los
 montos tal cual los dio el backend; sin cotización usa `POST /asistente/mensajes` y ofrece la foto (reutiliza `POST /catalogo/vehiculos/reconocer`).
 "Cotizar con estos datos" deja marca y modelo en el borrador del formulario y **el año vacío** (RN-44). 12 pruebas nuevas con MSW (329 en total).
-Nota: `cotizacion.test.tsx › trae WhatsApp preseleccionado…` se pasa a veces de los 5 s con toda la suite en paralelo (falla intermitente de tiempo, no del chat).
+Nota: `cotizacion.test.tsx › trae WhatsApp preseleccionado…` se pasaba a veces de los 5 s con toda la suite en paralelo (falla intermitente de tiempo, no del chat);
+desde `fix/chatbot-pendientes` (frontend) esa prueba tiene 15 s.
+
+### Chatbot: arreglos posteriores y pendientes (2026-11-17)
+Lo que se fusionó después de `feat/chatbot` y lo que agrega `fix/chatbot-pendientes` (ambos repos), a partir del resumen de traspaso del chatbot.
+
+**Ya fusionado en `main`:**
+- **Backend `fix/chatbot-reintento` (PR #12)**: en producción 5 de 6 mensajes fallaban con 502. Un reintento automático ante fallos pasajeros
+  (5xx, tiempo agotado o respuesta cortada; la cuota agotada 429 no se reintenta, `integracion/asistente/reintento.ts`); `maxOutputTokens` de 1024 a 4096
+  (el razonamiento gastaba parte del tope y el JSON salía cortado); razonamiento apagado en `gemini-2.5-flash`; corte de 6,5 s por intento con
+  `AbortSignal` (Gemini rechaza como plazo de servidor cualquier valor menor a 10 s); el registro dice el `finishReason` cuando la respuesta es inválida.
+  La causa de los fallos en producción sigue **sin confirmar**: hay que mirar los registros de Railway (líneas "Gemini falló" y "Reintentando").
+- **Frontend `fix/chatbot-cotizar` (PR #6)**: `CotizarPage` usa `key={location.key}` para que el formulario relea el borrador al ir a `/cotizar` desde el chat.
+- **Frontend `fix/chatbot-enlace-plan` (PR #7)**: "Ver en mi cotización" es un botón que cierra el chat y resalta unos segundos la tarjeta del comparativo
+  (`id="plan-<primaCotizadaId>"` en `PlanCard`); si no está en pantalla, abre la cotización. Cada botón de acción sale solo en la última respuesta que lo
+  ofrece y, con una cotización a la vista, no se ofrece "Cotizar ahora".
+
+**Rama `fix/chatbot-pendientes` (backend):**
+- **Respaldo con DeepSeek** (idea de Charlie): `integracion/asistente/asistente-deepseek.adapter.ts` (API compatible con OpenAI, llamada con `fetch`, sin
+  dependencias nuevas; modo JSON, razonamiento apagado, temperatura 0.3) y `asistente-con-respaldo.adapter.ts`. Con `GEMINI_API_KEY` y `DEEPSEEK_API_KEY`,
+  si Gemini falla se intenta **una vez** con DeepSeek dentro del tiempo que le quede a la petición (presupuesto de 14 s, entre 3 y 8 s para el respaldo); si
+  DeepSeek también falla, la persona ve el error de Gemini. Solo con `DEEPSEEK_API_KEY`, DeepSeek es el proveedor (dos intentos de 6,5 s, como Gemini).
+  **Sin `DEEPSEEK_API_KEY` no cambia nada**: por eso es seguro fusionarla aunque no se configure todavía.
+  - Variables nuevas (opcionales): `DEEPSEEK_API_KEY` y `DEEPSEEK_MODEL` (por defecto `deepseek-v4-flash`). Errores: 402 (sin saldo) o 429 → 503 "muy ocupado"; otro → 502.
+  - Límite: si Gemini agota sus dos intentos por tiempo (2 × 6,5 s), ya no queda tiempo para el respaldo. Ayuda en los fallos rápidos (429, 5xx, respuesta cortada).
+  - DeepSeek **no es gratis**: es prepagado (recarga con tarjeta o PayPal). Con ~4 000 tokens de entrada y ~300 de salida por turno, cuesta del orden de
+    USD 0,002 por mensaje según las tarifas publicadas en 2026 (verificar en api-docs.deepseek.com antes de configurarlo). No se probó contra la API real
+    (falta una clave); lo cubren pruebas unitarias con `fetch` simulado. Antes de ponerlo en Railway, probarlo en local con una clave.
+  - La foto del auto sigue solo con Gemini: es otro adaptador (`reconocedor-gemini.adapter.ts`) y para imágenes DeepSeek pide un modelo distinto.
+- **Guardia de precios ampliada** (`montosMencionados` en `asistente/domain/asistente.ts`): además de los montos con moneda, detecta números sueltos cuando el
+  contexto es un precio ("cuesta 450", "la prima es de unos 1,200", "te sale 380", "300 al mes", "900 anuales"). Entre la palabra de precio y el número solo
+  admite palabras de relleno ("es", "de", "unos"…), así que "la prima de tu Corolla 2020" no cuenta el año; tampoco cuenta porcentajes ni cantidades de meses,
+  cuotas, días o planes. Un número entregado en los datos (p. ej. la prima de la cotización) sigue siendo válido aunque se escriba sin moneda.
+- `.env.example`: `GEMINI_MODEL=gemini-3.5-flash` para quien prueba en local con una clave nueva (en Railway no cambia nada) y las dos variables de DeepSeek.
+- **Pruebas**: 17 unitarias nuevas (456 en total): 12 del respaldo y del adaptador de DeepSeek, 1 del módulo de integración y 4 de la guardia de precios.
+
+**Rama `fix/chatbot-pendientes` (frontend):** la prueba intermitente del cotizador ("trae WhatsApp preseleccionado…") tiene 15 s en vez de 5 (333 pruebas en verde).
+
+**Sigue pendiente:** confirmar la causa de los fallos en producción con los registros de Railway; poner `GEMINI_MODEL=gemini-3.5-flash` en Railway (se consulta
+antes, toca producción); decidir si se activa DeepSeek y quién pone la recarga; probar la burbuja desde un celular real.
 
 ### Póliza en PDF por correo (rama `feat/pdf-por-correo`, 2026-11-16)
 Al generar el PDF de una póliza (compra, descarga o reintento: ocurre una vez por póliza) se manda al correo de la ficha del

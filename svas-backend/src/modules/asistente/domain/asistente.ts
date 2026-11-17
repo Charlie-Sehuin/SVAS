@@ -327,17 +327,47 @@ function aNumero(texto: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Monto con moneda: "USD 300", "$ 16,800", "S/ 1.234,50", "300 dólares". */
 const MONTO =
   /(?:USD|US\$|\$|S\/\.?)\s*(\d[\d.,]*)|(\d[\d.,]*)\s*(?:d[oó]lares|soles|USD)/gi;
 
-/** Montos de dinero que menciona un texto. */
+/**
+ * Número suelto que el contexto vuelve un precio, aunque no lleve moneda:
+ * "cuesta 450", "la prima es de unos 1,200", "te sale 380", "pagarías 300 al mes".
+ * Entre la palabra de precio y el número solo se admiten palabras de relleno
+ * ("es", "de", "unos"…): así "la prima de tu Corolla 2020" no cuenta el año.
+ * No cuenta porcentajes ni cantidades de meses, cuotas, días o planes.
+ */
+const PALABRA_PRECIO =
+  '(?:cuestan?|costar[ií]an?|costo|coste|precios?|primas?|cuotas?|pagar[ií]as?|pagar[aá]s|pagas|pagar|deducibles?|tarifas?|vale|valdr[ií]a|sale|saldr[ií]a|monto)';
+const RELLENO =
+  '(?:(?:es|son|de|del|unos|unas|aprox\\.?|aproximadamente|alrededor|cerca|ser[ií]an?|anual|mensual|total|solo|sólo|apenas|m[ií]nimo|desde|como|a)\\s+){0,4}';
+/** El número completo: `(?!\d)` impide que la búsqueda se quede con un pedazo ("1" de "12 meses"). */
+const NUMERO = '(\\d[\\d.,]*)(?!\\d)';
+const NO_ES_CANTIDAD =
+  '(?!\\s*(?:%|por\\s*ciento|meses|mes\\b|años|año\\b|días|dias|d[ií]a\\b|cuotas|horas|km|kil[oó]metros|planes|aseguradoras|veces))';
+const PRECIO_SIN_MONEDA = new RegExp(
+  `(?<![\\p{L}])${PALABRA_PRECIO}\\s+${RELLENO}${NUMERO}${NO_ES_CANTIDAD}`,
+  'giu',
+);
+/** "300 al mes", "1,200 anuales", "450 por año". */
+const MONTO_POR_PERIODO = new RegExp(
+  `${NUMERO}\\s*(?:al\\s+mes|al\\s+a[ñn]o|por\\s+mes|por\\s+a[ñn]o|mensuales|anuales)`,
+  'giu',
+);
+
+/** Montos de dinero que menciona un texto (cada número cuenta una sola vez aunque calce en varias formas). */
 export function montosMencionados(texto: string): number[] {
-  const montos: number[] = [];
-  for (const m of texto.matchAll(MONTO)) {
-    const n = aNumero(m[1] ?? m[2] ?? '');
-    if (n !== null) montos.push(n);
-  }
-  return montos;
+  const porPosicion = new Map<number, number>();
+  const registrar = (m: RegExpMatchArray, grupo: string | undefined) => {
+    if (grupo === undefined || m.index === undefined) return;
+    const n = aNumero(grupo);
+    if (n !== null) porPosicion.set(m.index + m[0].lastIndexOf(grupo), n);
+  };
+  for (const m of texto.matchAll(MONTO)) registrar(m, m[1] ?? m[2]);
+  for (const m of texto.matchAll(PRECIO_SIN_MONEDA)) registrar(m, m[1]);
+  for (const m of texto.matchAll(MONTO_POR_PERIODO)) registrar(m, m[1]);
+  return [...porPosicion.entries()].sort(([a], [b]) => a - b).map(([, n]) => n);
 }
 
 /** Todos los números que el bot recibió (precios, sumas, límites, textos de los planes). */

@@ -174,6 +174,37 @@ describe('asistente · guardia de precios', () => {
     );
     expect(mencionaMontoDesconocido('Te sale USD 350', datos)).toBe(true);
   });
+
+  it('también reconoce números sueltos cuando el contexto es un precio', () => {
+    expect(montosMencionados('Ese plan cuesta 450.')).toEqual([450]);
+    expect(montosMencionados('La prima es de unos 1,200')).toEqual([1200]);
+    expect(montosMencionados('Te sale 380 y pagarías 32 al mes')).toEqual([
+      380, 32,
+    ]);
+    expect(montosMencionados('Son 900 anuales')).toEqual([900]);
+    expect(montosMencionados('Cuesta USD 439.13 al año')).toEqual([439.13]);
+  });
+
+  it('no confunde con precios los años, porcentajes ni cantidades', () => {
+    expect(montosMencionados('La prima de tu Corolla 2020 depende')).toEqual(
+      [],
+    );
+    expect(montosMencionados('El deducible es de 10% del siniestro')).toEqual(
+      [],
+    );
+    expect(
+      montosMencionados('Puedes pagar en 12 cuotas o la cuota de 12 meses'),
+    ).toEqual([]);
+    expect(montosMencionados('Te comparo 2 planes de 5 aseguradoras')).toEqual(
+      [],
+    );
+  });
+
+  it('un número suelto inventado se detecta; uno entregado no', () => {
+    const datos = 'prima anual USD 439.13, límite USD 100000.00';
+    expect(mencionaMontoDesconocido('Cuesta 439.13 al año', datos)).toBe(false);
+    expect(mencionaMontoDesconocido('Te saldría 350 al año', datos)).toBe(true);
+  });
 });
 
 describe('asistente · validar la respuesta del proveedor', () => {
@@ -235,6 +266,15 @@ describe('asistente · validar la respuesta del proveedor', () => {
     );
     expect(r.respuesta).toContain('no darte un monto que no tengo confirmado');
     expect(r.acciones).toEqual(['HABLAR_ASESOR']);
+  });
+
+  it('un precio inventado sin moneda también tumba el texto', () => {
+    const r = validarRespuesta(
+      cruda({ respuesta: 'Ese plan cuesta más o menos 520 al año.' }),
+      ctxSin,
+    );
+    expect(r.respuesta).toContain('no darte un monto que no tengo confirmado');
+    expect(r.acciones).toContain('HABLAR_ASESOR');
   });
 
   it('un motivo con monto inventado se vacía', () => {
