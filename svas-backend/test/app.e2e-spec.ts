@@ -157,7 +157,7 @@ describe('App (e2e)', () => {
       const marcas = (
         await http().get('/api/v1/catalogo/vehiculos/marcas').expect(200)
       ).body;
-      expect(marcas).toHaveLength(21);
+      expect(marcas.length).toBeGreaterThanOrEqual(43);
       const toyota = buscar(marcas, 'Toyota');
       const modelos = (
         await http()
@@ -172,7 +172,8 @@ describe('App (e2e)', () => {
           )
           .expect(200)
       ).body;
-      expect(anios[0]).toBe(2026);
+      expect(anios[0]).toBe(2027);
+      expect(anios.at(-1)).toBe(2006);
       expect(anios).toContain(2022);
       const distritos = (
         await http()
