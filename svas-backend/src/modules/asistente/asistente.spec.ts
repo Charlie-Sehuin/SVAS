@@ -2,7 +2,13 @@ import {
   BadRequestException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import {
+  configRazonamiento,
+  esErrorPasajero,
+  RespuestaInvalidaError,
+} from '../../integracion/asistente/asistente-gemini.adapter';
 import { AsistenteSimuladoAdapter } from '../../integracion/asistente/asistente-simulado.adapter';
+import { conReintento } from '../../integracion/asistente/reintento';
 import type { ObtenerResumenUseCase } from '../cotizacion/application/cotizaciones.use-cases';
 import type { ContenidoPlanRepository } from '../planes/domain/contenido-plan.repository.port';
 import { ConversarUseCase } from './application/conversar.use-case';
@@ -328,5 +334,53 @@ describe('AsistenteSimuladoAdapter', () => {
     await expect(
       new AsistenteSimuladoAdapter(true).responder(entrada),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+});
+
+describe('Gemini · reintentos y razonamiento', () => {
+  it('conReintento: reintenta una vez un fallo pasajero y devuelve el segundo resultado', async () => {
+    const intento = jest
+      .fn<Promise<string>, []>()
+      .mockRejectedValueOnce(new Error('saturado'))
+      .mockResolvedValueOnce('ok');
+    await expect(conReintento(intento, () => true)).resolves.toBe('ok');
+    expect(intento).toHaveBeenCalledTimes(2);
+  });
+
+  it('conReintento: no reintenta lo que no es pasajero ni pasa del número de veces', async () => {
+    const noPasajero = jest.fn().mockRejectedValue(new Error('cuota'));
+    await expect(conReintento(noPasajero, () => false)).rejects.toThrow(
+      'cuota',
+    );
+    expect(noPasajero).toHaveBeenCalledTimes(1);
+
+    const siempreFalla = jest.fn().mockRejectedValue(new Error('saturado'));
+    await expect(conReintento(siempreFalla, () => true, 1)).rejects.toThrow(
+      'saturado',
+    );
+    expect(siempreFalla).toHaveBeenCalledTimes(2);
+  });
+
+  it('esErrorPasajero: respuesta cortada, 5xx y tiempo agotado sí; cuota (429) y errores de petición no', () => {
+    expect(esErrorPasajero(new RespuestaInvalidaError('cortada'))).toBe(true);
+    for (const status of [500, 502, 503, 504])
+      expect(esErrorPasajero({ status })).toBe(true);
+    expect(
+      esErrorPasajero(Object.assign(new Error('t'), { name: 'AbortError' })),
+    ).toBe(true);
+    for (const status of [400, 401, 404, 429])
+      expect(esErrorPasajero({ status })).toBe(false);
+    expect(esErrorPasajero(new Error('otra cosa'))).toBe(false);
+  });
+
+  it('configRazonamiento: apaga el razonamiento solo en 2.5-flash', () => {
+    expect(configRazonamiento('gemini-2.5-flash')).toEqual({
+      thinkingConfig: { thinkingBudget: 0 },
+    });
+    expect(configRazonamiento('gemini-2.5-flash-lite')).toEqual({
+      thinkingConfig: { thinkingBudget: 0 },
+    });
+    expect(configRazonamiento('gemini-2.5-pro')).toEqual({});
+    expect(configRazonamiento('gemini-3.5-flash')).toEqual({});
   });
 });
