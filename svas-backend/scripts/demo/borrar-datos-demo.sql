@@ -1,5 +1,5 @@
 -- Borra SOLO los datos de demostración creados por crear-datos-demo.sql.
--- Criterio: clientes con correo clienteNN@demo.svas.pe Y apellidos "Demo NN"; todo lo demás se alcanza desde ellos.
+-- Criterio: clientes con correo clienteNN(N)@demo.svas.pe Y apellidos "Demo NN(N)" (fases 1 y 2); todo lo demás se alcanza desde ellos.
 -- Un cliente real nunca cumple ambas condiciones. Se puede ejecutar varias veces.
 
 do $demo$
@@ -8,7 +8,7 @@ declare
 begin
   select coalesce(array_agg(id), '{}') into v_clientes
     from svas.cliente
-   where email ~* '^cliente[0-9]{2}@demo\.svas\.pe$' and apellidos ~ '^Demo [0-9]{2}$';
+   where email ~* '^cliente[0-9]{2,3}@demo\.svas\.pe$' and apellidos ~ '^Demo [0-9]{2,3}$';
 
   create temp table _cot on commit drop as
     select co.id from svas.cotizacion co
@@ -21,7 +21,9 @@ begin
    where orden_compra_id in (select id from svas.orden_compra where cotizacion_id in (select id from _cot));
   delete from svas.orden_compra where cotizacion_id in (select id from _cot);
   delete from svas.descuento    where cotizacion_id in (select id from _cot);
-  delete from svas.cotizacion   where id in (select id from _cot);   -- opciones y primas caen en cascada
+  delete from svas.solicitud_asesoria where cotizacion_id in (select id from _cot);
+  delete from svas.seguimiento  where cotizacion_id in (select id from _cot);   -- los intentos caen en cascada
+  delete from svas.cotizacion   where id in (select id from _cot);   -- opciones, primas y simulaciones caen en cascada
   delete from svas.vehiculo     where cliente_id = any (v_clientes); -- la ubicación cae en cascada
   delete from svas.cliente      where id = any (v_clientes);
 
