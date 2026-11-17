@@ -379,14 +379,30 @@ Migraciones **aplicadas**: 0001 enums · 0002 usuario + `rol_actual()` / `exigir
 aplicada** 2026-11-16: dio 865 ubigeos, 25 departamentos y 183 provincias, y los 73 originales quedaron intactos).
 
 Decisiones propias de 0038 (ubigeos, revisables):
-- Solo es una parte: 865 de ~1 890 distritos. Falta una 0039 con una lista que traiga códigos (la del INEI en
+- Solo es una parte: 865 de ~1 890 distritos. Falta otra migración (el encabezado de la 0038 la llama «0039», pero ese
+  número pasó a los pesos de abajo: la de ubigeos será la 0040) con una lista que traiga códigos (la del INEI en
   `proyectos.inei.gob.pe/.../Lib0361/anexo.htm` trae 1 812 nombres pero **sin códigos** y es anterior a "Mi Perú" e "Inkawasi").
 - Nombres: el anexo viene en mayúsculas y casi sin tildes; se pasan a "Tipo Título" y se restauran tildes de palabras
   comunes (mejor esfuerzo). Los 73 ubigeos existentes no se tocan (`on conflict do nothing`) y su provincia se respeta.
 - Los distritos nuevos no tienen fila en `peso_ubigeo` (solo Pacífico lo usa): cotizan con peso 1,00 y se marcan como
   «ubigeo por defecto»; la Prueba de Choque usa la zona por defecto. Pesos reales: cargarlos desde Tarifas.
-- Antes de la 0039: `catalogo-publico-supabase.repository.ts → departamentos()` lee todas las filas de `ubigeo` y quita
-  repetidos en el servidor; Supabase corta en 1 000 filas, así que con la lista completa habría que hacerlo en la base.
+- Antes de completar los ubigeos: `catalogo-publico-supabase.repository.ts → departamentos()` lee todas las filas de
+  `ubigeo` y quita repetidos en el servidor; Supabase corta en 1 000 filas, así que con la lista completa habría que
+  hacerlo en la base.
+
+0039 `peso_ubigeo` de Pacífico para los 762 distritos nuevos de la 0038 (**preparada, sin aplicar** 2026-11-16: falta que
+Charlie apruebe la regla y probarla con `begin … rollback`).
+
+Decisiones propias de 0039 (pesos de Pacífico por distrito, ESTIMACIÓN revisable):
+- No es un dato: el Excel (`docs/base_vehiculos_aseguradoras.xlsx`, hoja «Notas») dice que sus valores son referenciales
+  para el prototipo y no los reales de Pacífico. El Excel tiene pesos para los 73 ubigeos originales y nada más.
+- Regla: cada distrito nuevo toma el peso de la **capital de su departamento** (el `XX0101` del Excel: de 0,90 a 1,12;
+  ciudades grandes y costeras más altas, capitales de sierra y selva más bajas). No se inventan diferencias entre distritos
+  del mismo departamento.
+- Lima y Callao no entran: ya tienen peso propio, y los 30 distritos de las otras provincias de Lima siguen neutros (1,00).
+- La clasificación por tipo de municipalidad (A–G, Anexo 2 del DS) se probó contra los 73 pesos y no los explica bien
+  (dentro de un mismo tipo varían más que entre tipos): no se usó.
+- Se puede ajustar cualquier valor editando los 23 de la migración antes de aplicarla, o después desde Tarifas → ubigeo.
 
 Decisiones propias de Ola 4 tanda 2 (PDF, RN-35 y 0037, revisables):
 - Frase RN-35: de la última simulación **vigente** con 2+ planes. Plan más barato = menor prima (CRA − esperado,
