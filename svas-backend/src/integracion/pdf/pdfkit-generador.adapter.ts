@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import PDFDocument from 'pdfkit';
 import { LEYENDA_CONTENIDO } from '../../modules/planes/domain/contenido-plan';
 import type {
@@ -8,8 +10,16 @@ import type {
 } from '../../modules/polizas/domain/generador-pdf.port';
 import {
   LEYENDA_DEMOSTRACION,
+  type CuotaPoliza,
   type DatosPolizaPdf,
 } from '../../modules/polizas/domain/poliza';
+import {
+  CORREDOR_SEGUROSIMPLE,
+  LOGO_CORREDOR,
+  plantillaDe,
+  type Entidad,
+  type PlantillaAseguradora,
+} from './plantillas-aseguradora';
 
 const ZONA = 'America/Lima';
 const MARGEN = 50;
@@ -26,6 +36,29 @@ const AGRUPAR: Record<string, string> = {
 const COLOR_TEXTO = '#1f2933';
 const COLOR_SUAVE = '#52606d';
 const COLOR_AVISO = '#b42318';
+/** Tamaños de letra del cuerpo de la póliza, del normal al más compacto. */
+const TAMANOS_CUERPO = [10, 9.5, 9, 8.5];
+const CUERPO = new WeakMap<object, number>();
+/** Tamaño de letra del cuerpo para este documento (10 si no se fijó otro). */
+const cuerpo = (doc: PDFKit.PDFDocument) => CUERPO.get(doc) ?? 10;
+
+/**
+ * "maria paredes" o "MARIA PAREDES" → "Maria Paredes". Si ya mezcla mayúsculas
+ * y minúsculas se respeta como lo escribió la persona.
+ */
+export function nombrePropio(texto: string): string {
+  const t = texto.trim().replace(/\s+/g, ' ');
+  if (t !== t.toLowerCase() && t !== t.toUpperCase()) return t;
+  return t
+    .toLowerCase()
+    .replace(
+      /(^|[\s'-])(\p{L})/gu,
+      (_, sep: string, letra: string) => sep + letra.toUpperCase(),
+    );
+}
+
+/** Ancho de la franja vertical del diseño LATERAL. */
+const FRANJA = 16;
 const CANAL: Record<DatosPolizaPdf['canalVenta'], string> = {
   AUTONOMO: 'Compra en línea',
   ASESORIA: 'Con asesoría',
@@ -35,6 +68,34 @@ const DESCUENTO: Record<string, string> = {
   PRIMERA_COMPRA: 'primera compra',
   NEGOCIADO: 'negociado',
 };
+
+interface Logo {
+  datos: Buffer;
+  /** Ancho / alto de la imagen. */
+  proporcion: number;
+}
+const LOGOS = new Map<string, Logo | null>();
+/** Logo PNG de ./logos (se lee una vez). Si el archivo falta, el PDF sale sin logo. */
+function leerLogo(archivo: string): Logo | null {
+  if (!LOGOS.has(archivo)) {
+    try {
+      const datos = readFileSync(join(__dirname, 'logos', archivo));
+      // Cabecera PNG: ancho y alto en los bytes 16 y 20.
+      const proporcion = datos.readUInt32BE(16) / datos.readUInt32BE(20);
+      LOGOS.set(archivo, { datos, proporcion });
+    } catch {
+      LOGOS.set(archivo, null);
+    }
+  }
+  return LOGOS.get(archivo) ?? null;
+}
+
+/** "Razón social · RUC … · domicilio"; el RUC y el domicilio solo si se conocen. */
+function entidad(e: Entidad): string {
+  return [e.razonSocial, e.ruc && `RUC ${e.ruc}`, e.domicilio]
+    .filter(Boolean)
+    .join(' · ');
+}
 
 /** 1234.5 → "USD 1,234.50" (el monto llega como string con 2 decimales). */
 export function usd(monto: string): string {
@@ -60,18 +121,36 @@ export function fecha(valor: string): string {
  * Póliza de demostración en A4 con PDFKit (fuente Helvetica: cubre tildes y ñ).
  * Todo sale de los datos recibidos (copia del plan al comprar, RN-45); no
  * consulta nada. La leyenda RNF-20 va arriba y en el pie de cada página.
+ * El encabezado y los títulos de la póliza cambian según la aseguradora
+ * (plantillas-aseguradora.ts); la simulación y el reporte de ventas no.
  */
 @Injectable()
 export class PdfkitGeneradorAdapter implements GeneradorPdf {
-  generarPoliza(d: DatosPolizaPdf): Promise<Buffer> {
-    return this.documento(
-      {
-        Title: `Póliza ${d.numeroPoliza} (demostración)`,
-        Subject: LEYENDA_DEMOSTRACION,
-      },
-      LEYENDA_DEMOSTRACION,
-      (doc) => this.dibujar(doc, d),
-    );
+  /**
+   * Intenta que la póliza quepa en 1 página: si con la letra normal se pasa,
+   * la vuelve a dibujar con letra algo más chica. Si ni así cabe (plan muy
+   * largo), se queda con la letra normal en varias páginas.
+   */
+  async generarPoliza(d: DatosPolizaPdf): Promise<Buffer> {
+    let normal: Buffer | null = null;
+    for (const tamano of TAMANOS_CUERPO) {
+      let paginas = 0;
+      const pdf = await this.documento(
+        {
+          Title: `Póliza ${d.numeroPoliza} (demostración)`,
+          Subject: LEYENDA_DEMOSTRACION,
+        },
+        LEYENDA_DEMOSTRACION,
+        (doc) => {
+          CUERPO.set(doc, tamano);
+          this.dibujar(doc, d);
+        },
+        (n) => (paginas = n),
+      );
+      if (paginas <= 1) return pdf;
+      normal ??= pdf;
+    }
+    return normal!;
   }
 
   /** Resumen de 1 página de la Prueba de Choque; sin datos del perfil (RN-36). */
@@ -184,6 +263,7 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
     info: { Title: string; Subject: string },
     pie: string,
     dibujar: (doc: PDFKit.PDFDocument) => void,
+    alContarPaginas?: (paginas: number) => void,
   ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({
@@ -199,6 +279,7 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
 
       try {
         dibujar(doc);
+        alContarPaginas?.(doc.bufferedPageRange().count);
         this.pieDePagina(doc, pie);
         doc.end();
       } catch (e) {
@@ -245,44 +326,87 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
 
   private dibujar(doc: PDFKit.PDFDocument, d: DatosPolizaPdf) {
     const c = d.contenidoPlan;
+    const p = plantillaDe(c.aseguradora);
 
-    doc
-      .fillColor(COLOR_AVISO)
-      .font('Helvetica-Bold')
-      .fontSize(10)
-      .text(LEYENDA_DEMOSTRACION.toUpperCase(), { align: 'center' });
-    doc.moveDown(0.8);
-    doc.fillColor(COLOR_TEXTO).fontSize(18).text('Póliza de seguro vehicular');
+    this.encabezado(doc, p, c.plan);
+
+    // Saludo personalizado con el nombre del titular y su auto.
+    const nombre = nombrePropio(d.titular.nombres);
+    doc.font('Helvetica-Bold').fontSize(cuerpo(doc)).fillColor(COLOR_TEXTO);
+    doc.text(nombre ? `Hola, ${nombre}: ` : 'Hola: ', { continued: true });
     doc
       .font('Helvetica')
-      .fontSize(11)
-      .fillColor(COLOR_SUAVE)
-      .text(`${c.aseguradora} · Plan ${c.plan}`);
-    doc.moveDown(0.6);
+      .text(
+        `gracias por confiar en SeguroSimple para asegurar tu ${d.vehiculo.marca} ${d.vehiculo.modelo} ${d.vehiculo.anio}.`,
+      );
+    doc.moveDown(0.5);
 
-    this.datos(doc, [
-      ['Número de póliza', d.numeroPoliza],
-      ['Fecha de emisión', fecha(d.fechaEmision)],
-      ['Canal', CANAL[d.canalVenta]],
-    ]);
-
-    this.titulo(doc, 'Titular');
-    this.datos(doc, [
-      ['Nombre', `${d.titular.nombres} ${d.titular.apellidos}`],
-      ['Documento', d.titular.numeroDocumento ?? '—'],
-    ]);
-
-    this.titulo(doc, 'Vehículo');
-    this.datos(doc, [
+    // Logo del corredor a la derecha de los datos generales; el texto no lo pisa.
+    const anchoPagina = doc.page.width - 2 * MARGEN;
+    const altoCorredor = 30;
+    const anchoCorredor = this.anchoLogo(LOGO_CORREDOR, altoCorredor);
+    const yDatos = doc.y;
+    this.logo(
+      doc,
+      LOGO_CORREDOR,
+      MARGEN + anchoPagina - anchoCorredor,
+      yDatos,
+      altoCorredor,
+    );
+    doc.x = MARGEN;
+    doc.y = yDatos;
+    this.datos(
+      doc,
       [
-        'Vehículo',
-        `${d.vehiculo.marca} ${d.vehiculo.modelo} ${d.vehiculo.anio}`,
+        ['Número de póliza', d.numeroPoliza],
+        ['Fecha de emisión', fecha(d.fechaEmision)],
+        ['Canal', CANAL[d.canalVenta]],
+        ['Aseguradora', entidad(p)],
+        ['Corredor', entidad(CORREDOR_SEGUROSIMPLE)],
       ],
-      ['Placa', d.vehiculo.placa ?? '—'],
-      ['Suma asegurada', usd(d.sumaAsegurada)],
-    ]);
+      anchoCorredor ? anchoPagina - anchoCorredor - 12 : undefined,
+    );
 
-    this.titulo(doc, 'Prima y pago');
+    // Titular y Vehículo van lado a lado para ahorrar alto.
+    const u = d.ubicacion;
+    const zona: [string, string][] = u
+      ? [['Zona de uso', `${u.distrito}, ${u.provincia}, ${u.departamento}`]]
+      : [];
+    const separacion = 16;
+    const mitad = (anchoPagina - separacion) / 2;
+    const xDerecha = MARGEN + mitad + separacion;
+    const yBloque = doc.y;
+    this.titulo(doc, 'Titular', p, MARGEN, mitad);
+    this.datos(
+      doc,
+      [
+        ['Nombre', nombrePropio(`${d.titular.nombres} ${d.titular.apellidos}`)],
+        ['Documento', d.titular.numeroDocumento ?? '—'],
+      ],
+      mitad,
+    );
+    const yTitular = doc.y;
+    doc.y = yBloque;
+    doc.fontSize(cuerpo(doc));
+    this.titulo(doc, 'Vehículo', p, xDerecha, mitad);
+    doc.x = xDerecha;
+    this.datos(
+      doc,
+      [
+        [
+          'Vehículo',
+          `${d.vehiculo.marca} ${d.vehiculo.modelo} ${d.vehiculo.anio}`,
+        ],
+        ['Placa', d.vehiculo.placa ?? '—'],
+        ...zona,
+        ['Suma asegurada', usd(d.sumaAsegurada)],
+      ],
+      mitad,
+    );
+    doc.x = MARGEN;
+    doc.y = Math.max(doc.y, yTitular);
+
+    this.titulo(doc, 'Prima y pago', p);
     const filas: [string, string][] = [['Prima anual', usd(d.primaAnual)]];
     if (d.descuento) {
       filas.push([
@@ -304,37 +428,37 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
       doc.moveDown(0.3);
       doc
         .font('Helvetica-Bold')
-        .fontSize(9)
+        .fontSize(cuerpo(doc) - 1)
         .fillColor(COLOR_SUAVE)
         .text('Cronograma de cuotas');
-      doc.font('Helvetica').fontSize(9).fillColor(COLOR_TEXTO);
-      for (const q of d.pago.cuotas) {
-        doc.text(
-          `Cuota ${q.numero}  ·  vence ${fecha(q.fechaVencimiento)}  ·  ${usd(q.monto)}${q.estado === 'CONFIRMADO' ? '  ·  pagada' : ''}`,
-        );
-      }
+      this.cronograma(doc, d.pago.cuotas);
     }
 
     const incluidas = c.coberturas.filter((x) => x.incluida);
     const noIncluidas = c.coberturas.filter((x) => !x.incluida);
 
-    this.titulo(doc, 'Qué cubre');
+    this.titulo(doc, 'Qué cubre', p);
     if (c.resumen)
-      doc.font('Helvetica-Oblique').fontSize(10).text(c.resumen).moveDown(0.3);
-    this.lista(
+      doc
+        .font('Helvetica-Oblique')
+        .fontSize(cuerpo(doc))
+        .fillColor(COLOR_TEXTO)
+        .text(c.resumen)
+        .moveDown(0.3);
+    this.listaEnColumnas(
       doc,
       incluidas.map((x) =>
         x.detalle ? `${x.nombre}: ${x.detalle}` : x.nombre,
       ),
     );
 
-    this.titulo(doc, 'Qué no cubre');
+    this.titulo(doc, 'Qué no cubre', p);
     this.lista(doc, [
       ...noIncluidas.map((x) => `${x.nombre} (no incluida en este plan)`),
       ...c.exclusiones,
     ]);
 
-    this.titulo(doc, 'Requisitos');
+    this.titulo(doc, 'Requisitos', p);
     this.lista(
       doc,
       c.requisitos.map((r) =>
@@ -342,7 +466,7 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
       ),
     );
 
-    doc.moveDown(1);
+    doc.moveDown(0.6);
     doc
       .font('Helvetica')
       .fontSize(8)
@@ -350,32 +474,383 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
       .text(
         `Contenido del plan tal como estaba al comprar (${fecha(c.congeladoEn)}). ${LEYENDA_CONTENIDO}`,
       );
+
+    if (p.diseno === 'LATERAL') {
+      // La franja va en todas las páginas, también en las que se agregaron solas.
+      const { start, count } = doc.bufferedPageRange();
+      for (let i = start; i < start + count; i++) {
+        doc.switchToPage(i);
+        doc.rect(0, 0, FRANJA, doc.page.height).fill(p.color);
+      }
+    }
   }
 
-  private titulo(doc: PDFKit.PDFDocument, texto: string) {
-    doc.moveDown(0.8);
-    doc.font('Helvetica-Bold').fontSize(12).fillColor(COLOR_TEXTO).text(texto);
-    doc.moveDown(0.2);
+  /** Dibuja el logo con el alto dado y devuelve el ancho que ocupó (0 si no hay logo). */
+  private logo(
+    doc: PDFKit.PDFDocument,
+    archivo: string | null,
+    x: number,
+    y: number,
+    alto: number,
+  ): number {
+    const logo = archivo ? leerLogo(archivo) : null;
+    if (!logo) return 0;
+    doc.image(logo.datos, x, y, { height: alto });
+    return alto * logo.proporcion;
   }
 
-  private datos(doc: PDFKit.PDFDocument, filas: [string, string][]) {
-    doc.fontSize(10);
+  /** Ancho que ocupará un logo con el alto dado, sin dibujarlo (0 si no hay logo). */
+  private anchoLogo(archivo: string | null, alto: number): number {
+    const logo = archivo ? leerLogo(archivo) : null;
+    return logo ? alto * logo.proporcion : 0;
+  }
+
+  /** Encabezado de la póliza: uno por diseño, con el logo si existe. Deja el cursor listo para los datos. */
+  private encabezado(
+    doc: PDFKit.PDFDocument,
+    p: PlantillaAseguradora,
+    plan: string,
+  ) {
+    const ancho = doc.page.width - 2 * MARGEN;
+    const documento = 'Póliza de seguro vehicular';
+    const subtitulo = `${documento} · Plan ${plan}`;
+    const leyenda = () =>
+      doc
+        .fillColor(COLOR_AVISO)
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .text(LEYENDA_DEMOSTRACION.toUpperCase(), MARGEN, doc.y, {
+          align: 'center',
+          width: ancho,
+        });
+    /** Nombre (en negrita, ajustado al ancho) y debajo el subtítulo, centrados en vertical en `alto`. */
+    const textos = (
+      x: number,
+      y: number,
+      anchoTexto: number,
+      alto: number,
+      max: number,
+      colorNombre: string,
+      colorSub: string,
+      align: 'left' | 'center' = 'left',
+    ) => {
+      const opciones = { width: anchoTexto, align } as const;
+      this.ajustar(doc, p.razonSocial, anchoTexto, max);
+      const altoNombre = doc.heightOfString(p.razonSocial, opciones);
+      const yTexto = y + Math.max(0, (alto - altoNombre - 14) / 2);
+      doc.fillColor(colorNombre).text(p.razonSocial, x, yTexto, opciones);
+      doc
+        .font('Helvetica')
+        .fontSize(11)
+        .fillColor(colorSub)
+        .text(subtitulo, x, doc.y, opciones);
+      return doc.y;
+    };
+
+    switch (p.diseno) {
+      case 'BANDA': {
+        const altoBanda = 78;
+        doc.rect(0, 0, doc.page.width, altoBanda).fill(p.color);
+        const w = this.logo(doc, p.logo, MARGEN, 14, 50);
+        const x = MARGEN + (w ? w + 16 : 0);
+        textos(x, 14, ancho - (x - MARGEN), 50, 20, '#ffffff', '#ffffff');
+        doc.y = altoBanda + 12;
+        leyenda();
+        break;
+      }
+      case 'LATERAL': {
+        leyenda();
+        doc.moveDown(0.8);
+        const y = doc.y;
+        const altoLogo = 50;
+        const w = this.logo(doc, p.logo, MARGEN, y, altoLogo);
+        const x = MARGEN + (w ? w + 14 : 0);
+        const fin = textos(
+          x,
+          y,
+          ancho - (x - MARGEN),
+          w ? altoLogo : 0,
+          18,
+          p.color,
+          COLOR_SUAVE,
+        );
+        doc.y = Math.max(fin, w ? y + altoLogo + 2 : 0);
+        break;
+      }
+      case 'DOBLE_LINEA': {
+        leyenda();
+        doc.moveDown(0.6);
+        const y = doc.y;
+        doc.strokeColor(p.color);
+        doc
+          .lineWidth(3)
+          .moveTo(MARGEN, y)
+          .lineTo(MARGEN + ancho, y)
+          .stroke();
+        doc
+          .lineWidth(1)
+          .moveTo(MARGEN, y + 5)
+          .lineTo(MARGEN + ancho, y + 5)
+          .stroke();
+        const altoLogo = 46;
+        const w = this.logo(doc, p.logo, MARGEN, y + 12, altoLogo);
+        // El nombre va centrado en la página: deja libre el ancho del logo a ambos lados.
+        const hueco = w ? w + 12 : 0;
+        const fin = textos(
+          MARGEN + hueco,
+          y + 12,
+          ancho - 2 * hueco,
+          w ? altoLogo : 0,
+          18,
+          p.color,
+          COLOR_SUAVE,
+          'center',
+        );
+        doc.y = Math.max(fin, w ? y + 12 + altoLogo + 2 : 0);
+        break;
+      }
+      case 'BLOQUE': {
+        leyenda();
+        doc.moveDown(0.6);
+        const y = doc.y;
+        const relleno = 7;
+        const altoLogo = 40;
+        const anchoDerecha = 132;
+        const w = this.anchoLogo(p.logo, altoLogo);
+        const xNombre = MARGEN + relleno + (w ? w + 10 : 0);
+        const xDerecha = MARGEN + ancho - relleno - anchoDerecha;
+        const anchoNombre = xDerecha - 10 - xNombre;
+        this.ajustar(doc, p.razonSocial, anchoNombre, 18);
+        const altoNombre = doc.heightOfString(p.razonSocial, {
+          width: anchoNombre,
+        });
+        const alto = Math.max(altoNombre, w ? altoLogo : 28) + 2 * relleno;
+        doc.rect(MARGEN, y, ancho, alto).fill(p.color);
+        this.logo(
+          doc,
+          p.logo,
+          MARGEN + relleno,
+          y + (alto - altoLogo) / 2,
+          altoLogo,
+        );
+        doc
+          .font('Helvetica-Bold')
+          .fillColor('#ffffff')
+          .text(p.razonSocial, xNombre, y + (alto - altoNombre) / 2, {
+            width: anchoNombre,
+          });
+        const derecha = { width: anchoDerecha, align: 'right' } as const;
+        doc.font('Helvetica-Bold').fontSize(10);
+        doc.text(documento, xDerecha, y + alto / 2 - 13, derecha);
+        doc
+          .font('Helvetica')
+          .text(`Plan ${plan}`, xDerecha, doc.y + 1, derecha);
+        doc.y = y + alto + 4;
+        break;
+      }
+      case 'MINIMAL': {
+        leyenda();
+        doc.moveDown(0.8);
+        const y0 = doc.y;
+        const altoLogo = 46;
+        const w = this.logo(doc, p.logo, MARGEN, y0, altoLogo);
+        const x = MARGEN + (w ? w + 14 : 0);
+        const anchoTexto = ancho - (x - MARGEN);
+        this.ajustar(doc, p.razonSocial, anchoTexto, 22);
+        const altoNombre = doc.heightOfString(p.razonSocial, {
+          width: anchoTexto,
+        });
+        doc
+          .fillColor(p.color)
+          .text(
+            p.razonSocial,
+            x,
+            y0 + Math.max(0, (w ? altoLogo : 0) - altoNombre - 16) / 2,
+            { width: anchoTexto },
+          );
+        const y = doc.y + 1;
+        doc
+          .lineWidth(1.5)
+          .strokeColor(p.color)
+          .moveTo(x, y)
+          .lineTo(MARGEN + ancho, y)
+          .stroke();
+        doc
+          .font('Helvetica')
+          .fontSize(11)
+          .fillColor(COLOR_SUAVE)
+          .text(subtitulo, x, y + 5, { width: anchoTexto });
+        doc.y = Math.max(doc.y, w ? y0 + altoLogo + 2 : 0);
+        break;
+      }
+    }
+    doc.lineWidth(1);
+    doc.x = MARGEN;
+    doc.font('Helvetica').fontSize(11).moveDown(0.6);
+  }
+
+  /** Deja puesta la negrita con el mayor tamaño (desde `max`) con que el texto cabe en una línea. */
+  private ajustar(
+    doc: PDFKit.PDFDocument,
+    texto: string,
+    ancho: number,
+    max: number,
+    min = 11,
+  ) {
+    doc.font('Helvetica-Bold');
+    let tamano = max;
+    while (tamano > min && doc.fontSize(tamano).widthOfString(texto) > ancho)
+      tamano -= 0.5;
+    doc.fontSize(tamano);
+  }
+
+  /** Cuotas en dos columnas (primero baja la izquierda): 12 cuotas ocupan 6 renglones. */
+  private cronograma(doc: PDFKit.PDFDocument, cuotas: CuotaPoliza[]) {
+    doc
+      .font('Helvetica')
+      .fontSize(cuerpo(doc) - 1)
+      .fillColor(COLOR_TEXTO);
+    const columna = (doc.page.width - 2 * MARGEN) / 2;
+    const renglon = doc.currentLineHeight(true);
+    const filas = Math.ceil(cuotas.length / 2);
+    if (doc.y + filas * renglon > doc.page.height - doc.page.margins.bottom)
+      doc.addPage();
+    const y = doc.y;
+    cuotas.forEach((q, i) => {
+      doc.text(
+        `Cuota ${q.numero}  ·  vence ${fecha(q.fechaVencimiento)}  ·  ${usd(q.monto)}${q.estado === 'CONFIRMADO' ? '  ·  pagada' : ''}`,
+        MARGEN + (i < filas ? 0 : columna),
+        y + (i % filas) * renglon,
+        { width: columna - 8, lineBreak: false },
+      );
+    });
+    doc.x = MARGEN;
+    doc.y = y + filas * renglon;
+  }
+
+  /** Título de sección. Con plantilla (solo la póliza) toma el estilo y color de la aseguradora; `x` y `anchoTitulo` permiten ponerlo en media página. */
+  private titulo(
+    doc: PDFKit.PDFDocument,
+    texto: string,
+    p?: PlantillaAseguradora,
+    x = MARGEN,
+    anchoTitulo?: number,
+  ) {
+    doc.moveDown(p ? 0.6 : 0.8);
+    if (!p) {
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(12)
+        .fillColor(COLOR_TEXTO)
+        .text(texto);
+      doc.moveDown(0.2);
+      return;
+    }
+    // Que el título no quede solo al final de la página.
+    if (doc.y + 34 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+    const y = doc.y;
+    const ancho = anchoTitulo ?? doc.page.width - 2 * MARGEN;
+    doc.font('Helvetica-Bold').fontSize(12);
+    switch (p.diseno) {
+      case 'BANDA':
+        doc.rect(x, y - 3, ancho, 17).fill(p.colorSuave);
+        doc.fillColor(p.color).text(texto, x + 6, y);
+        break;
+      case 'LATERAL':
+        doc.rect(x, y - 2, 3, 14).fill(p.color);
+        doc.fillColor(COLOR_TEXTO).text(texto, x + 9, y);
+        break;
+      case 'DOBLE_LINEA':
+        doc.fillColor(p.color).text(texto, x, y);
+        doc
+          .lineWidth(0.75)
+          .strokeColor(p.color)
+          .moveTo(x, doc.y)
+          .lineTo(x + ancho, doc.y)
+          .stroke()
+          .lineWidth(1);
+        break;
+      case 'BLOQUE':
+        doc.rect(x, y - 3, doc.widthOfString(texto) + 16, 17).fill(p.color);
+        doc.fillColor('#ffffff').text(texto, x + 8, y);
+        break;
+      case 'MINIMAL':
+        doc.fillColor(p.color).text(texto, x, y);
+        break;
+    }
+    doc.x = x;
+    doc.moveDown(0.3);
+  }
+
+  /** Con `ancho`, el texto se parte antes de llegar al borde derecho (para no pisar un logo). */
+  private datos(
+    doc: PDFKit.PDFDocument,
+    filas: [string, string][],
+    ancho?: number,
+  ) {
+    doc.fontSize(cuerpo(doc));
+    const limite = ancho ? { width: ancho } : {};
     for (const [etiqueta, valor] of filas) {
       doc
         .font('Helvetica-Bold')
         .fillColor(COLOR_SUAVE)
-        .text(`${etiqueta}: `, { continued: true });
-      doc.font('Helvetica').fillColor(COLOR_TEXTO).text(valor);
+        .text(`${etiqueta}: `, { ...limite, continued: true });
+      doc.font('Helvetica').fillColor(COLOR_TEXTO).text(valor, limite);
     }
   }
 
   private lista(doc: PDFKit.PDFDocument, items: string[]) {
-    doc.font('Helvetica').fontSize(10).fillColor(COLOR_TEXTO);
+    doc.font('Helvetica').fontSize(cuerpo(doc)).fillColor(COLOR_TEXTO);
     if (items.length === 0) {
       doc.text('—');
       return;
     }
     for (const item of items) doc.text(`•  ${item}`, { indent: 8 });
+  }
+
+  /**
+   * Lista en dos columnas (primero baja la izquierda) para ahorrar alto.
+   * Si es corta o no cabe entera en lo que queda de página, va en una columna,
+   * que sí puede seguir en la página siguiente.
+   */
+  private listaEnColumnas(doc: PDFKit.PDFDocument, items: string[]) {
+    doc.font('Helvetica').fontSize(cuerpo(doc)).fillColor(COLOR_TEXTO);
+    const separacion = 16;
+    const sangria = 8;
+    const vineta = 11;
+    const ancho = (doc.page.width - 2 * MARGEN - separacion) / 2;
+    const opciones = { width: ancho - sangria - vineta };
+    const altos = items.map((item) => doc.heightOfString(item, opciones));
+    const suma = (desde: number, hasta: number) =>
+      altos.slice(desde, hasta).reduce((a, b) => a + b, 0);
+    // Corte que deja las dos columnas lo más parejas posible en alto.
+    let mitad = 1;
+    let altoTotal = Infinity;
+    for (let i = 1; i < items.length; i++) {
+      const alto = Math.max(suma(0, i), suma(i, items.length));
+      if (alto < altoTotal) {
+        altoTotal = alto;
+        mitad = i;
+      }
+    }
+    const columnas = [items.slice(0, mitad), items.slice(mitad)];
+    const fin = doc.page.height - doc.page.margins.bottom;
+    if (items.length < 6 || doc.y + altoTotal > fin) {
+      this.lista(doc, items);
+      return;
+    }
+    const y0 = doc.y;
+    columnas.forEach((columna, i) => {
+      const x = MARGEN + i * (ancho + separacion) + sangria;
+      let y = y0;
+      for (const item of columna) {
+        doc.text('•', x, y, { lineBreak: false });
+        doc.text(item, x + vineta, y, opciones);
+        y = doc.y;
+      }
+    });
+    doc.x = MARGEN;
+    doc.y = y0 + altoTotal;
   }
 
   /** Leyenda (RNF-20 en la póliza) y número de página en el pie de todas las páginas. */
