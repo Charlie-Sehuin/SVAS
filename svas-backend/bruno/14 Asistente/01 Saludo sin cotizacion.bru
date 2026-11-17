@@ -1,0 +1,37 @@
+meta {
+  name: 01 Saludo sin cotizacion
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/asistente/mensajes
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "mensajes": [
+      { "rol": "usuario", "texto": "Hola, uso mi auto para ir al trabajo y me preocupa que me roben las autopartes. ¿Qué plan me conviene?" }
+    ]
+  }
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("trae un texto", () => expect(res.body.respuesta).to.be.a("string").and.not.empty);
+  test("como máximo 2 planes", () => expect(res.body.planesRecomendados.length).to.be.at.most(2));
+  test("sin cotización no hay precios", () => {
+    for (const p of res.body.planesRecomendados) expect(p.primaAnual).to.equal(undefined);
+  });
+  test("solo acciones válidas sin cotización", () => {
+    for (const a of res.body.acciones) expect(["COTIZAR", "ENVIAR_FOTO", "HABLAR_ASESOR"]).to.include(a);
+  });
+  test("leyenda", () => expect(res.body.leyenda).to.contain("orientativas"));
+}
+
+docs {
+  Chatbot público, sin cuenta ni cotización. Cada llamada gasta una consulta de Gemini (límite: 12 por minuto por IP).
+  No escribe en la base ni guarda la conversación. Sin GEMINI_API_KEY: en local responde el simulado; en producción, 503.
+}

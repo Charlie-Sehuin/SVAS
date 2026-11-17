@@ -1,6 +1,7 @@
 import { Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.validation';
+import { ASISTENTE_CONVERSACIONAL } from '../modules/asistente/domain/asistente-conversacional.port';
 import { NOTIFICADOR_MENSAJES } from '../modules/asesoria-retencion/domain/notificador-mensajes.port';
 import { REGISTRO_ESTRATEGIAS } from '../modules/cotizacion/domain/estrategia-cotizacion.port';
 import { PASARELA_PAGO } from '../modules/pagos/domain/pasarela-pago.port';
@@ -8,6 +9,8 @@ import { EMISION_ASEGURADORA } from '../modules/polizas/domain/emision-asegurado
 import { ENVIADOR_CORREO } from '../modules/polizas/domain/enviador-correo.port';
 import { GENERADOR_PDF } from '../modules/polizas/domain/generador-pdf.port';
 import { CLASIFICADOR_PREOCUPACIONES } from '../modules/prueba-choque/domain/clasificador-preocupaciones.port';
+import { AsistenteGeminiAdapter } from './asistente/asistente-gemini.adapter';
+import { AsistenteSimuladoAdapter } from './asistente/asistente-simulado.adapter';
 import { ClasificadorLlmAdapter } from './clasificador/clasificador-llm.adapter';
 import { ClasificadorPalabrasClaveAdapter } from './clasificador/clasificador-palabras-clave.adapter';
 import { EnviadorCorreoResendAdapter } from './correo/enviador-correo-resend.adapter';
@@ -85,8 +88,31 @@ import { PdfkitGeneradorAdapter } from './pdf/pdfkit-generador.adapter';
         return new ReconocedorSimuladoAdapter(enProduccion);
       },
     },
+    {
+      // El chatbot usa la misma clave de Gemini; sin ella, el simulado (en producción avisa 503).
+      provide: ASISTENTE_CONVERSACIONAL,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => {
+        const apiKey = config.get('GEMINI_API_KEY', { infer: true });
+        if (apiKey) {
+          return new AsistenteGeminiAdapter(
+            apiKey,
+            config.get('GEMINI_MODEL', { infer: true }),
+          );
+        }
+        const enProduccion =
+          config.get('NODE_ENV', { infer: true }) === 'production';
+        new Logger('IntegracionModule').warn(
+          enProduccion
+            ? 'GEMINI_API_KEY no está definida: el chatbot responderá 503'
+            : 'GEMINI_API_KEY no está definida: chatbot SIMULADO',
+        );
+        return new AsistenteSimuladoAdapter(enProduccion);
+      },
+    },
   ],
   exports: [
+    ASISTENTE_CONVERSACIONAL,
     RECONOCEDOR_VEHICULO,
     REGISTRO_ESTRATEGIAS,
     PASARELA_PAGO,

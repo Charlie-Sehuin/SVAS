@@ -1,0 +1,23 @@
+meta {
+  name: 05 Error - cotizacion sin token (401)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/cotizaciones/00000000-0000-4000-8000-000000000000/asistente/mensajes
+  body: json
+  auth: none
+}
+
+body:json {
+  { "mensajes": [ { "rol": "usuario", "texto": "Hola" } ] }
+}
+
+tests {
+  test("responde 401", () => expect(res.status).to.equal(401));
+}
+
+docs {
+  Los precios de una cotización solo se conversan con su Bearer o su X-Cotizacion-Token.
+}

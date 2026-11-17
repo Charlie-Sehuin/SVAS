@@ -71,8 +71,8 @@ Llena `svas-backend/.env` con los valores que te pasaron:
 | `FRONTEND_URL` | No (`http://localhost:5173`) | Único origen permitido por CORS |
 | `FEATURE_CLASIFICADOR_LLM` | No (`false`) | Clasificador de preocupaciones con LLM (pospuesto) |
 | `ANTHROPIC_API_KEY` | Solo si el flag anterior es `true` | — |
-| `GEMINI_API_KEY` | No | Clave de Google AI Studio para reconocer el auto por foto. Vacía = reconocedor **simulado** (en producción responde 503) |
-| `GEMINI_MODEL` | No (`gemini-2.5-flash`) | Modelo de Gemini que usa el reconocimiento por foto |
+| `GEMINI_API_KEY` | No | Clave de Google AI Studio para reconocer el auto por foto y para el chatbot. Vacía = ambos **simulados** (en producción responden 503) |
+| `GEMINI_MODEL` | No (`gemini-2.5-flash`) | Modelo de Gemini que usan el reconocimiento por foto y el chatbot |
 | `RESEND_API_KEY` | No | Clave de Resend para mandar el PDF de la póliza por correo al comprar. Vacía = correo **simulado** (solo registra en el log). Sin dominio verificado en Resend, solo entrega al correo de la cuenta dueña de la clave |
 | `CORREO_REMITENTE` | No (`SeguroSimple <onboarding@resend.dev>`) | Remitente del correo. Con un dominio verificado en Resend, usa ese dominio |
 
@@ -133,7 +133,8 @@ svas-backend/
 │       ├── seguridad/  administracion/  cotizacion/  planes/
 │       ├── asesoria-retencion/  prueba-choque/
 │       ├── pagos/  polizas/  compra/
-│       └── reportes/
+│       ├── reportes/
+│       └── asistente/          # chatbot del sitio público (sin base de datos)
 ├── supabase/migrations/        # 0001 … 0037, SQL numerado
 ├── test/app.e2e-spec.ts        # e2e
 ├── bruno/                      # colección de pruebas manuales, una carpeta por módulo

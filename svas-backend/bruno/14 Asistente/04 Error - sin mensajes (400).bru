@@ -1,0 +1,23 @@
+meta {
+  name: 04 Error - sin mensajes (400)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/asistente/mensajes
+  body: json
+  auth: none
+}
+
+body:json {
+  { "mensajes": [] }
+}
+
+tests {
+  test("responde 400", () => expect(res.status).to.equal(400));
+}
+
+docs {
+  No llega a la IA.
+}

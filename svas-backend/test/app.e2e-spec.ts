@@ -505,4 +505,42 @@ describe('App (e2e)', () => {
         })
         .expect(403));
   });
+
+  // Solo validaciones y accesos: ninguna de estas llamadas llega a la IA.
+  describe('asistente (chatbot, sin llamar a la IA)', () => {
+    const ID = '00000000-0000-4000-8000-000000000000';
+    const HOLA = { mensajes: [{ rol: 'usuario', texto: 'Hola' }] };
+
+    it.each([
+      ['sin mensajes', {}],
+      ['lista vacía', { mensajes: [] }],
+      ['rol desconocido', { mensajes: [{ rol: 'sistema', texto: 'Hola' }] }],
+      ['texto vacío', { mensajes: [{ rol: 'usuario', texto: '   ' }] }],
+      [
+        'mensaje de la persona demasiado largo',
+        { mensajes: [{ rol: 'usuario', texto: 'a'.repeat(601) }] },
+      ],
+      [
+        'no termina en un mensaje de la persona',
+        { mensajes: [{ rol: 'asistente', texto: 'Hola' }] },
+      ],
+      ['campo que no existe', { ...HOLA, modelo: 'otro' }],
+      ['vehículo inválido', { ...HOLA, vehiculo: { marca: 'Toyota' } }],
+    ])('POST /asistente/mensajes %s → 400', (_caso, cuerpo) =>
+      http().post('/api/v1/asistente/mensajes').send(cuerpo).expect(400),
+    );
+
+    it('POST /cotizaciones/:id/asistente/mensajes sin JWT ni token → 401', () =>
+      http()
+        .post(`/api/v1/cotizaciones/${ID}/asistente/mensajes`)
+        .send(HOLA)
+        .expect(401));
+
+    it('POST /cotizaciones/:id/asistente/mensajes con token de otra cotización → 403', () =>
+      http()
+        .post(`/api/v1/cotizaciones/${ID}/asistente/mensajes`)
+        .set('X-Cotizacion-Token', 'token-inventado')
+        .send(HOLA)
+        .expect(403));
+  });
 });

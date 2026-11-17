@@ -1,0 +1,41 @@
+meta {
+  name: 03 Recomendar con cotizacion
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/cotizaciones/{{cotChoqueId}}/asistente/mensajes
+  body: json
+  auth: none
+}
+
+headers {
+  X-Cotizacion-Token: {{tokenChoque}}
+}
+
+body:json {
+  {
+    "mensajes": [
+      { "rol": "usuario", "texto": "Quiero gastar lo menos posible pero que me cubra robo total. ¿Cuál me recomiendas?" }
+    ]
+  }
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("los planes recomendados traen el precio de la cotización", () => {
+    for (const p of res.body.planesRecomendados) {
+      expect(p.primaCotizadaId).to.be.a("string");
+      expect(p.primaAnual).to.match(/^\d+\.\d{2}$/);
+    }
+  });
+  test("solo acciones válidas con cotización", () => {
+    for (const a of res.body.acciones) expect(["PRUEBA_CHOQUE", "HABLAR_ASESOR"]).to.include(a);
+  });
+}
+
+docs {
+  Necesita `cotChoqueId` y `tokenChoque`: corre antes "08 Prueba de choque/02 Cotizar para prueba de choque"
+  (OJO: esa solicitud crea una cotización real en la base). Esta solo lee.
+}

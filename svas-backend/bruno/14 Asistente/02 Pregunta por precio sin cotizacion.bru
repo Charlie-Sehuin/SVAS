@@ -1,0 +1,30 @@
+meta {
+  name: 02 Pregunta por precio sin cotizacion
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/asistente/mensajes
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "mensajes": [
+      { "rol": "usuario", "texto": "¿Cuánto cuesta al año el seguro para un Toyota Hilux?" }
+    ],
+    "vehiculo": { "marca": "Toyota", "modelo": "Hilux" }
+  }
+}
+
+tests {
+  test("responde 200", () => expect(res.status).to.equal(200));
+  test("no inventa un precio", () => expect(res.body.respuesta).to.not.match(/(USD|US\$|\$|S\/)\s*\d/));
+}
+
+docs {
+  Sin cotización el bot no conoce precios: debe invitar a cotizar. Si el modelo de IA inventara un monto,
+  el backend reemplaza el texto por uno seguro (guardia de precios).
+}

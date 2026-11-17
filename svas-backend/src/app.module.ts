@@ -29,6 +29,7 @@ import { PagosModule } from './modules/pagos/pagos.module';
 import { PolizasModule } from './modules/polizas/polizas.module';
 import { CompraModule } from './modules/compra/compra.module';
 import { ReportesModule } from './modules/reportes/reportes.module';
+import { AsistenteModule } from './modules/asistente/asistente.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { ReportesModule } from './modules/reportes/reportes.module';
     PolizasModule,
     CompraModule,
     ReportesModule,
+    AsistenteModule,
   ],
   controllers: [HealthController],
   providers: [
