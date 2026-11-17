@@ -41,6 +41,8 @@ export interface DatosPolizaPdf {
     apellidos: string;
     numeroDocumento: string | null;
   };
+  /** Correo de la ficha del titular: a él se manda el PDF al generarlo (no se imprime en el PDF). */
+  correoTitular?: string | null;
   vehiculo: {
     marca: string;
     modelo: string;

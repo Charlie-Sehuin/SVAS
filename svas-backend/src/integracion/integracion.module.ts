@@ -5,10 +5,13 @@ import { NOTIFICADOR_MENSAJES } from '../modules/asesoria-retencion/domain/notif
 import { REGISTRO_ESTRATEGIAS } from '../modules/cotizacion/domain/estrategia-cotizacion.port';
 import { PASARELA_PAGO } from '../modules/pagos/domain/pasarela-pago.port';
 import { EMISION_ASEGURADORA } from '../modules/polizas/domain/emision-aseguradora.port';
+import { ENVIADOR_CORREO } from '../modules/polizas/domain/enviador-correo.port';
 import { GENERADOR_PDF } from '../modules/polizas/domain/generador-pdf.port';
 import { CLASIFICADOR_PREOCUPACIONES } from '../modules/prueba-choque/domain/clasificador-preocupaciones.port';
 import { ClasificadorLlmAdapter } from './clasificador/clasificador-llm.adapter';
 import { ClasificadorPalabrasClaveAdapter } from './clasificador/clasificador-palabras-clave.adapter';
+import { EnviadorCorreoResendAdapter } from './correo/enviador-correo-resend.adapter';
+import { EnviadorCorreoSimuladoAdapter } from './correo/enviador-correo-simulado.adapter';
 import { AseguradoraSimuladaAdapter } from './emision/aseguradora-simulada.adapter';
 import { EstrategiaRegistry } from './estrategias/estrategia.registry';
 import { NotificadorSimuladoAdapter } from './mensajes/notificador-simulado.adapter';
@@ -42,6 +45,24 @@ import { PdfkitGeneradorAdapter } from './pdf/pdfkit-generador.adapter';
           : new ClasificadorPalabrasClaveAdapter(),
     },
     {
+      // Con RESEND_API_KEY el PDF de la póliza se manda de verdad por correo; sin ella, el simulado (solo registra).
+      provide: ENVIADOR_CORREO,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => {
+        const apiKey = config.get('RESEND_API_KEY', { infer: true });
+        if (apiKey) {
+          return new EnviadorCorreoResendAdapter(
+            apiKey,
+            config.get('CORREO_REMITENTE', { infer: true }),
+          );
+        }
+        new Logger('IntegracionModule').warn(
+          'RESEND_API_KEY no está definida: los correos (PDF de la póliza) son SIMULADOS',
+        );
+        return new EnviadorCorreoSimuladoAdapter();
+      },
+    },
+    {
       // Con GEMINI_API_KEY se usa Gemini; sin ella, el simulado (en producción avisa 503).
       provide: RECONOCEDOR_VEHICULO,
       inject: [ConfigService],
@@ -71,6 +92,7 @@ import { PdfkitGeneradorAdapter } from './pdf/pdfkit-generador.adapter';
     PASARELA_PAGO,
     EMISION_ASEGURADORA,
     GENERADOR_PDF,
+    ENVIADOR_CORREO,
     NOTIFICADOR_MENSAJES,
     CLASIFICADOR_PREOCUPACIONES,
   ],

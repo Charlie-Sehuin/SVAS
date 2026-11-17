@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { nombrePropio } from '../../common/utils/nombre-propio';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import PDFDocument from 'pdfkit';
@@ -42,20 +43,8 @@ const CUERPO = new WeakMap<object, number>();
 /** Tamaño de letra del cuerpo para este documento (10 si no se fijó otro). */
 const cuerpo = (doc: PDFKit.PDFDocument) => CUERPO.get(doc) ?? 10;
 
-/**
- * "maria paredes" o "MARIA PAREDES" → "Maria Paredes". Si ya mezcla mayúsculas
- * y minúsculas se respeta como lo escribió la persona.
- */
-export function nombrePropio(texto: string): string {
-  const t = texto.trim().replace(/\s+/g, ' ');
-  if (t !== t.toLowerCase() && t !== t.toUpperCase()) return t;
-  return t
-    .toLowerCase()
-    .replace(
-      /(^|[\s'-])(\p{L})/gu,
-      (_, sep: string, letra: string) => sep + letra.toUpperCase(),
-    );
-}
+// Vive en common/utils (también la usa el correo de la póliza); se reexporta para no romper importaciones.
+export { nombrePropio };
 
 /** Ancho de la franja vertical del diseño LATERAL. */
 const FRANJA = 16;
