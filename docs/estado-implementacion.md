@@ -3,7 +3,7 @@
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
 > `arquitectura-backend-seguro-simple.md` (orden de construcción en §10).
-> Última actualización: 2026-11-16 (catálogo ampliado a 2006–2027 y reconocer el auto por foto con Gemini, ver abajo). Antes, 2026-11-12 (backend: Ola 4 cerrada · frontend: configuración inicial y Ola 0, ver §1b).
+> Última actualización: 2026-11-17 (chatbot del sitio público, backend, ver abajo). Antes, 2026-11-16 (catálogo ampliado a 2006–2027 y reconocer el auto por foto con Gemini, ver abajo). Antes, 2026-11-12 (backend: Ola 4 cerrada · frontend: configuración inicial y Ola 0, ver §1b).
 
 ## 1. Dónde estamos
 
@@ -28,6 +28,48 @@ El e2e verifica la tabla dorada §17.6 contra los datos reales de Supabase. Los 
 cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públicas (no escriben en la base);
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
 Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos), 0035 (18 casos), 0036 (16 casos) y 0037 (8 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
+
+### Chatbot del sitio público, backend (rama `feat/chatbot`, 2026-11-17)
+Un asistente que conversa con el cliente: recomienda planes, responde dudas y lo lleva al cotizador o a un asesor.
+Esta rama es solo el backend; la burbuja de chat va en el repo `SVAS-frontend` (misma rama), después de fusionar esta.
+- **Rutas** (módulo `modules/asistente/`, 12 mensajes/min por IP, responden 200):
+  - `POST /asistente/mensajes` (pública): sin cotización. Conoce el contenido publicado de los planes, **no conoce precios**.
+  - `POST /cotizaciones/:id/asistente/mensajes` (Bearer o `X-Cotizacion-Token`, mismo `CotizacionAccesoGuard`): conoce además los
+    planes que cotizaron con su precio, tal como los calculó el backend (sin desglose, RN-41).
+  - Cuerpo: `{ mensajes: [{ rol: 'usuario' | 'asistente', texto }], vehiculo?: { marca, modelo, anio? } }` (máx. 12 mensajes, 600 caracteres
+    por mensaje de la persona; el último debe ser de la persona). `vehiculo` es el auto reconocido por foto en el chat.
+  - Respuesta: `{ respuesta, planesRecomendados: [{ planId, aseguradora, plan, resumen, motivo, primaCotizadaId?, sumaAsegurada?, primaAnual?, primaMensual? }], acciones, leyenda }`.
+    `acciones` son botones que el frontend puede pintar: `COTIZAR`, `ENVIAR_FOTO` (solo sin cotización), `PRUEBA_CHOQUE` (solo con cotización) y `HABLAR_ASESOR`.
+- **Proveedor de IA detrás de un puerto**: `AsistenteConversacional` (token `ASISTENTE_CONVERSACIONAL`), con `integracion/asistente/asistente-gemini.adapter.ts`
+  (misma `GEMINI_API_KEY` y `GEMINI_MODEL` del reconocimiento por foto: **no hay variables nuevas**) y `asistente-simulado.adapter.ts` sin clave
+  (texto fijo fuera de producción; 503 en producción). Cuota de Gemini agotada (429) → 503 "muy ocupado"; cualquier otro fallo → 502.
+- **El bot no inventa** (reglas en `asistente/domain/asistente.ts`, puras y con pruebas):
+  - Al modelo se le dan claves cortas (`P1`, `P2`…) y solo puede recomendar esas; el backend las traduce al plan real y descarta las que no existan (máx. 2).
+  - Los precios de las tarjetas de plan los pone el backend desde la cotización, nunca el modelo.
+  - **Guardia de precios**: si el texto del modelo menciona un monto de dinero que no está en los datos que se le entregaron, el texto se reemplaza
+    por uno seguro y se ofrece un asesor. Sin cotización, cualquier monto cuenta como inventado.
+  - Las acciones se filtran según la situación; el bot no pide datos personales y solo habla de seguros vehiculares.
+- **No guarda nada**: sin tablas ni migración. El frontend reenvía la conversación en cada turno. No crea cotizaciones (crear una pide contacto,
+  escribe en la base y puede abrir un seguimiento): solo deja listo el cotizador.
+- **Modelo de Gemini (2026-11-17)**: con una clave de AI Studio **nueva**, `gemini-2.5-flash` (el valor por defecto de `GEMINI_MODEL`) responde 404
+  "ya no está disponible para usuarios nuevos". Probado en local con la clave de Katherine: `gemini-3.5-flash` respondió en ~2 s y el chat funcionó;
+  `gemini-3.8-flash` (el que sugiere el aviso de Google) estaba saturado (504/503). La clave que ya está en Railway es más antigua y hoy sigue sirviendo con el
+  modelo por defecto, pero conviene poner `GEMINI_MODEL=gemini-3.5-flash` en Railway (sin tocar código; afecta también al reconocimiento por foto) antes de que Google lo retire.
+  Pruebas reales (3 conversaciones): recomienda planes que existen, sin cotización no da precios, ignora "olvida tus instrucciones". Con cotización no se probó en vivo
+  (crear una cotización escribe en producción); la cubren las pruebas unitarias.
+- **La foto en el chat** reutiliza `POST /catalogo/vehiculos/reconocer`; el frontend manda el resultado en `vehiculo`.
+- **Pruebas**: 18 unitarias nuevas (435 en total) y 10 e2e que solo prueban validaciones y accesos (no llaman a la IA). Bruno: carpeta `14 Asistente` (01–05).
+- **Límites que hay que tener presentes**: (1) el plan gratuito de Gemini tiene un tope diario que comparten el chat y la foto; (2) el corte es de 12 s por respuesta;
+  (3) el historial del lado del asistente lo manda el navegador, así que alguien podría falsearlo, pero solo afecta a su propia conversación;
+  (4) la guardia de precios mira montos con moneda ("USD 300", "300 dólares"), no números sueltos.
+
+Frontend del chatbot (repo `SVAS-frontend`, rama `feat/chatbot`, `features/asistente/`): burbuja abajo a la derecha en todo el sitio público (`PublicLayout`; no en el
+backoffice). La ventana (`AsistentePanel`) se descarga solo al abrirla (~4 KB comprimidos), así que la portada casi no cambia de peso. La conversación vive en
+sessionStorage (`svas.asistente`) y se reenvía completa en cada turno (últimos 12 mensajes, empezando por uno de la persona). Con una cotización a la vista
+(`/cotizacion/:id`, `/compra/:id`) usa `POST /cotizaciones/:id/asistente/mensajes` (el api-client pone el `X-Cotizacion-Token`) y las tarjetas de plan muestran los
+montos tal cual los dio el backend; sin cotización usa `POST /asistente/mensajes` y ofrece la foto (reutiliza `POST /catalogo/vehiculos/reconocer`).
+"Cotizar con estos datos" deja marca y modelo en el borrador del formulario y **el año vacío** (RN-44). 12 pruebas nuevas con MSW (329 en total).
+Nota: `cotizacion.test.tsx › trae WhatsApp preseleccionado…` se pasa a veces de los 5 s con toda la suite en paralelo (falla intermitente de tiempo, no del chat).
 
 ### Póliza en PDF por correo (rama `feat/pdf-por-correo`, 2026-11-16)
 Al generar el PDF de una póliza (compra, descarga o reintento: ocurre una vez por póliza) se manda al correo de la ficha del
@@ -588,6 +630,8 @@ Notas:
 - `modules/cotizacion` (reconocer por foto): `POST /catalogo/vehiculos/reconocer` (`ReconocerVehiculoController` → `ReconocerVehiculoUseCase`).
   Puerto `ReconocedorVehiculo` (token `RECONOCEDOR_VEHICULO`) con `integracion/vehiculo/reconocedor-gemini.adapter.ts` (con `GEMINI_API_KEY`) y
   `reconocedor-simulado.adapter.ts` (sin clave; 503 en producción).
+- `modules/asistente` (chatbot): `POST /asistente/mensajes` (público) y `POST /cotizaciones/:id/asistente/mensajes` (Bearer o `X-Cotizacion-Token`).
+  Puerto `AsistenteConversacional` con adaptador Gemini y simulado; reglas y guardia de precios en `domain/asistente.ts`. Sin base de datos.
 - `integracion/estrategias`: `EstrategiaBase` + Rímac, Pacífico, La Positiva, Mapfre, Qualitas (§17.5), con `parametrosSchema` (zod),
   `pesosRequeridos` / `pesosOpcionales`. `NotificadorSimulado` registra en el log (fuera de producción muestra el enlace;
   en producción lo oculta). Resto de adaptadores (pagos, emisión, PDF, clasificador): stubs `NotImplemented`.

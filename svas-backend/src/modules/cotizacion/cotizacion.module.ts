@@ -54,6 +54,8 @@ import { CotizacionesController } from './presentation/cotizaciones.controller';
     // prueba-choque usa la cotización y el mismo control de acceso (Bearer o X-Cotizacion-Token).
     COTIZACION_REPOSITORY,
     CotizacionAccesoGuard,
+    // el asistente (chatbot) lee la cotización ya calculada para citar sus precios.
+    ObtenerResumenUseCase,
   ],
 })
 export class CotizacionModule {}

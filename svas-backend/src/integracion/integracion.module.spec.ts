@@ -28,6 +28,9 @@ import {
   type ClasificadorPreocupaciones,
 } from '../modules/prueba-choque/domain/clasificador-preocupaciones.port';
 import type { DatosPolizaPdf } from '../modules/polizas/domain/poliza';
+import { ASISTENTE_CONVERSACIONAL } from '../modules/asistente/domain/asistente-conversacional.port';
+import { AsistenteGeminiAdapter } from './asistente/asistente-gemini.adapter';
+import { AsistenteSimuladoAdapter } from './asistente/asistente-simulado.adapter';
 import { ClasificadorLlmAdapter } from './clasificador/clasificador-llm.adapter';
 import { AseguradoraSimuladaAdapter } from './emision/aseguradora-simulada.adapter';
 import { fecha, usd } from './pdf/pdfkit-generador.adapter';
@@ -408,6 +411,19 @@ describe('IntegracionModule', () => {
     const conFlag = await compilar({ FEATURE_CLASIFICADOR_LLM: true } as never);
     expect(conFlag.get(CLASIFICADOR_PREOCUPACIONES)).toBeInstanceOf(
       ClasificadorLlmAdapter,
+    );
+  });
+
+  it('el chatbot usa Gemini solo con GEMINI_API_KEY; sin ella, el simulado', async () => {
+    expect((await compilar()).get(ASISTENTE_CONVERSACIONAL)).toBeInstanceOf(
+      AsistenteSimuladoAdapter,
+    );
+    const conClave = await compilar({
+      GEMINI_API_KEY: 'clave-de-prueba',
+      GEMINI_MODEL: 'gemini-2.5-flash',
+    });
+    expect(conClave.get(ASISTENTE_CONVERSACIONAL)).toBeInstanceOf(
+      AsistenteGeminiAdapter,
     );
   });
 });
