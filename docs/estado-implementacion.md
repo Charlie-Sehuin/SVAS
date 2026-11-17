@@ -51,11 +51,25 @@ Esta rama es solo el backend; la burbuja de chat va en el repo `SVAS-frontend` (
   - Las acciones se filtran según la situación; el bot no pide datos personales y solo habla de seguros vehiculares.
 - **No guarda nada**: sin tablas ni migración. El frontend reenvía la conversación en cada turno. No crea cotizaciones (crear una pide contacto,
   escribe en la base y puede abrir un seguimiento): solo deja listo el cotizador.
+- **Modelo de Gemini (2026-11-17)**: con una clave de AI Studio **nueva**, `gemini-2.5-flash` (el valor por defecto de `GEMINI_MODEL`) responde 404
+  "ya no está disponible para usuarios nuevos". Probado en local con la clave de Katherine: `gemini-3.5-flash` respondió en ~2 s y el chat funcionó;
+  `gemini-3.8-flash` (el que sugiere el aviso de Google) estaba saturado (504/503). La clave que ya está en Railway es más antigua y hoy sigue sirviendo con el
+  modelo por defecto, pero conviene poner `GEMINI_MODEL=gemini-3.5-flash` en Railway (sin tocar código; afecta también al reconocimiento por foto) antes de que Google lo retire.
+  Pruebas reales (3 conversaciones): recomienda planes que existen, sin cotización no da precios, ignora "olvida tus instrucciones". Con cotización no se probó en vivo
+  (crear una cotización escribe en producción); la cubren las pruebas unitarias.
 - **La foto en el chat** reutiliza `POST /catalogo/vehiculos/reconocer`; el frontend manda el resultado en `vehiculo`.
 - **Pruebas**: 18 unitarias nuevas (435 en total) y 10 e2e que solo prueban validaciones y accesos (no llaman a la IA). Bruno: carpeta `14 Asistente` (01–05).
 - **Límites que hay que tener presentes**: (1) el plan gratuito de Gemini tiene un tope diario que comparten el chat y la foto; (2) el corte es de 12 s por respuesta;
   (3) el historial del lado del asistente lo manda el navegador, así que alguien podría falsearlo, pero solo afecta a su propia conversación;
   (4) la guardia de precios mira montos con moneda ("USD 300", "300 dólares"), no números sueltos.
+
+Frontend del chatbot (repo `SVAS-frontend`, rama `feat/chatbot`, `features/asistente/`): burbuja abajo a la derecha en todo el sitio público (`PublicLayout`; no en el
+backoffice). La ventana (`AsistentePanel`) se descarga solo al abrirla (~4 KB comprimidos), así que la portada casi no cambia de peso. La conversación vive en
+sessionStorage (`svas.asistente`) y se reenvía completa en cada turno (últimos 12 mensajes, empezando por uno de la persona). Con una cotización a la vista
+(`/cotizacion/:id`, `/compra/:id`) usa `POST /cotizaciones/:id/asistente/mensajes` (el api-client pone el `X-Cotizacion-Token`) y las tarjetas de plan muestran los
+montos tal cual los dio el backend; sin cotización usa `POST /asistente/mensajes` y ofrece la foto (reutiliza `POST /catalogo/vehiculos/reconocer`).
+"Cotizar con estos datos" deja marca y modelo en el borrador del formulario y **el año vacío** (RN-44). 12 pruebas nuevas con MSW (329 en total).
+Nota: `cotizacion.test.tsx › trae WhatsApp preseleccionado…` se pasa a veces de los 5 s con toda la suite en paralelo (falla intermitente de tiempo, no del chat).
 
 ### Póliza en PDF por correo (rama `feat/pdf-por-correo`, 2026-11-16)
 Al generar el PDF de una póliza (compra, descarga o reintento: ocurre una vez por póliza) se manda al correo de la ficha del
