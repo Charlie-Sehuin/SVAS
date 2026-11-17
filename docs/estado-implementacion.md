@@ -29,6 +29,17 @@ cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públ
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
 Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos), 0035 (18 casos), 0036 (16 casos) y 0037 (8 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
 
+### Póliza en PDF por correo (rama `feat/pdf-por-correo`, 2026-11-16)
+Al generar el PDF de una póliza (compra, descarga o reintento: ocurre una vez por póliza) se manda al correo de la ficha del
+titular, además del botón de descarga que ya existía. Puerto `EnviadorCorreo` (`modules/polizas/domain`), adaptador **Resend**
+(`RESEND_API_KEY`) y adaptador **simulado** cuando no hay clave (solo registra, con el correo enmascarado).
+- No espera ni afecta a la compra: el envío va aparte y cualquier fallo solo queda en el log (`EmitirPdfService`).
+- Los correos `@demo.svas.pe` (datos de demostración) no reciben nada; un titular sin correo tampoco.
+- **Limitación de Resend sin dominio**: el remitente `onboarding@resend.dev` solo entrega al correo de la cuenta dueña de la
+  clave; a cualquier otro responde 403 (queda en el log, la compra sigue). Para enviar a clientes hay que verificar un dominio
+  propio en Resend y poner ese remitente en `CORREO_REMITENTE`. Plan gratis: 100 correos/día, 3 000/mes.
+- La clave va solo en `.env` y en las variables de Railway; nunca en el código ni en GitHub.
+
 ### Último cierre (2026-11-16): catálogo ampliado, años 2006–2027 y 187 modelos nuevos (0040)
 
 `feat/catalogo-ampliado`. **0040 aplicada en producción** el 2026-11-16 (`supabase db push --remote`, después de probarla con

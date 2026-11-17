@@ -23,6 +23,15 @@ export const envSchema = z
     // Reconocimiento de vehículo por foto: sin clave se usa el reconocedor simulado.
     GEMINI_API_KEY: z.string().trim().optional(),
     GEMINI_MODEL: z.string().trim().min(1).default('gemini-2.5-flash'),
+    // Correo de la póliza (PDF adjunto) con Resend: sin clave, el envío es simulado.
+    RESEND_API_KEY: z.string().trim().optional(),
+    // Remitente. Sin dominio verificado en Resend solo sirve onboarding@resend.dev, que entrega únicamente
+    // al correo de la cuenta dueña de la clave; para enviar a clientes hay que verificar un dominio.
+    CORREO_REMITENTE: z
+      .string()
+      .trim()
+      .min(3)
+      .default('SeguroSimple <onboarding@resend.dev>'),
   })
   .refine((env) => !env.FEATURE_CLASIFICADOR_LLM || env.ANTHROPIC_API_KEY, {
     path: ['ANTHROPIC_API_KEY'],

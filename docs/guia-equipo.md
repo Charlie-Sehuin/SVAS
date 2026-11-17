@@ -73,6 +73,8 @@ Llena `svas-backend/.env` con los valores que te pasaron:
 | `ANTHROPIC_API_KEY` | Solo si el flag anterior es `true` | — |
 | `GEMINI_API_KEY` | No | Clave de Google AI Studio para reconocer el auto por foto. Vacía = reconocedor **simulado** (en producción responde 503) |
 | `GEMINI_MODEL` | No (`gemini-2.5-flash`) | Modelo de Gemini que usa el reconocimiento por foto |
+| `RESEND_API_KEY` | No | Clave de Resend para mandar el PDF de la póliza por correo al comprar. Vacía = correo **simulado** (solo registra en el log). Sin dominio verificado en Resend, solo entrega al correo de la cuenta dueña de la clave |
+| `CORREO_REMITENTE` | No (`SeguroSimple <onboarding@resend.dev>`) | Remitente del correo. Con un dominio verificado en Resend, usa ese dominio |
 
 Si falta o está mal una variable, la app **no arranca** y te dice cuál (validación con zod en
 `src/config/env.validation.ts`). Para revisar sin arrancar: `npm run verificar-env`.

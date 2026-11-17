@@ -59,6 +59,7 @@ interface OrdenDb {
           nombres: string;
           apellidos: string;
           numero_documento: string | null;
+          email: string | null;
         }>;
         ubicacion_uso?: Uno<{
           u: Uno<{ departamento: string; provincia: string; distrito: string }>;
@@ -79,7 +80,7 @@ const ORDEN = (vehiculoExtra: string, pagoExtra: string) => `orden_compra!inner(
 
 const SELECT_MIAS = `id, numero, fecha_emision, pdf_generado_en, ${ORDEN('', '')}`;
 const SELECT_PDF = `id, numero, fecha_emision, canal_venta, archivo_pdf, ${ORDEN(
-  ', cliente(nombres, apellidos, numero_documento), ubicacion_uso(u:ubigeo(departamento, provincia, distrito))',
+  ', cliente(nombres, apellidos, numero_documento, email), ubicacion_uso(u:ubigeo(departamento, provincia, distrito))',
   ', cuota(numero, monto, fecha_vencimiento, estado)',
 )}`;
 
@@ -205,6 +206,7 @@ export class PolizasSupabaseRepository implements PolizasRepository {
           apellidos: cliente?.apellidos ?? '',
           numeroDocumento: cliente?.numero_documento ?? null,
         },
+        correoTitular: cliente?.email ?? null,
         vehiculo: vehiculo(v),
         ubicacion: u && {
           departamento: u.departamento,
