@@ -296,7 +296,7 @@ Respuesta de `GET /planes/:planId/contenido` (Rímac · Oro, abreviada):
     "Daños a mercadería o carga transportada"
   ],
   "requisitos": [
-    { "tipo": "VEHICULO",  "texto": "Vehículo del año 2015 al 2026 (antigüedad máxima 12 años)", "obligatorio": true },
+    { "tipo": "VEHICULO",  "texto": "Vehículo del año 2006 al 2027 (antigüedad máxima 20 años)", "obligatorio": true },
     { "tipo": "CONDUCTOR", "texto": "Conductor habitual con licencia vigente y mayor de 21 años", "obligatorio": true }
   ],
   "leyenda": "Contenido ilustrativo; no es el condicionado de la aseguradora."

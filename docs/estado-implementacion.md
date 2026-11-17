@@ -3,7 +3,7 @@
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
 > `arquitectura-backend-seguro-simple.md` (orden de construcción en §10).
-> Última actualización: 2026-11-16 (reconocer el auto por foto con Gemini, ver abajo). Antes, 2026-11-12 (backend: Ola 4 cerrada · frontend: configuración inicial y Ola 0, ver §1b).
+> Última actualización: 2026-11-16 (catálogo ampliado a 2006–2027 y reconocer el auto por foto con Gemini, ver abajo). Antes, 2026-11-12 (backend: Ola 4 cerrada · frontend: configuración inicial y Ola 0, ver §1b).
 
 ## 1. Dónde estamos
 
@@ -29,7 +29,29 @@ cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públ
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
 Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos), 0035 (18 casos), 0036 (16 casos) y 0037 (8 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
 
-### Último cierre (2026-11-16): reconocer el auto por foto con Gemini
+### Último cierre (2026-11-16): catálogo ampliado, años 2006–2027 y 187 modelos nuevos (0040)
+
+`feat/catalogo-ampliado`. **0040 aplicada en producción** el 2026-11-16 (`supabase db push --remote`, después de probarla con
+`begin … rollback`). Antes: 21 marcas, 68 modelos, años 2015–2026. Ahora: **43 marcas, 255 modelos, años 2006–2027, 18 170 rangos de
+suma**, 215 `peso_marca`, 1 275 `peso_modelo`, 110 `peso_anio`. Ninguna fila anterior se tocó.
+
+- **Cómo se generó**: `svas-backend/scripts/generar-seed-catalogo-ampliado.py` (no sale del Excel; toda la lista de modelos, precios y años
+  está en el script). Datos **estimados** (RN-26), con la misma lógica de 0017: suma = precio base 2026 × factor de la aseguradora × depreciación
+  (12 % anual de 2026 a 2015, 6 % de 2014 hacia atrás, 2027 = un año más), redondeada a USD 100. Pesos de año: continúan la recta de cada
+  aseguradora. Pesos de marca y modelo: mismos niveles que las filas existentes (lujo ≈ 1,30; SUV 1,10; pickup 1,20), con un recargo en los modelos más robados.
+- **Solo los años en que se vendió**: cada modelo nuevo (y los de 0017 en los años nuevos) lleva un primer y último año de venta en Perú,
+  aproximados a mano. Las combinaciones imposibles que ya existían (p. ej. Seltos 2015) se dejaron.
+- **Texto de los planes**: el requisito `VEHICULO` pasó de "2015 al 2026 (antigüedad máxima 12 años)" a "2006 al 2027 (antigüedad máxima 20 años)".
+- **Verificación**: 0 filas existentes modificadas, 0 rangos sin peso de marca/modelo/año (ni de tipo en La Positiva), las 5 aseguradoras cotizan todos
+  los modelo-año, curva continua. La tabla dorada se mantiene (Corolla 2022, Rímac Plata, S = 14 400 → 439,13). e2e: 78 en verde (se actualizó
+  para esperar ≥ 43 marcas y años 2027…2006).
+- **Efecto en la foto**: la Hilux de la publicación "2012" pasó de sugerir solo [2015] a [2015, 2014, 2013, 2012, 2011].
+- **Límites que hay que tener presentes**: (1) los autos viejos salen baratos (Hilux 2012: suma USD 6 300–8 800), coherente con la serie de 0017
+  pero por debajo del mercado real; (2) los precios base y los años de venta de los 187 modelos son aproximaciones mías; (3) hay 42 cotizaciones
+  reales en la base, que no se tocaron; (4) los años de modelos que dejaron de venderse no llegan a 2027 (p. ej. Gol, Spark GT, Escape).
+- **Numeración**: la 0039 la tomaron a la vez los pesos de ubigeo de Pacífico (PR #6) y esta ampliación; esta pasó a 0040.
+
+### Cierre anterior (2026-11-16): reconocer el auto por foto con Gemini
 
 Backend (`feat/reconocer-vehiculo`, PR #4, en `main` y desplegado en Railway) y frontend (repo `SVAS-frontend`, misma rama):
 el cliente sube o toma una foto de su auto y el paso Vehículo se rellena con la marca y el modelo.
@@ -49,6 +71,7 @@ el cliente sube o toma una foto de su auto y el paso Vehículo se rellena con la
   subirla. Si no reconoce el auto o falla, muestra el mensaje y el formulario se completa a mano.
 - **Pruebas**: 399 en el backend (5 nuevas) y 307 en el frontend (3 nuevas). Probado a mano con Gemini real, local y en Railway.
 - **Pendiente**: recorrerlo desde un celular en el sitio publicado; la reducción de la foto no se puede probar en jsdom (sin canvas).
+- **Después**: el catálogo se amplió a 2006–2027 con la 0040 (arriba), así que los años probables ahora cubren autos más viejos.
 
 ### Cierre anterior (2026-11-12): Ola 4, tanda 2 (PDF + RN-35)
 
@@ -521,8 +544,8 @@ Decisiones propias de Ola 1 parte 2 (no estaban en `docs/`; revisables):
 - `vincular_cliente` exige el hash del token si la cotización aún es anónima; `registrar_usuario_cliente` hace usuario + cliente + vínculo atómicos.
 - 6.2 `registrar_simulacion` diferido a 0011.
 
-Datos: 5 aseguradoras, 10 planes, 22 campos, 15 reglas de inspección (solo `TRANSPORTE_PASAJEROS` exige), 21 marcas,
-5 tipos, 68 modelos, 73 ubigeos, 10 `tarifa_plan`, 4 080 rangos, 583 pesos. 1 usuario ADMINISTRADOR.
+Datos: 5 aseguradoras, 10 planes, 22 campos, 15 reglas de inspección (solo `TRANSPORTE_PASAJEROS` exige), 43 marcas,
+5 tipos, 255 modelos, 10 `tarifa_plan`, 18 170 rangos (años 2006–2027, 0017 + 0040), ubigeos de 0017 y 0038. 1 usuario ADMINISTRADOR.
 
 Notas:
 - Los 22 campos y 15 reglas del seed 0016 los **propuso Claude** (la "Práctica 2" no está en `docs/`).
