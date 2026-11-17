@@ -19,6 +19,7 @@ import {
   CrearUsuarioInternoUseCase,
   ListarUsuariosUseCase,
 } from '../application/administrar-usuarios.use-cases';
+import { ObtenerContactoUseCase } from '../application/obtener-contacto.use-case';
 import { ObtenerPerfilUseCase } from '../application/obtener-perfil.use-case';
 import {
   aUsuarioResponse,
@@ -37,13 +38,25 @@ const idValido = new ParseUUIDPipe({
 /** GET /usuarios/me: cualquier usuario autenticado y activo. */
 @Controller('usuarios')
 export class UsuariosController {
-  constructor(private readonly obtenerPerfil: ObtenerPerfilUseCase) {}
+  constructor(
+    private readonly obtenerPerfil: ObtenerPerfilUseCase,
+    private readonly obtenerContacto: ObtenerContactoUseCase,
+  ) {}
 
   @Get('me')
   async me(
     @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<UsuarioResponseDto> {
     return aUsuarioResponse(await this.obtenerPerfil.ejecutar(usuario.id));
+  }
+
+  /** GET /usuarios/me/contacto: la ficha de contacto de mi cuenta, o `{ contacto: null }` si no tengo. */
+  @Get('me/contacto')
+  async miContacto(
+    @AccessToken() token: string,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ) {
+    return { contacto: await this.obtenerContacto.ejecutar(token, usuario.id) };
   }
 }
 
