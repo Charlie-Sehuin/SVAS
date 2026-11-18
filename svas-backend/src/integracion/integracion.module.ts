@@ -23,6 +23,8 @@ import { NotificadorSimuladoAdapter } from './mensajes/notificador-simulado.adap
 import { RECONOCEDOR_VEHICULO } from '../modules/cotizacion/domain/reconocedor-vehiculo.port';
 import { PasarelaSimuladaAdapter } from './pagos/pasarela-simulada.adapter';
 import { LECTOR_TARJETA } from '../modules/cotizacion/domain/lector-tarjeta.port';
+import { LectorTarjetaConRespaldoAdapter } from './vehiculo/lector-tarjeta-con-respaldo.adapter';
+import { LectorTarjetaDeepSeekAdapter } from './vehiculo/lector-tarjeta-deepseek.adapter';
 import { LectorTarjetaGeminiAdapter } from './vehiculo/lector-tarjeta-gemini.adapter';
 import { LectorTarjetaSimuladoAdapter } from './vehiculo/lector-tarjeta-simulado.adapter';
 import { ReconocedorGeminiAdapter } from './vehiculo/reconocedor-gemini.adapter';
@@ -94,17 +96,29 @@ import { PdfkitGeneradorAdapter } from './pdf/pdfkit-generador.adapter';
       },
     },
     {
-      // Misma regla que el reconocedor: con GEMINI_API_KEY lee con Gemini; sin ella, simulado (en producción 503).
+      // DeepSeek principal y Gemini de respaldo (un PDF lo lee Gemini: DeepSeek solo lee imágenes). Con una sola
+      // clave, ese proveedor solo; sin ninguna, simulado (en producción 503).
       provide: LECTOR_TARJETA,
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => {
-        const apiKey = config.get('GEMINI_API_KEY', { infer: true });
-        if (apiKey) {
-          return new LectorTarjetaGeminiAdapter(
-            apiKey,
-            config.get('GEMINI_MODEL', { infer: true }),
-          );
-        }
+        const claveGemini = config.get('GEMINI_API_KEY', { infer: true });
+        const claveDeepSeek = config.get('DEEPSEEK_API_KEY', { infer: true });
+        const gemini = claveGemini
+          ? new LectorTarjetaGeminiAdapter(
+              claveGemini,
+              config.get('GEMINI_MODEL', { infer: true }),
+            )
+          : null;
+        const deepseek = claveDeepSeek
+          ? new LectorTarjetaDeepSeekAdapter(
+              claveDeepSeek,
+              config.get('DEEPSEEK_MODEL_VISION', { infer: true }),
+            )
+          : null;
+        if (deepseek && gemini)
+          return new LectorTarjetaConRespaldoAdapter(deepseek, gemini);
+        if (deepseek) return deepseek;
+        if (gemini) return gemini;
         return new LectorTarjetaSimuladoAdapter(
           config.get('NODE_ENV', { infer: true }) === 'production',
         );

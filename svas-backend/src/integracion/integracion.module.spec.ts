@@ -38,6 +38,11 @@ import { AseguradoraSimuladaAdapter } from './emision/aseguradora-simulada.adapt
 import { fecha, usd } from './pdf/pdfkit-generador.adapter';
 import { ClasificadorPalabrasClaveAdapter } from './clasificador/clasificador-palabras-clave.adapter';
 import { IntegracionModule } from './integracion.module';
+import { LECTOR_TARJETA } from '../modules/cotizacion/domain/lector-tarjeta.port';
+import { LectorTarjetaConRespaldoAdapter } from './vehiculo/lector-tarjeta-con-respaldo.adapter';
+import { LectorTarjetaDeepSeekAdapter } from './vehiculo/lector-tarjeta-deepseek.adapter';
+import { LectorTarjetaGeminiAdapter } from './vehiculo/lector-tarjeta-gemini.adapter';
+import { LectorTarjetaSimuladoAdapter } from './vehiculo/lector-tarjeta-simulado.adapter';
 import {
   NotificadorSimuladoAdapter,
   ocultarEnlaces,
@@ -426,6 +431,32 @@ describe('IntegracionModule', () => {
     });
     expect(conClave.get(ASISTENTE_CONVERSACIONAL)).toBeInstanceOf(
       AsistenteGeminiAdapter,
+    );
+  });
+
+  it('lector de tarjeta: DeepSeek principal con Gemini de respaldo; con una sola clave, ese proveedor; sin claves, simulado', async () => {
+    const claves = (e: Record<string, string>) => compilar(e);
+    const ambas = await claves({
+      GEMINI_API_KEY: 'c',
+      GEMINI_MODEL: 'gemini-2.5-flash',
+      DEEPSEEK_API_KEY: 'c',
+      DEEPSEEK_MODEL_VISION: 'deepseek-flash',
+    });
+    expect(ambas.get(LECTOR_TARJETA)).toBeInstanceOf(
+      LectorTarjetaConRespaldoAdapter,
+    );
+    expect(
+      (await claves({ DEEPSEEK_API_KEY: 'c', DEEPSEEK_MODEL_VISION: 'm' })).get(
+        LECTOR_TARJETA,
+      ),
+    ).toBeInstanceOf(LectorTarjetaDeepSeekAdapter);
+    expect(
+      (
+        await claves({ GEMINI_API_KEY: 'c', GEMINI_MODEL: 'gemini-2.5-flash' })
+      ).get(LECTOR_TARJETA),
+    ).toBeInstanceOf(LectorTarjetaGeminiAdapter);
+    expect((await claves({})).get(LECTOR_TARJETA)).toBeInstanceOf(
+      LectorTarjetaSimuladoAdapter,
     );
   });
 
