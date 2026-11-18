@@ -164,6 +164,9 @@ svas-backend/
 │   │   │   ├── reconocedor-gemini.adapter.ts    # con GEMINI_API_KEY (SDK @google/genai)
 │   │   │   ├── reconocedor-simulado.adapter.ts  # sin clave (503 en producción)
 │   │   │   ├── lector-tarjeta-gemini.adapter.ts # tarjeta de propiedad (foto o PDF): placa, marca, modelo, año
+│   │   │   ├── lector-tarjeta-deepseek.adapter.ts # principal (solo imágenes; DEEPSEEK_API_KEY)
+│   │   │   ├── lector-tarjeta-con-respaldo.adapter.ts # DeepSeek → Gemini si falla o es PDF
+│   │   │   ├── lector-tarjeta-instruccion.ts    # el prompt, común a los dos proveedores
 │   │   │   └── lector-tarjeta-simulado.adapter.ts # sin clave (503 en producción)
 │   │   └── clasificador/
 │   │       ├── clasificador-palabras-clave.adapter.ts
