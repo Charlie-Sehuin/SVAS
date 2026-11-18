@@ -73,7 +73,7 @@ Llena `svas-backend/.env` con los valores que te pasaron:
 | `ANTHROPIC_API_KEY` | Solo si el flag anterior es `true` | — |
 | `GEMINI_API_KEY` | No | Clave de Google AI Studio para reconocer el auto por foto, leer la tarjeta de propiedad y para el chatbot. Vacía = los tres **simulados** (en producción responden 503) |
 | `GEMINI_MODEL` | No (`gemini-2.5-flash`) | Modelo de Gemini que usan el reconocimiento por foto y el chatbot |
-| `DEEPSEEK_MODEL_VISION` | No (`deepseek-flash`) | Modelo de DeepSeek con visión para leer la tarjeta de propiedad. Con `DEEPSEEK_API_KEY`, DeepSeek es el lector principal y Gemini el respaldo (los PDF los lee Gemini) |
+| `DEEPSEEK_MODEL_VISION` | No (`deepseek-flash`) | Modelo de DeepSeek con visión para leer la tarjeta de propiedad. Con `DEEPSEEK_API_KEY`, DeepSeek es el lector principal y Gemini el respaldo (un PDF escaneado lo lee Gemini; uno digital, DeepSeek) |
 | `RESEND_API_KEY` | No | Clave de Resend para mandar el PDF de la póliza por correo al comprar. Vacía = correo **simulado** (solo registra en el log). Sin dominio verificado en Resend, solo entrega al correo de la cuenta dueña de la clave |
 | `CORREO_REMITENTE` | No (`SeguroSimple <onboarding@resend.dev>`) | Remitente del correo. Con un dominio verificado en Resend, usa ese dominio |
 

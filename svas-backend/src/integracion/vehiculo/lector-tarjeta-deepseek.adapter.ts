@@ -16,6 +16,7 @@ import {
   FORMATO_JSON_TARJETA,
   instruccionTarjeta,
 } from './lector-tarjeta-instruccion';
+import { extraerTextoPdf, MIN_CARACTERES_PDF } from './texto-pdf';
 
 /** Deja tiempo para el respaldo: la API corta a los 15 s. */
 export const TIMEOUT_LECTOR_DEEPSEEK_MS = 7_000;
@@ -31,8 +32,10 @@ const respuestaSchema = z.object({
 });
 
 /**
- * Lector de tarjetas con DeepSeek (modelo con visión, p. ej. `deepseek-flash`). Solo lee imágenes: un PDF
- * se rechaza sin llamar a la API (con respaldo, lo lee Gemini). No se registra el contenido leído.
+ * Lector de tarjetas con DeepSeek (modelo con visión, p. ej. `deepseek-flash`). Una foto se manda como imagen.
+ * Un PDF digital (el que se descarga de SUNARP) se lee sacándole el texto en el backend y mandando solo ese
+ * texto. Un PDF escaneado no tiene texto: se rechaza sin llamar a la API (con respaldo, lo lee Gemini).
+ * No se registra el contenido leído.
  */
 @Injectable()
 export class LectorTarjetaDeepSeekAdapter implements LectorTarjeta {
@@ -42,17 +45,16 @@ export class LectorTarjetaDeepSeekAdapter implements LectorTarjeta {
     private readonly apiKey: string,
     private readonly modelo: string,
     private readonly fetchFn: typeof fetch = fetch,
+    private readonly extraerTexto: (
+      datos: Buffer,
+    ) => Promise<string> = extraerTextoPdf,
   ) {}
 
   async leer(
     archivo: ArchivoTarjeta,
     catalogo: OpcionCatalogo[],
   ): Promise<TarjetaCruda> {
-    if (!TIPOS_IMAGEN.includes(archivo.mimeType)) {
-      throw new BadRequestException(
-        'Por ahora la tarjeta debe ser una foto (JPG, PNG o WEBP), no un PDF.',
-      );
-    }
+    const contenidoUsuario = await this.contenidoUsuario(archivo);
     try {
       const respuesta = await this.fetchFn(URL_DEEPSEEK, {
         method: 'POST',
@@ -69,15 +71,7 @@ export class LectorTarjetaDeepSeekAdapter implements LectorTarjeta {
             },
             {
               role: 'user',
-              content: [
-                { type: 'text', text: 'Lee la tarjeta y responde en JSON.' },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: `data:${archivo.mimeType};base64,${archivo.datos.toString('base64')}`,
-                  },
-                },
-              ],
+              content: contenidoUsuario,
             },
           ],
           response_format: { type: 'json_object' },
@@ -109,5 +103,36 @@ export class LectorTarjetaDeepSeekAdapter implements LectorTarjeta {
         'No se pudo leer la tarjeta, intenta de nuevo',
       );
     }
+  }
+
+  /** Qué se le manda al modelo: la imagen, o el texto del PDF digital. */
+  private async contenidoUsuario(archivo: ArchivoTarjeta) {
+    if (archivo.mimeType === 'application/pdf') {
+      const texto = await this.extraerTexto(archivo.datos);
+      if (texto.length < MIN_CARACTERES_PDF) {
+        throw new BadRequestException(
+          'Este PDF parece un escaneo. Sube una foto de la tarjeta o el PDF que descargas de SUNARP.',
+        );
+      }
+      return `Texto extraído de la tarjeta (PDF):
+"""
+${texto}
+"""
+Lee la tarjeta y responde en JSON.`;
+    }
+    if (!TIPOS_IMAGEN.includes(archivo.mimeType)) {
+      throw new BadRequestException(
+        'La tarjeta debe ser una imagen JPG, PNG o WEBP, o un PDF.',
+      );
+    }
+    return [
+      { type: 'text', text: 'Lee la tarjeta y responde en JSON.' },
+      {
+        type: 'image_url',
+        image_url: {
+          url: `data:${archivo.mimeType};base64,${archivo.datos.toString('base64')}`,
+        },
+      },
+    ];
   }
 }
