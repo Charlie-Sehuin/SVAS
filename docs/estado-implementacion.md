@@ -44,17 +44,19 @@ razones en `propuesta-tarjeta-propiedad.md`. Es una copia del patrón del recono
   `anioCotizable` es true. Esto enmienda RN-44 únicamente para la tarjeta; con la foto del auto el año sigue sin preseleccionarse.
 - **Proveedor (rama `feat/leer-tarjeta-deepseek`, 2026-11-17)**: **DeepSeek principal y Gemini de respaldo**. Con las dos claves, una foto la lee
   DeepSeek (`deepseek-flash`, modo JSON, sin razonamiento, 7 s de tope) y, si falla (sin saldo, red, respuesta vacía), la lee Gemini. DeepSeek
-  solo lee imágenes: un **PDF pasa directo a Gemini**. Con una sola clave, ese proveedor solo (con solo DeepSeek, un PDF da 400 "sube una foto").
+  solo lee imágenes, así que un **PDF digital** (el que se descarga de SUNARP) se lee sacándole el texto en el backend (`texto-pdf.ts`, librería
+  `unpdf`, sin IA) y mandando **solo ese texto** a DeepSeek: no gasta cuota de Gemini. Un **PDF escaneado** (una foto dentro del PDF, con menos de
+  40 caracteres de texto) pasa a Gemini. Con una sola clave, ese proveedor solo (con solo DeepSeek, un PDF escaneado da 400 "sube una foto").
   Sin ninguna, un lector simulado fuera de producción (primer modelo del catálogo, 2020, placa ABC123) y 503 en producción. El prompt es el mismo
   para los dos (`lector-tarjeta-instruccion.ts`). **Variable nueva**: `DEEPSEEK_MODEL_VISION` (por defecto `deepseek-flash`); `DEEPSEEK_MODEL`
   (`deepseek-v4-flash`, del chatbot) no está documentado como modelo con visión. Costo estimado ≈ 0,001 USD por tarjeta (precios sin confirmar
-  en la página oficial). Probado a mano: foto → DeepSeek en ≈ 3,7 s (Jetta 2011, `ADQ345`); PDF → respaldo a Gemini; una captura que no es
-  tarjeta → `{ "leida": false }`.
+  en la página oficial). Probado a mano: foto → DeepSeek en ≈ 3,7 s (Jetta 2011, `ADQ345`); PDF digital → DeepSeek con el texto, ≈ 3,1 s; PDF
+  escaneado → respaldo a Gemini; una captura que no es tarjeta → `{ "leida": false }`. Archivos de prueba en `imagenes/pruebas-tarjeta/` (sin versionar).
 - **Frontend**: `LeerTarjetaVehiculo`, arriba de "Rellenar con una foto de tu auto" (que queda como segunda opción). Aviso de privacidad a la
   vista; un PDF pasa sin reducir; más de 5 MB no se envía; si la placa viene, apaga "No tengo placa". Si algo falla, el formulario queda igual.
 - **Pruebas**: 6 nuevas en el backend (46 en el módulo `cotizacion`) y 7 en el frontend (340 en total). Probado a mano con la tarjeta de
   ejemplo de SUNARP (`imagenes/`, sin las marcas rojas de guía): Volkswagen Jetta, 2011, `ADQ345`.
-- **Pendiente**: (1) más tarjetas reales (físicas, con reflejo, PDF real escaneado, reverso); el PDF de prueba era uno generado a mano con texto;
+- **Pendiente**: (1) más tarjetas reales (físicas, con reflejo, PDF real escaneado, reverso); el PDF digital de prueba se generó a mano (falta uno descargado de SUNARP: si su texto saliera desordenado o sin capa de texto, caería a Gemini);
   (2) recorrerlo desde un celular en el sitio publicado; (3) revisar los términos de datos de DeepSeek y de Gemini antes de usar tarjetas de
   clientes reales: en el plan gratuito de Gemini Google puede usar lo enviado, DeepSeek es una empresa china, y la tarjeta trae VIN, serie y motor;
   (4) revisar con quien lleve lo legal el aviso de la Ley 29733; (5) la prueba del PDF sin reducir no se puede hacer en jsdom (no lee el
