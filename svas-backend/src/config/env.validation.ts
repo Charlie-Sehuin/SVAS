@@ -23,9 +23,10 @@ export const envSchema = z
     // Reconocimiento de vehículo por foto: sin clave se usa el reconocedor simulado.
     GEMINI_API_KEY: z.string().trim().optional(),
     GEMINI_MODEL: z.string().trim().min(1).default('gemini-2.5-flash'),
-    // Respaldo del chatbot si Gemini falla (o proveedor único si no hay GEMINI_API_KEY). Sin clave, no se usa.
+    // Una sola clave para el chatbot (respaldo si Gemini falla) y para leer la tarjeta (principal). Sin clave, no se usa.
     DEEPSEEK_API_KEY: z.string().trim().optional(),
-    DEEPSEEK_MODEL: z.string().trim().min(1).default('deepseek-v4-flash'),
+    // Modelo del chatbot. `deepseek-flash` es el que se probó con la clave real (tarjeta, también con solo texto).
+    DEEPSEEK_MODEL: z.string().trim().min(1).default('deepseek-flash'),
     // Modelo de DeepSeek con visión, para leer la tarjeta de propiedad (DeepSeek principal, Gemini de respaldo).
     DEEPSEEK_MODEL_VISION: z.string().trim().min(1).default('deepseek-flash'),
     // Correo de la póliza (PDF adjunto) con Resend: sin clave, el envío es simulado.
