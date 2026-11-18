@@ -3,7 +3,7 @@
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
 > `arquitectura-backend-seguro-simple.md` (orden de construcción en §10).
-> Última actualización: 2026-11-17 (leer la tarjeta de propiedad, ver abajo). Antes, 2026-11-17 (chatbot: arreglos posteriores, respaldo con DeepSeek y guardia de precios ampliada, ver abajo). Antes, 2026-11-17 (chatbot del sitio público, backend, ver abajo). Antes, 2026-11-16 (catálogo ampliado a 2006–2027 y reconocer el auto por foto con Gemini, ver abajo). Antes, 2026-11-12 (backend: Ola 4 cerrada · frontend: configuración inicial y Ola 0, ver §1b).
+> Última actualización: 2026-11-18 (DeepSeek puesto en Railway: respaldo del chatbot encendido y su modelo pasa a `deepseek-flash`, ver "Chatbot: arreglos posteriores"). Antes, 2026-11-17 (leer la tarjeta de propiedad, ver abajo). Antes, 2026-11-17 (chatbot: arreglos posteriores, respaldo con DeepSeek y guardia de precios ampliada, ver abajo). Antes, 2026-11-17 (chatbot del sitio público, backend, ver abajo). Antes, 2026-11-16 (catálogo ampliado a 2006–2027 y reconocer el auto por foto con Gemini, ver abajo). Antes, 2026-11-12 (backend: Ola 4 cerrada · frontend: configuración inicial y Ola 0, ver §1b).
 
 ## 1. Dónde estamos
 
@@ -121,13 +121,19 @@ Lo que se fusionó después de `feat/chatbot` y lo que agrega `fix/chatbot-pendi
   (`id="plan-<primaCotizadaId>"` en `PlanCard`); si no está en pantalla, abre la cotización. Cada botón de acción sale solo en la última respuesta que lo
   ofrece y, con una cotización a la vista, no se ofrece "Cotizar ahora".
 
-**Rama `fix/chatbot-pendientes` (backend):**
+**DeepSeek activo en producción (2026-11-18):** Charlie puso `DEEPSEEK_API_KEY` en Railway, así que el respaldo del chat **ya está encendido**
+(Gemini principal, DeepSeek si falla) y la tarjeta se lee con DeepSeek. El modelo por defecto del chat pasó de `deepseek-v4-flash` (nunca probado) a
+`deepseek-flash`, el que se probó con la clave real al leer la tarjeta (también con solo texto, en el PDF digital) y que acepta la misma petición
+(modo JSON y razonamiento apagado). Si en Railway está definida `DEEPSEEK_MODEL`, manda ese valor. Falta confirmarlo en los registros de Railway:
+la línea "El principal falló: se intenta con el respaldo" indica que entró DeepSeek, y "DeepSeek falló", que tampoco respondió.
+
+**Commit `dca19ae` (backend, directo a `main`; antes se pensó como rama `fix/chatbot-pendientes`):**
 - **Respaldo con DeepSeek** (idea de Charlie): `integracion/asistente/asistente-deepseek.adapter.ts` (API compatible con OpenAI, llamada con `fetch`, sin
   dependencias nuevas; modo JSON, razonamiento apagado, temperatura 0.3) y `asistente-con-respaldo.adapter.ts`. Con `GEMINI_API_KEY` y `DEEPSEEK_API_KEY`,
   si Gemini falla se intenta **una vez** con DeepSeek dentro del tiempo que le quede a la petición (presupuesto de 14 s, entre 3 y 8 s para el respaldo); si
   DeepSeek también falla, la persona ve el error de Gemini. Solo con `DEEPSEEK_API_KEY`, DeepSeek es el proveedor (dos intentos de 6,5 s, como Gemini).
   **Sin `DEEPSEEK_API_KEY` no cambia nada**: por eso es seguro fusionarla aunque no se configure todavía.
-  - Variables nuevas (opcionales): `DEEPSEEK_API_KEY` y `DEEPSEEK_MODEL` (por defecto `deepseek-v4-flash`). Errores: 402 (sin saldo) o 429 → 503 "muy ocupado"; otro → 502.
+  - Variables nuevas (opcionales): `DEEPSEEK_API_KEY` y `DEEPSEEK_MODEL` (por defecto `deepseek-v4-flash`; desde 2026-11-18, `deepseek-flash`, ver arriba). Errores: 402 (sin saldo) o 429 → 503 "muy ocupado"; otro → 502.
   - Límite: si Gemini agota sus dos intentos por tiempo (2 × 6,5 s), ya no queda tiempo para el respaldo. Ayuda en los fallos rápidos (429, 5xx, respuesta cortada).
   - DeepSeek **no es gratis**: es prepagado (recarga con tarjeta o PayPal). Con ~4 000 tokens de entrada y ~300 de salida por turno, cuesta del orden de
     USD 0,002 por mensaje según las tarifas publicadas en 2026 (verificar en api-docs.deepseek.com antes de configurarlo). No se probó contra la API real
@@ -137,13 +143,16 @@ Lo que se fusionó después de `feat/chatbot` y lo que agrega `fix/chatbot-pendi
   contexto es un precio ("cuesta 450", "la prima es de unos 1,200", "te sale 380", "300 al mes", "900 anuales"). Entre la palabra de precio y el número solo
   admite palabras de relleno ("es", "de", "unos"…), así que "la prima de tu Corolla 2020" no cuenta el año; tampoco cuenta porcentajes ni cantidades de meses,
   cuotas, días o planes. Un número entregado en los datos (p. ej. la prima de la cotización) sigue siendo válido aunque se escriba sin moneda.
-- `.env.example`: `GEMINI_MODEL=gemini-3.5-flash` para quien prueba en local con una clave nueva (en Railway no cambia nada) y las dos variables de DeepSeek.
+- `.env.example`: `GEMINI_MODEL=gemini-3.5-flash` para quien prueba en local con una clave nueva (en Railway no cambia nada) y las variables de DeepSeek
+  (este archivo no entró en `dca19ae`; se agregó el 2026-11-18, junto con `DEEPSEEK_MODEL_VISION` de la tarjeta).
 - **Pruebas**: 17 unitarias nuevas (456 en total): 12 del respaldo y del adaptador de DeepSeek, 1 del módulo de integración y 4 de la guardia de precios.
 
-**Rama `fix/chatbot-pendientes` (frontend):** la prueba intermitente del cotizador ("trae WhatsApp preseleccionado…") tiene 15 s en vez de 5 (333 pruebas en verde).
+**Frontend (commit `41d1e52`):** la prueba intermitente del cotizador ("trae WhatsApp preseleccionado…") tiene 15 s en vez de 5 (333 pruebas en verde).
 
-**Sigue pendiente:** confirmar la causa de los fallos en producción con los registros de Railway; poner `GEMINI_MODEL=gemini-3.5-flash` en Railway (se consulta
-antes, toca producción); decidir si se activa DeepSeek y quién pone la recarga; probar la burbuja desde un celular real.
+**Sigue pendiente:** (1) confirmar la causa de los fallos en producción con los registros de Railway ("Gemini falló", "Reintentando") y, ahora
+que DeepSeek está puesto, que el respaldo entra y responde ("El principal falló: se intenta con el respaldo", sin "DeepSeek falló" después);
+(2) poner `GEMINI_MODEL=gemini-3.5-flash` en Railway (se consulta antes, toca producción); (3) la foto del auto sigue sin respaldo (solo Gemini);
+(4) vigilar el saldo de DeepSeek: sin saldo (402) el respaldo deja de responder; (5) probar la burbuja desde un celular real.
 
 ### Póliza en PDF por correo (rama `feat/pdf-por-correo`, 2026-11-16)
 Al generar el PDF de una póliza (compra, descarga o reintento: ocurre una vez por póliza) se manda al correo de la ficha del

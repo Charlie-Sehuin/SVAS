@@ -44,8 +44,9 @@ La versión de Node sale de `engines.node` en `package.json` (24.x).
 | `FRONTEND_URL` | `https://svas-frontend.onrender.com` (el frontend publicado en Render, sin barra final). Para trabajar en local con el backend local: `http://localhost:5173` |
 | `GEMINI_API_KEY` | Clave de Google AI Studio (secreta). Sin ella, `POST /catalogo/vehiculos/reconocer` responde 503 en producción |
 | `GEMINI_MODEL` | Opcional; por defecto `gemini-2.5-flash` (con claves nuevas da 404: usar `gemini-3.5-flash`) |
-| `DEEPSEEK_API_KEY` | Opcional; respaldo del chatbot si Gemini falla. De pago (prepagado): sin ella no hay respaldo y nada cambia. Probar antes en local |
-| `DEEPSEEK_MODEL` | Opcional; por defecto `deepseek-v4-flash` |
+| `DEEPSEEK_API_KEY` | Clave de DeepSeek (secreta, de pago y prepagada). Una sola para dos usos: respaldo del chatbot si Gemini falla y lector principal de la tarjeta de propiedad. **Puesta en Railway** (Charlie, 2026-11-18). Sin ella, el chat queda solo con Gemini y la tarjeta la lee Gemini |
+| `DEEPSEEK_MODEL` | Opcional; modelo del chatbot, por defecto `deepseek-flash` (el probado con la clave real) |
+| `DEEPSEEK_MODEL_VISION` | Opcional; modelo con visión para la tarjeta, por defecto `deepseek-flash` |
 | `RESEND_API_KEY` | Opcional; con ella la póliza en PDF se manda por correo de verdad. Sin dominio verificado en Resend solo llega al correo de la cuenta dueña de la clave |
 | `CORREO_REMITENTE` | Opcional; por defecto `SeguroSimple <onboarding@resend.dev>` (con dominio verificado, usar ese dominio) |
 
