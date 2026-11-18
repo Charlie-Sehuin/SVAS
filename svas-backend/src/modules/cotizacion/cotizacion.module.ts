@@ -16,8 +16,10 @@ import { CATALOGO_PUBLICO_REPOSITORY } from './domain/catalogo-publico.port';
 import { TARIFA_REPOSITORY } from './domain/tarifa.repository.port';
 import { CatalogoPublicoSupabaseRepository } from './infrastructure/catalogo-publico-supabase.repository';
 import { TarifaSupabaseRepository } from './infrastructure/tarifa-supabase.repository';
+import { LeerTarjetaUseCase } from './application/leer-tarjeta.use-case';
 import { ReconocerVehiculoUseCase } from './application/reconocer-vehiculo.use-case';
 import { CatalogoController } from './presentation/catalogo.controller';
+import { LeerTarjetaController } from './presentation/leer-tarjeta.controller';
 import { ReconocerVehiculoController } from './presentation/reconocer-vehiculo.controller';
 import { CotizacionAccesoGuard } from './presentation/cotizacion-acceso.guard';
 import { CotizacionesController } from './presentation/cotizaciones.controller';
@@ -28,6 +30,7 @@ import { CotizacionesController } from './presentation/cotizaciones.controller';
   controllers: [
     CatalogoController,
     ReconocerVehiculoController,
+    LeerTarjetaController,
     CotizacionesController,
   ],
   providers: [
@@ -39,6 +42,7 @@ import { CotizacionesController } from './presentation/cotizaciones.controller';
     { provide: COTIZACION_REPOSITORY, useClass: CotizacionSupabaseRepository },
     CatalogoPublicoService,
     ReconocerVehiculoUseCase,
+    LeerTarjetaUseCase,
     CalculadoraPrimasService,
     CotizarUseCase,
     ObtenerResumenUseCase,

@@ -22,6 +22,9 @@ import { EstrategiaRegistry } from './estrategias/estrategia.registry';
 import { NotificadorSimuladoAdapter } from './mensajes/notificador-simulado.adapter';
 import { RECONOCEDOR_VEHICULO } from '../modules/cotizacion/domain/reconocedor-vehiculo.port';
 import { PasarelaSimuladaAdapter } from './pagos/pasarela-simulada.adapter';
+import { LECTOR_TARJETA } from '../modules/cotizacion/domain/lector-tarjeta.port';
+import { LectorTarjetaGeminiAdapter } from './vehiculo/lector-tarjeta-gemini.adapter';
+import { LectorTarjetaSimuladoAdapter } from './vehiculo/lector-tarjeta-simulado.adapter';
 import { ReconocedorGeminiAdapter } from './vehiculo/reconocedor-gemini.adapter';
 import { ReconocedorSimuladoAdapter } from './vehiculo/reconocedor-simulado.adapter';
 import { PdfkitGeneradorAdapter } from './pdf/pdfkit-generador.adapter';
@@ -91,6 +94,23 @@ import { PdfkitGeneradorAdapter } from './pdf/pdfkit-generador.adapter';
       },
     },
     {
+      // Misma regla que el reconocedor: con GEMINI_API_KEY lee con Gemini; sin ella, simulado (en producción 503).
+      provide: LECTOR_TARJETA,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => {
+        const apiKey = config.get('GEMINI_API_KEY', { infer: true });
+        if (apiKey) {
+          return new LectorTarjetaGeminiAdapter(
+            apiKey,
+            config.get('GEMINI_MODEL', { infer: true }),
+          );
+        }
+        return new LectorTarjetaSimuladoAdapter(
+          config.get('NODE_ENV', { infer: true }) === 'production',
+        );
+      },
+    },
+    {
       // El chatbot usa la misma clave de Gemini. Con DEEPSEEK_API_KEY, DeepSeek queda de respaldo si Gemini
       // falla (o de proveedor único si no hay clave de Gemini). Sin ninguna, el simulado (en producción avisa 503).
       provide: ASISTENTE_CONVERSACIONAL,
@@ -128,6 +148,7 @@ import { PdfkitGeneradorAdapter } from './pdf/pdfkit-generador.adapter';
   exports: [
     ASISTENTE_CONVERSACIONAL,
     RECONOCEDOR_VEHICULO,
+    LECTOR_TARJETA,
     REGISTRO_ESTRATEGIAS,
     PASARELA_PAGO,
     EMISION_ASEGURADORA,
