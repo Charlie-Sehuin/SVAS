@@ -3,7 +3,7 @@
 > Documento de traspaso entre sesiones. Léelo junto con
 > `contexto-dominio-seguro-simple.md` (manda en caso de conflicto) y
 > `arquitectura-backend-seguro-simple.md` (orden de construcción en §10).
-> Última actualización: 2026-11-17 (chatbot: arreglos posteriores, respaldo con DeepSeek y guardia de precios ampliada, ver abajo). Antes, 2026-11-17 (chatbot del sitio público, backend, ver abajo). Antes, 2026-11-16 (catálogo ampliado a 2006–2027 y reconocer el auto por foto con Gemini, ver abajo). Antes, 2026-11-12 (backend: Ola 4 cerrada · frontend: configuración inicial y Ola 0, ver §1b).
+> Última actualización: 2026-11-17 (leer la tarjeta de propiedad, ver abajo). Antes, 2026-11-17 (chatbot: arreglos posteriores, respaldo con DeepSeek y guardia de precios ampliada, ver abajo). Antes, 2026-11-17 (chatbot del sitio público, backend, ver abajo). Antes, 2026-11-16 (catálogo ampliado a 2006–2027 y reconocer el auto por foto con Gemini, ver abajo). Antes, 2026-11-12 (backend: Ola 4 cerrada · frontend: configuración inicial y Ola 0, ver §1b).
 
 ## 1. Dónde estamos
 
@@ -28,6 +28,32 @@ El e2e verifica la tabla dorada §17.6 contra los datos reales de Supabase. Los 
 cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públicas (no escriben en la base);
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
 Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos), 0035 (18 casos), 0036 (16 casos) y 0037 (8 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
+
+### Leer la tarjeta de propiedad (ramas `feat/leer-tarjeta` en backend y frontend, 2026-11-17)
+
+El cliente sube la foto o el PDF de su tarjeta de propiedad y el paso Vehículo se rellena con **marca, modelo, año y placa**. Diseño y
+razones en `propuesta-tarjeta-propiedad.md`. Es una copia del patrón del reconocimiento por foto.
+
+- **Endpoint**: `POST /catalogo/vehiculos/leer-tarjeta` (público, 10/min). Multipart, campo `tarjeta`, JPG/PNG/WEBP/PDF, máx. 5 MB (de un PDF
+  se lee lo que Gemini alcance a ver). Responde `{ leida, marca?, modelo?, anio?, anioCotizable?, placa? }`; `{ leida: false }` si no hay nada
+  que autocompletar. El archivo se procesa en memoria y no se guarda ni se registra.
+- **Qué se lee**: solo placa, marca, modelo y año. El prompt prohíbe nombre, DNI, VIN, serie, motor, partida y título, y pide la placa de
+  "Placa N°" (nunca la "Placa Anterior"). Marca y modelo solo se eligen del catálogo y el backend los vuelve a comparar (sin tildes ni
+  mayúsculas); lo que no esté no se devuelve. La placa se devuelve en mayúsculas, sin guion y solo si cumple el formato del formulario.
+- **Año**: se prefiere "Año Modelo" y, si no hay, "Año de Fab.". El frontend **sí lo rellena** (sale impreso en el documento), pero solo si
+  `anioCotizable` es true. Esto enmienda RN-44 únicamente para la tarjeta; con la foto del auto el año sigue sin preseleccionarse.
+- **Sin clave**: igual que el reconocedor. Con `GEMINI_API_KEY` usa Gemini; sin ella, un lector simulado fuera de producción (primer modelo del
+  catálogo, 2020, placa ABC123) y 503 en producción. No hay variables nuevas.
+- **Frontend**: `LeerTarjetaVehiculo`, arriba de "Rellenar con una foto de tu auto" (que queda como segunda opción). Aviso de privacidad a la
+  vista; un PDF pasa sin reducir; más de 5 MB no se envía; si la placa viene, apaga "No tengo placa". Si algo falla, el formulario queda igual.
+- **Pruebas**: 6 nuevas en el backend (46 en el módulo `cotizacion`) y 7 en el frontend (340 en total). Probado a mano con la tarjeta de
+  ejemplo de SUNARP (`imagenes/`, sin las marcas rojas de guía): Volkswagen Jetta, 2011, `ADQ345`.
+- **Pendiente**: (1) probar "no es una tarjeta" y más tarjetas reales (físicas, con reflejo, PDF escaneado, reverso); la cuota gratuita de
+  Gemini (20/día por modelo) se agotó ese día; (2) recorrerlo desde un celular en el sitio publicado; (3) decidir el plan de la API de Gemini
+  antes de usar tarjetas de clientes reales: en el plan gratuito Google puede usar lo enviado, y la tarjeta trae VIN, serie y motor;
+  (4) revisar con quien lleve lo legal el aviso de la Ley 29733; (5) la prueba del PDF sin reducir no se puede hacer en jsdom (no lee el
+  cuerpo multipart).
+- **Merge**: primero el backend, después el frontend (si no, el botón llamaría a una ruta que Railway aún no tiene).
 
 ### Chatbot del sitio público, backend (rama `feat/chatbot`, 2026-11-17)
 Un asistente que conversa con el cliente: recomienda planes, responde dudas y lo lleva al cotizador o a un asesor.
