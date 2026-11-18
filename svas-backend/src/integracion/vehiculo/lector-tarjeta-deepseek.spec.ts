@@ -17,6 +17,9 @@ const CRUDA: TarjetaCruda = {
   anio: 2011,
 };
 
+const TEXTO_TARJETA =
+  'TARJETA DE IDENTIFICACION VEHICULAR ELECTRONICA Placa N: ADQ-345 Marca: VOLKSWAGEN Modelo: JETTA Ano Modelo: 2011';
+
 const http = (status: number, cuerpo: unknown) =>
   new Response(JSON.stringify(cuerpo), {
     status,
@@ -53,12 +56,36 @@ describe('LectorTarjetaDeepSeekAdapter', () => {
     });
   });
 
-  it('un PDF se rechaza sin llamar a la API', async () => {
+  it('un PDF digital: manda solo el texto extraído, sin imagen', async () => {
+    const fetchFn = jest.fn().mockResolvedValue(exito(JSON.stringify(CRUDA)));
+    const extraer = jest.fn().mockResolvedValue(TEXTO_TARJETA);
+    const adapter = new LectorTarjetaDeepSeekAdapter('c', 'm', fetchFn, extraer);
+
+    await expect(adapter.leer(PDF, CATALOGO)).resolves.toEqual(CRUDA);
+
+    expect(extraer).toHaveBeenCalledWith(PDF.datos);
+    const cuerpo = JSON.parse((fetchFn.mock.calls[0] as [string, RequestInit])[1].body as string);
+    expect(typeof cuerpo.messages[1].content).toBe('string');
+    expect(cuerpo.messages[1].content).toContain('Marca: VOLKSWAGEN');
+    expect(cuerpo.messages[1].content).not.toContain('image_url');
+  });
+
+  it('un PDF escaneado (sin texto) se rechaza sin llamar a la API', async () => {
     const fetchFn = jest.fn();
-    const adapter = new LectorTarjetaDeepSeekAdapter('c', 'm', fetchFn);
+    const extraer = jest.fn().mockResolvedValue('');
+    const adapter = new LectorTarjetaDeepSeekAdapter('c', 'm', fetchFn, extraer);
     await expect(adapter.leer(PDF, CATALOGO)).rejects.toBeInstanceOf(
       BadRequestException,
     );
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('un tipo que no es imagen ni PDF se rechaza', async () => {
+    const fetchFn = jest.fn();
+    const adapter = new LectorTarjetaDeepSeekAdapter('c', 'm', fetchFn);
+    await expect(
+      adapter.leer({ datos: Buffer.from('x'), mimeType: 'text/plain' }, CATALOGO),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
