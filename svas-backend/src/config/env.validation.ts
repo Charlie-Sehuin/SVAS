@@ -26,6 +26,8 @@ export const envSchema = z
     // Respaldo del chatbot si Gemini falla (o proveedor único si no hay GEMINI_API_KEY). Sin clave, no se usa.
     DEEPSEEK_API_KEY: z.string().trim().optional(),
     DEEPSEEK_MODEL: z.string().trim().min(1).default('deepseek-v4-flash'),
+    // Modelo de DeepSeek con visión, para leer la tarjeta de propiedad (DeepSeek principal, Gemini de respaldo).
+    DEEPSEEK_MODEL_VISION: z.string().trim().min(1).default('deepseek-flash'),
     // Correo de la póliza (PDF adjunto) con Resend: sin clave, el envío es simulado.
     RESEND_API_KEY: z.string().trim().optional(),
     // Remitente. Sin dominio verificado en Resend solo sirve onboarding@resend.dev, que entrega únicamente
