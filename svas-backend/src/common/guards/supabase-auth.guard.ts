@@ -3,6 +3,7 @@ import {
   type ExecutionContext,
   Inject,
   Injectable,
+  Logger,
   type Provider,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -10,6 +11,8 @@ import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import {
   createRemoteJWKSet,
+  decodeJwt,
+  decodeProtectedHeader,
   jwtVerify,
   type JWTPayload,
   type JWTVerifyGetKey,
@@ -38,6 +41,7 @@ export const jwtKeyResolverProvider: Provider = {
  */
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
+  private readonly logger = new Logger(SupabaseAuthGuard.name);
   private readonly issuer: string;
 
   constructor(
@@ -73,11 +77,15 @@ export class SupabaseAuthGuard implements CanActivate {
         audience: 'authenticated',
         algorithms: ['ES256', 'RS256'],
       }));
-    } catch {
+    } catch (error) {
+      this.registrarRechazo(error, token);
       throw new UnauthorizedException('Tu sesión expiró o no es válida');
     }
 
     if (!payload.sub || payload['role'] !== 'authenticated') {
+      this.logger.warn(
+        `JWT rechazado: sin sub o role=${String(payload['role'])} (se esperaba authenticated)`,
+      );
       throw new UnauthorizedException('Tu sesión expiró o no es válida');
     }
 
@@ -95,6 +103,29 @@ export class SupabaseAuthGuard implements CanActivate {
       roles,
     };
     return true;
+  }
+
+  /** Solo diagnóstico en el log del servidor: nunca se devuelve al cliente ni se escribe el token. */
+  private registrarRechazo(error: unknown, token: string): void {
+    let alg = '?';
+    let iss = '?';
+    let aud = '?';
+    try {
+      alg = String(decodeProtectedHeader(token).alg);
+      const claims = decodeJwt(token);
+      iss = String(claims.iss);
+      aud = JSON.stringify(claims.aud);
+    } catch {
+      /* token ilegible: se queda con '?' */
+    }
+    const codigo =
+      error instanceof Error
+        ? ((error as { code?: string }).code ?? error.name)
+        : 'desconocido';
+    const detalle = error instanceof Error ? error.message : '';
+    this.logger.warn(
+      `JWT rechazado: ${codigo} (${detalle}) alg=${alg} iss=${iss} aud=${aud} esperado_iss=${this.issuer}`,
+    );
   }
 }
 
