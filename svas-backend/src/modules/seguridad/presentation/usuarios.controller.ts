@@ -19,7 +19,9 @@ import {
   CrearUsuarioInternoUseCase,
   ListarUsuariosUseCase,
 } from '../application/administrar-usuarios.use-cases';
+import { ActualizarContactoUseCase } from '../application/actualizar-contacto.use-case';
 import { ObtenerContactoUseCase } from '../application/obtener-contacto.use-case';
+import { ActualizarContactoDto } from './dto/actualizar-contacto.dto';
 import { ObtenerPerfilUseCase } from '../application/obtener-perfil.use-case';
 import {
   aUsuarioResponse,
@@ -41,6 +43,7 @@ export class UsuariosController {
   constructor(
     private readonly obtenerPerfil: ObtenerPerfilUseCase,
     private readonly obtenerContacto: ObtenerContactoUseCase,
+    private readonly actualizarContacto: ActualizarContactoUseCase,
   ) {}
 
   @Get('me')
@@ -57,6 +60,22 @@ export class UsuariosController {
     @CurrentUser() usuario: UsuarioAutenticado,
   ) {
     return { contacto: await this.obtenerContacto.ejecutar(token, usuario.id) };
+  }
+
+  /** PATCH /usuarios/me/contacto: cambia mi celular y/o mi canal preferido. Solo CLIENTE; responde la ficha ya actualizada. */
+  @Roles('CLIENTE')
+  @Patch('me/contacto')
+  async actualizarMiContacto(
+    @AccessToken() token: string,
+    @CurrentUser() usuario: UsuarioAutenticado,
+    @Body() dto: ActualizarContactoDto,
+  ) {
+    return {
+      contacto: await this.actualizarContacto.ejecutar(token, usuario.id, {
+        telefono: dto.telefono,
+        canal: dto.canal,
+      }),
+    };
   }
 }
 

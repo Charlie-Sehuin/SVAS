@@ -1,8 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ErrorBaseDatos } from '../../../common/filters/postgrest-error.filter';
+import { llamarRpc } from '../../../infrastructure/database/rpc.helper';
+import {
+  SUPABASE_SERVICE_CLIENT,
+  type SupabaseServiceClient,
+} from '../../../infrastructure/database/supabase-service-client.provider';
 import { SupabaseUserClientFactory } from '../../../infrastructure/database/supabase-user-client.factory';
 import type { CanalContacto } from '../../../shared/types/enums';
 import type {
+  CambiosContacto,
   ContactoCliente,
   ContactoClienteRepository,
 } from '../domain/contacto-cliente.repository.port';
@@ -17,7 +23,22 @@ interface FilaCliente {
 
 @Injectable()
 export class ContactoClienteSupabaseRepository implements ContactoClienteRepository {
-  constructor(private readonly clientes: SupabaseUserClientFactory) {}
+  constructor(
+    @Inject(SUPABASE_SERVICE_CLIENT)
+    private readonly servicio: SupabaseServiceClient,
+    private readonly clientes: SupabaseUserClientFactory,
+  ) {}
+
+  async actualizar(usuarioId: string, cambios: CambiosContacto): Promise<void> {
+    // `null` = no tocar (el RPC usa coalesce): nombres y apellidos nunca se envían.
+    await llamarRpc(this.servicio, 'vincular_cliente', {
+      p_usuario_id: usuarioId,
+      p_contacto: {
+        telefono: cambios.telefono ?? null,
+        canal_preferido: cambios.canal ?? null,
+      },
+    });
+  }
 
   async deUsuario(
     accessToken: string,

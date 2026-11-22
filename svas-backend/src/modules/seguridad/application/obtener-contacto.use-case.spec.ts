@@ -16,6 +16,7 @@ describe('ObtenerContactoUseCase', () => {
   it('devuelve la ficha del usuario, pidiéndola con su token', async () => {
     const repo = {
       deUsuario: jest.fn().mockResolvedValue(contacto),
+      actualizar: jest.fn(),
     } satisfies jest.Mocked<ContactoClienteRepository>;
     const r = await new ObtenerContactoUseCase(repo).ejecutar('jwt', 'u1');
     expect(r).toEqual(contacto);
@@ -25,6 +26,7 @@ describe('ObtenerContactoUseCase', () => {
   it('una cuenta sin ficha devuelve null', async () => {
     const repo = {
       deUsuario: jest.fn().mockResolvedValue(null),
+      actualizar: jest.fn(),
     } satisfies jest.Mocked<ContactoClienteRepository>;
     expect(
       await new ObtenerContactoUseCase(repo).ejecutar('jwt', 'u2'),

@@ -29,6 +29,38 @@ cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públ
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
 Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos), 0035 (18 casos), 0036 (16 casos) y 0037 (8 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
 
+### Panel del cliente · Fase C: Perfil y datos (backend `feat/editar-contacto-cliente` y frontend `feat/panel-cliente-perfil`, 2026-11-22)
+
+- **Backend**: `PATCH /usuarios/me/contacto` (solo CLIENTE). Cuerpo `{ telefono?, canal? }` (al menos uno; celular peruano de 9 dígitos que empieza con 9,
+  `canal` = `LLAMADA` | `WHATSAPP`). Responde `{ contacto }` con la forma del `GET /usuarios/me/contacto`. **Sin migración**: reutiliza el RPC
+  `vincular_cliente`, que ya actualizaba la ficha y deja `GUARDAR_CLIENTE` en la bitácora; nunca se le mandan nombres ni apellidos. Una cuenta sin ficha
+  (no ha cotizado) recibe 404 y no se le crea una. Cualquier otra propiedad (`email`, `nombres`, `numeroDocumento`…) se rechaza con 400.
+- **El correo no se edita** (decisión 2026-11-22): es el usuario de login; cambiarlo pide confirmación por correo y un SMTP propio. Queda como solo lectura.
+- **Pruebas**: 5 del caso de uso, 4 del DTO y 1 e2e (sin token → 401); 483 unitarias en total. No hay petición de Bruno: la colección entra como
+  ADMINISTRADOR y esta ruta es de CLIENTE. **Sin probar contra la base real** (escribiría en una ficha de producción).
+- **Merge**: primero el backend, después el frontend (si no, el formulario llamaría a una ruta que Railway aún no tiene).
+
+### Panel del cliente · Fase A: Inicio y recuperar contraseña (rama `feat/panel-cliente-inicio`, solo frontend, 2026-11-22)
+
+Primera entrega de `propuesta-panel-cliente.md`. **No toca el backend ni la base.**
+
+- **Inicio `/mi-cuenta`** (`InicioCuentaPage`): saludo con el primer nombre, contadores de pólizas activas y de cotizaciones por terminar (las `CONVERTIDA`
+  no cuentan), hasta 3 pólizas (con descarga del PDF) y hasta 3 cotizaciones pendientes con "Continuar", y "Cotizar ahora". Solo lee `GET /polizas/mias` y
+  `GET /cotizaciones/mias`; cada bloque carga y falla por separado. Pestaña "Inicio" nueva en `MiCuentaTabs` y entrada "Inicio de mi cuenta" en el menú.
+  `/mi-cuenta` ya no redirige a cotizaciones (y `rutaInicial` del cliente cae aquí).
+- **Recuperar contraseña**: `/recuperar` (pide el correo, `resetPasswordForEmail`, responde igual exista o no la cuenta) y `/restablecer` (destino del enlace;
+  lee el `#fragmento`, abre la sesión con `setSession`, borra las llaves de la barra de direcciones y fija la nueva con `updateUser`). Enlace en el login
+  "¿Olvidaste tu contraseña?". Las funciones nuevas están en `AuthProvider` (`enviarRecuperacion`, `abrirRecuperacion`, `restablecerPassword`).
+  `/restablecer` solo muestra el formulario si esta pestaña abrió un enlace (marca `svas.recuperacion` en sessionStorage): con una sesión normal no se puede
+  cambiar la contraseña sin saber la actual.
+- **Falta para que funcione en producción (configuración, no código)**: (1) en Supabase → Authentication → URL Configuration, agregar
+  `https://svas-frontend.onrender.com/restablecer` (y `http://localhost:5173/restablecer`) a *Redirect URLs*; (2) el correo del enlace sale del SMTP de Supabase:
+  el predeterminado tiene un tope muy bajo y solo entrega a miembros del equipo, así que para clientes reales hace falta un SMTP propio (p. ej. Resend con dominio verificado).
+  El cliente usa el flujo `implicit` (llaves en el `#fragmento`), el que trae `supabase-js` por defecto.
+- **Lo que quedó fuera a propósito**: "próxima cuota". `GET /polizas/mias` no trae el cronograma ni el `ordenId`; entra en la Fase B junto con pagar cuotas.
+- **Pruebas**: 18 nuevas (358 en total): 7 del Inicio y 11 de recuperar/restablecer. `lint`, `tsc` y `build` en verde (chunks nuevos de ~2 KB gzip, el inicial no crece).
+- **Sin probar a mano**: el correo real y el enlace de Supabase de extremo a extremo (falta la configuración de arriba).
+
 ### Leer la tarjeta de propiedad (ramas `feat/leer-tarjeta` en backend y frontend, 2026-11-17)
 
 El cliente sube la foto o el PDF de su tarjeta de propiedad y el paso Vehículo se rellena con **marca, modelo, año y placa**. Diseño y

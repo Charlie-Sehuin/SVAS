@@ -9,12 +9,24 @@ export interface ContactoCliente {
   canal: CanalContacto;
 }
 
-/** Lectura de la ficha del propio cliente, como ese usuario (RLS). */
+/** Lo único que el cliente puede cambiar de su ficha desde "Mi cuenta". */
+export interface CambiosContacto {
+  telefono?: string;
+  canal?: CanalContacto;
+}
+
 export interface ContactoClienteRepository {
+  /** Lectura de la ficha del propio cliente, como ese usuario (RLS). */
   deUsuario(
     accessToken: string,
     usuarioId: string,
   ): Promise<ContactoCliente | null>;
+
+  /**
+   * Cambia el celular y/o el canal de la ficha de la cuenta, con el RPC `vincular_cliente` (que además deja el
+   * registro en la bitácora). Solo actualiza: el caso de uso ya comprobó que la ficha existe.
+   */
+  actualizar(usuarioId: string, cambios: CambiosContacto): Promise<void>;
 }
 
 export const CONTACTO_CLIENTE_REPOSITORY = Symbol(

@@ -5,6 +5,7 @@ import {
   CrearUsuarioInternoUseCase,
   ListarUsuariosUseCase,
 } from './application/administrar-usuarios.use-cases';
+import { ActualizarContactoUseCase } from './application/actualizar-contacto.use-case';
 import { ObtenerContactoUseCase } from './application/obtener-contacto.use-case';
 import { ObtenerPerfilUseCase } from './application/obtener-perfil.use-case';
 import { CONTACTO_CLIENTE_REPOSITORY } from './domain/contacto-cliente.repository.port';
@@ -32,6 +33,7 @@ import {
     RegistrarClienteUseCase,
     ObtenerPerfilUseCase,
     ObtenerContactoUseCase,
+    ActualizarContactoUseCase,
     ListarUsuariosUseCase,
     CrearUsuarioInternoUseCase,
     CambiarRolUsuarioUseCase,

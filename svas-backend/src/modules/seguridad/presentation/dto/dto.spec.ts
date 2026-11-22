@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { crearValidationPipe } from '../../../../common/pipes/validation.pipe';
 import { limpiarBusqueda } from '../../infrastructure/usuario-supabase.repository';
+import { ActualizarContactoDto } from './actualizar-contacto.dto';
 import { RegistroDto } from './registro.dto';
 import { CrearUsuarioDto, ListarUsuariosQuery } from './usuarios.dto';
 
@@ -51,6 +52,48 @@ describe('RegistroDto', () => {
     );
     expect(campos).toEqual(
       expect.arrayContaining(['password', 'telefono', 'email']),
+    );
+  });
+});
+
+describe('ActualizarContactoDto', () => {
+  it('normaliza el celular (quita espacios y guiones) y acepta el canal', async () => {
+    const dto = await validar(ActualizarContactoDto, {
+      telefono: '911 222-333',
+      canal: 'LLAMADA',
+    });
+    expect(dto.telefono).toBe('911222333');
+    expect(dto.canal).toBe('LLAMADA');
+  });
+
+  it('acepta cambiar solo uno de los dos', async () => {
+    expect(
+      (await validar(ActualizarContactoDto, { canal: 'WHATSAPP' })).canal,
+    ).toBe('WHATSAPP');
+    expect(
+      (await validar(ActualizarContactoDto, { telefono: '911222333' }))
+        .telefono,
+    ).toBe('911222333');
+  });
+
+  it('rechaza un celular que no es peruano y un canal desconocido', async () => {
+    const campos = await errores(
+      validar(ActualizarContactoDto, { telefono: '811222333', canal: 'SMS' }),
+    );
+    expect(campos).toEqual(expect.arrayContaining(['telefono', 'canal']));
+  });
+
+  it('no deja cambiar el correo, los nombres ni el documento por aquí', async () => {
+    const campos = await errores(
+      validar(ActualizarContactoDto, {
+        telefono: '911222333',
+        email: 'otro@correo.com',
+        nombres: 'Otra',
+        numeroDocumento: '12345678',
+      }),
+    );
+    expect(campos).toEqual(
+      expect.arrayContaining(['email', 'nombres', 'numeroDocumento']),
     );
   });
 });

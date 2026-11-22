@@ -97,6 +97,7 @@ describe('App (e2e)', () => {
     });
 
     it.each([
+      ['patch', '/api/v1/usuarios/me/contacto'],
       ['get', '/api/v1/admin/panel'],
       ['get', '/api/v1/admin/aseguradoras'],
       ['get', '/api/v1/admin/tarifas/completitud'],
