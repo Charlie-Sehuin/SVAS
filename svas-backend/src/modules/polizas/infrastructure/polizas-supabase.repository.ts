@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import Decimal from 'decimal.js';
 import { ErrorBaseDatos } from '../../../common/filters/postgrest-error.filter';
+import { hoyEnLima } from '../../../common/utils/fecha.util';
 import {
   SUPABASE_SERVICE_CLIENT,
   type SupabaseServiceClient,
@@ -19,6 +20,7 @@ import {
   type DatosPolizaPdf,
   type PolizaResumen,
 } from '../domain/poliza';
+import { aCuotasResumen } from '../domain/cuotas';
 import type {
   PolizaDelUsuario,
   PolizasRepository,
@@ -46,6 +48,7 @@ interface PagoDb {
   }[];
 }
 interface OrdenDb {
+  id?: string;
   prima_anual?: number | string;
   descuento_tipo?: TipoDescuento | null;
   descuento_porcentaje?: number | string | null;
@@ -72,13 +75,13 @@ interface OrdenDb {
 
 // FKs con nombre: orden_compra tiene dos caminos hacia cotización (directo y por la prima).
 const ORDEN = (vehiculoExtra: string, pagoExtra: string) => `orden_compra!inner(
-  prima_anual, descuento_tipo, descuento_porcentaje, prima_final, contenido_plan,
+  id, prima_anual, descuento_tipo, descuento_porcentaje, prima_final, contenido_plan,
   prima_cotizada!fk_orden_prima_misma_cotizacion(suma_asegurada),
   cotizacion!orden_compra_cotizacion_id_fkey(
     vehiculo(anio, placa, modelo(nombre, marca(nombre))${vehiculoExtra})),
   pago(modo, monto, numero_cuotas, estado${pagoExtra}))`;
 
-const SELECT_MIAS = `id, numero, fecha_emision, pdf_generado_en, ${ORDEN('', '')}`;
+const SELECT_MIAS = `id, numero, fecha_emision, pdf_generado_en, ${ORDEN('', ', cuota(numero, monto, fecha_vencimiento, estado)')}`;
 const SELECT_PDF = `id, numero, fecha_emision, canal_venta, archivo_pdf, ${ORDEN(
   ', cliente(nombres, apellidos, numero_documento, email), ubicacion_uso(u:ubigeo(departamento, provincia, distrito))',
   ', cuota(numero, monto, fecha_vencimiento, estado)',
@@ -124,8 +127,10 @@ export class PolizasSupabaseRepository implements PolizasRepository {
     ).map((p) => {
       const o = uno(p.orden_compra)!;
       const pago = pagoConfirmado(o.pago ?? []);
+      const hoy = hoyEnLima();
       return {
         id: p.id,
+        ordenId: o.id ?? '',
         numero: p.numero,
         fechaEmision: p.fecha_emision,
         aseguradora: o.contenido_plan.aseguradora,
@@ -137,6 +142,15 @@ export class PolizasSupabaseRepository implements PolizasRepository {
           modo: pago.modo,
           montoTotal: monto(pago.monto),
           numeroCuotas: pago.numero_cuotas,
+          cuotas: aCuotasResumen(
+            (pago.cuota ?? []).map((c) => ({
+              numero: c.numero,
+              monto: c.monto,
+              fechaVencimiento: c.fecha_vencimiento,
+              estado: c.estado,
+            })),
+            hoy,
+          ),
         },
         pdfDisponible: p.pdf_generado_en !== null,
         contenidoPlan: o.contenido_plan,

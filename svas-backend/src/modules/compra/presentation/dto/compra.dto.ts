@@ -8,7 +8,9 @@ import {
   IsString,
   IsUUID,
   Matches,
+  Max,
   MaxLength,
+  Min,
   MinLength,
   ValidateIf,
 } from 'class-validator';
@@ -79,6 +81,15 @@ export class PagarDto {
   @Type(() => Number)
   @IsInt({ message: 'El número de cuotas debe ser un número entero' })
   numeroCuotas?: number;
+}
+
+/** POST /compras/:id/cuotas/pago: cuántas de las siguientes cuotas pendientes se pagan (en orden). */
+export class PagarCuotasDto {
+  @Type(() => Number)
+  @IsInt({ message: 'Indica cuántas cuotas quieres pagar (un número entero)' })
+  @Min(1, { message: 'Indica cuántas cuotas quieres pagar (al menos 1)' })
+  @Max(24, { message: 'No puedes pagar más de 24 cuotas' })
+  cantidad!: number;
 }
 
 /** Idempotency-Key: un UUID o cualquier valor de 8 a 100 caracteres seguros. */

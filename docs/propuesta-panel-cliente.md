@@ -24,7 +24,7 @@
 - **Inicio `/mi-cuenta`**: tarjetas de resumen (pólizas activas, próxima cuota con su fecha, cotizaciones abiertas) y accesos directos. Solo lectura, arma todo con endpoints que ya existen más uno nuevo de cuotas (ver B).
 - **Recuperar contraseña**: Supabase Auth ya lo soporta (`resetPasswordForEmail`). Faltan la pantalla "Olvidé mi contraseña" y la de "Nueva contraseña". Casi no toca el backend. **Depende de tener correo real** (ver §4).
 
-### Fase B — Pagar cuotas desde el panel
+### Fase B — Pagar cuotas desde el panel (**construida el 2026-11-22; la migración 0041 está probada y aplicada en producción**; ver `estado-implementacion.md`)
 - Backend: `GET /polizas/:id/cuotas` y `POST /cuotas/:id/pago`, con `Idempotency-Key`, mismo patrón que el pago inicial. La pasarela sigue **simulada**, como el resto.
 - Frontend: en "Mis pólizas", cronograma con estado de cada cuota (en texto, no solo color), botón "Pagar cuota N" y la próxima cuota resaltada en el Inicio.
 - Reglas a decidir: ¿se puede pagar una cuota adelantada? ¿qué pasa con una vencida (mora, aviso, nada)? Hoy el dominio no las define.

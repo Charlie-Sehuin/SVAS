@@ -5,6 +5,7 @@ import { PagosModule } from '../pagos/pagos.module';
 import { PlanesModule } from '../planes/planes.module';
 import { PolizasModule } from '../polizas/polizas.module';
 import { CompraService } from './application/compra.service';
+import { PagarCuotasUseCase } from './application/pagar-cuotas.use-case';
 import { PagarYEmitirUseCase } from './application/pagar-y-emitir.use-case';
 import { COMPRA_REPOSITORY } from './domain/compra.repository.port';
 import { CompraSupabaseRepository } from './infrastructure/compra-supabase.repository';
@@ -27,6 +28,7 @@ import { ComprasController } from './presentation/compras.controller';
     { provide: COMPRA_REPOSITORY, useClass: CompraSupabaseRepository },
     CompraService,
     PagarYEmitirUseCase,
+    PagarCuotasUseCase,
   ],
 })
 export class CompraModule {}

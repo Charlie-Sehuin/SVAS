@@ -42,6 +42,23 @@ export class ProcesarPagoService {
     private readonly estrategias: RegistroEstrategias,
   ) {}
 
+  /**
+   * Cobra cuotas pendientes de una compra ya pagada en cuotas (Fase B). El monto lo calcula `compra` sumando las
+   * cuotas que van a marcarse; aquí solo se cobra. La referencia sale de (orden, Idempotency-Key), igual que en la compra.
+   */
+  cobrarCuotas(s: {
+    ordenId: string;
+    monto: Decimal;
+    idempotencyKey: string;
+  }): Promise<{ estado: 'APROBADO' | 'RECHAZADO'; referencia: string }> {
+    return this.pasarela.cobrar({
+      ordenId: s.ordenId,
+      monto: s.monto,
+      modo: 'CUOTAS',
+      idempotencyKey: s.idempotencyKey,
+    });
+  }
+
   async cobrar(s: SolicitudPago): Promise<ResultadoPago> {
     const error = validarCuotas(s.modo, s.numeroCuotas, s.maxCuotas);
     if (error) throw new BadRequestException(error);

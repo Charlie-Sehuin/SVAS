@@ -29,6 +29,36 @@ cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públ
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
 Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos), 0035 (18 casos), 0036 (16 casos) y 0037 (8 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
 
+### Panel del cliente · Fase B: Pagar cuotas y campanita de avisos (backend `feat/pagar-cuotas` y frontend `feat/pagar-cuotas`, 2026-11-22)
+
+**Decisiones del dueño (2026-11-22)**: una cuota vencida **solo avisa** (sin recargo ni bloqueo); se paga **la siguiente, un grupo o todas, siempre en orden**; los
+recordatorios van en la misma página con una **campanita**. (Para la Fase E: vigencia de 12 meses desde la emisión y "Renovar" = recotizar.)
+
+- **Migración `0041_pagar_cuotas.sql` — probada con `begin … rollback` (18 casos) y APLICADA en producción el 2026-11-22** (`supabase db push --remote`; el `--dry-run` posterior
+  dice "Remote database is up to date"). Verificado después: 3 columnas nuevas, 1 función (`authenticated` sí, `anon` no), 46 cuotas confirmadas y ninguna sin fecha de pago. Agrega a `cuota` las columnas `pagada_en`, `referencia` y `clave_idempotencia`; rellena las cuotas 1
+  que ya existen; hace que `generar_cuotas` deje la cuota 1 con esos datos; y crea el RPC `pagar_cuotas(orden, cantidad, referencia, clave, monto)` (CLIENTE dueño):
+  bloquea el pago, marca las **primeras N pendientes por número** (nunca salta el orden), comprueba que `monto` sea exactamente su suma, deja `PAGAR_CUOTAS` en la bitácora y
+  devuelve el cronograma. Una misma `clave` ya aplicada devuelve lo mismo sin pagar otra vez. Casos para probarla con `begin … rollback`: ver "Cómo probarla" abajo.
+- **Backend**: `POST /compras/:id/cuotas/pago` (CLIENTE, `Idempotency-Key` obligatoria, cuerpo `{ cantidad }` de 1 a 24). `PagarCuotasUseCase`: lee la orden con RLS (ajena → 404),
+  si alguna cuota ya se pagó con esa clave responde lo mismo **sin cobrar**, suma las N siguientes en el backend, cobra en la pasarela simulada (monto terminado en .13 →
+  400 "El pago fue rechazado…", como en la compra) y llama al RPC. Contado → 409; sin cuotas pendientes → 409 "Ya pagaste todas las cuotas"; pedir más de las que quedan → 400.
+- **`GET /polizas/mias` ahora trae** `ordenId` y, en `pago.cuotas`, el cronograma con `diasParaVencer` (días de calendario en **Lima**; negativo = vencida) y `montoAcumulado` (lo que
+  cuesta pagar hasta esa cuota) **solo en las pendientes**: el navegador no calcula dinero ni fechas. Ambos salen de `polizas/domain/cuotas.ts` (`aCuotasResumen`) y de `common/utils/fecha.util.ts`.
+- **Frontend**: en "Mis pólizas", las pólizas en cuotas muestran "Tus cuotas" (cuántas quedan, la siguiente y cuándo vence, cronograma con estado en texto, "Vencida ·") y **"Pagar cuotas"**
+  (`PagarCuotasDialog`: siguiente / un grupo / todas; el monto es el `montoAcumulado` del backend; avisa que es simulado y que una vencida no tiene recargo; misma política de
+  `Idempotency-Key` que la compra: se conserva si falla la red, se renueva si rechazan o cambia lo que se paga). **Campanita** (`CampanaAvisos`) en el encabezado del cliente:
+  un aviso por póliza, de la primera cuota pendiente, si venció o vence en 7 días o menos (`avisos.ts`; más adelante entrarán las renovaciones con la misma forma); cada aviso lleva a esa póliza.
+  El Inicio de Mi cuenta muestra la **próxima cuota** (lo que quedó fuera en la Fase A) con "Pagar cuotas".
+- **Pruebas**: backend 521 unitarias (30 nuevas: pago de cuotas con 15 casos, cronograma/fechas, mapeo de `/polizas/mias`) y el e2e sin token; frontend 400 (47 nuevas). `tsc`, lint y
+  build en verde. El RPC se probó contra la base real dentro de una transacción deshecha; **el endpoint y las pantallas no se han probado de extremo a extremo** (falta fusionar y recorrerlo con una cuenta de prueba).
+- **ORDEN DE DESPLIEGUE (importante)**: **1) la 0041 (ya aplicada)**, 2) fusionar el backend, 3) fusionar el frontend. Si el backend sale antes que la migración, `GET /compras/:id/estado` y el
+  pago de la compra fallan, porque ahora leen `cuota.referencia` y `cuota.clave_idempotencia`, que aún no existirían.
+- **Límites a tener presentes**: (1) dos pagos con claves distintas al mismo tiempo se serializan en la base; el segundo puede fallar con "El monto no coincide" y, con una pasarela
+  real, habría que anular su cobro (hoy es simulada); (2) el pago de cuotas no genera comprobante ni mensaje al cliente; (3) la campanita no recuerda qué avisos ya se leyeron: cuenta lo pendiente.
+- **Cómo probarla (obligatorio antes de aplicarla, `guia-equipo.md` §6.3)**: envolver la 0041 y los casos en `begin; … rollback;` y correr `npx supabase db query --remote --yes -f prueba-0041.sql`.
+  Casos: la cuota 1 nace pagada con fecha y referencia; pagar 1 (marca la 2); reintento con la misma clave no paga otra; monto incorrecto; pedir de más; cantidad 0; compra ajena (42501);
+  un ASESOR; un grupo de 2 en orden; todo pagado → 409; reintento tras pagar todo; compra al contado → 409; bitácora; ninguna cuota confirmada sin fecha; permisos de `authenticated` y `anon`.
+
 ### Panel del cliente · Fase D: Mis asesorías (backend `feat/mis-asesorias` y frontend `feat/panel-cliente-asesorias`, 2026-11-22)
 
 - **Backend**: `GET /asesorias/mias` (solo CLIENTE; declarada antes de `:id`). Lee `solicitud_asesoria` **como el propio cliente**: la RLS ya le deja ver las de

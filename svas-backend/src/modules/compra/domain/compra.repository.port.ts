@@ -1,6 +1,6 @@
 import type Decimal from 'decimal.js';
 import type { ContenidoPlan } from '../../planes/domain/contenido-plan';
-import type { ModoPago } from '../../../shared/types/enums';
+import type { EstadoPago, ModoPago } from '../../../shared/types/enums';
 import type {
   CotizacionCompra,
   DescuentoCompra,
@@ -28,6 +28,21 @@ export interface PagoParaRegistrar {
   numeroCuotas: number | null;
   referencia: string;
   montoTotal: Decimal;
+}
+
+/** Lo que responde el RPC `pagar_cuotas` (0041): el cobro aplicado y el cronograma completo. */
+export interface CuotasPagadas {
+  /** true = la misma referencia ya se había aplicado: no se cobró otra vez. */
+  repetido: boolean;
+  referencia: string;
+  montoPagado: Decimal;
+  cuotasPagadas: number[];
+  cuotas: {
+    numero: number;
+    monto: Decimal;
+    fechaVencimiento: string;
+    estado: EstadoPago;
+  }[];
 }
 
 export interface CompraConfirmada {
@@ -70,6 +85,18 @@ export interface CompraRepository {
     token: string,
     pago: PagoParaRegistrar & { numeroPoliza: string },
   ): Promise<CompraConfirmada>;
+  /** Marca como pagadas las primeras `cantidad` cuotas pendientes (siempre en orden). Idempotente por `clave`. */
+  pagarCuotas(
+    token: string,
+    p: {
+      ordenId: string;
+      cantidad: number;
+      referencia: string;
+      /** La Idempotency-Key del cliente: con la misma clave, la base responde lo mismo sin pagar otra vez. */
+      clave: string;
+      monto: Decimal;
+    },
+  ): Promise<CuotasPagadas>;
 }
 
 export const COMPRA_REPOSITORY = Symbol('COMPRA_REPOSITORY');
