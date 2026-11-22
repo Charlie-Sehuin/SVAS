@@ -1,4 +1,5 @@
 import type { ContenidoPlan } from '../../planes/domain/contenido-plan';
+import type { CuotaResumen } from './cuotas';
 import type {
   CanalVenta,
   ModoPago,
@@ -71,6 +72,8 @@ export interface DatosPolizaPdf {
 /** Fila de GET /polizas/mias. */
 export interface PolizaResumen {
   id: string;
+  /** La compra de esta póliza: con ella se pagan las cuotas (`POST /compras/:ordenId/cuotas/pago`). */
+  ordenId: string;
   numero: string;
   fechaEmision: string;
   aseguradora: string;
@@ -87,6 +90,8 @@ export interface PolizaResumen {
     modo: ModoPago;
     montoTotal: string;
     numeroCuotas: number | null;
+    /** El cronograma si se pagó en cuotas; vacío si fue al contado. */
+    cuotas: CuotaResumen[];
   } | null;
   pdfDisponible: boolean;
   contenidoPlan: ContenidoCongelado;

@@ -162,6 +162,10 @@ class RepoFalso implements CompraRepository {
     });
   }
 
+  /** No se usa en estos casos: el pago de cuotas se prueba en `pagar-cuotas.spec.ts`. */
+  pagarCuotas = () =>
+    Promise.reject(new Error('pagarCuotas no se usa en estas pruebas'));
+
   ponerOrden(primaAnual: string, pct: string | null) {
     const descuento = pct
       ? { tipo: 'PRIMERA_COMPRA' as const, porcentaje: D(pct) }

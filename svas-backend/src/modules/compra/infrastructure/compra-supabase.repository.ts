@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type Decimal from 'decimal.js';
 import { ErrorBaseDatos } from '../../../common/filters/postgrest-error.filter';
 import { aDinero } from '../../../common/utils/money.util';
 import { llamarRpc } from '../../../infrastructure/database/rpc.helper';
@@ -23,6 +24,7 @@ import type {
 import type {
   CompraConfirmada,
   CompraRepository,
+  CuotasPagadas,
   NuevaOrden,
   PagoParaRegistrar,
   VistaPreviaDescuento,
@@ -53,7 +55,7 @@ const SELECT_ORDEN = `id, cotizacion_id, prima_cotizada_id, prima_anual,
   prima_cotizada!fk_orden_prima_misma_cotizacion(plan_id, suma_asegurada,
     plan(nombre, aseguradora(id, nombre, codigo_estrategia))),
   pago(id, modo, monto, numero_cuotas, estado, referencia, fecha,
-    cuota(numero, monto, fecha_vencimiento, estado)),
+    cuota(numero, monto, fecha_vencimiento, estado, referencia, clave_idempotencia)),
   poliza!fk_poliza_orden_canal(id, numero, pdf_generado_en)`;
 
 interface OrdenDb {
@@ -85,6 +87,8 @@ interface OrdenDb {
       monto: Num;
       fecha_vencimiento: string;
       estado: EstadoPago;
+      referencia: string | null;
+      clave_idempotencia: string | null;
     }[];
   }[];
   poliza: Uno<{ id: string; numero: string; pdf_generado_en: string | null }>;
@@ -284,6 +288,8 @@ export class CompraSupabaseRepository implements CompraRepository {
               monto: aDinero(c.monto),
               fechaVencimiento: c.fecha_vencimiento,
               estado: c.estado,
+              referencia: c.referencia,
+              clave: c.clave_idempotencia,
             }))
             .sort((a, b) => a.numero - b.numero),
         }))
@@ -326,6 +332,48 @@ export class CompraSupabaseRepository implements CompraRepository {
       polizaId: r.poliza_id,
       numeroPoliza: r.numero_poliza,
       pagoId: r.pago_id,
+    };
+  }
+
+  async pagarCuotas(
+    token: string,
+    p: {
+      ordenId: string;
+      cantidad: number;
+      referencia: string;
+      clave: string;
+      monto: Decimal;
+    },
+  ): Promise<CuotasPagadas> {
+    const r = await llamarRpc<{
+      repetido: boolean;
+      referencia: string;
+      monto_pagado: string;
+      cuotas_pagadas: number[];
+      cuotas: {
+        numero: number;
+        monto: string;
+        fecha_vencimiento: string;
+        estado: EstadoPago;
+      }[];
+    }>(this.db(token), 'pagar_cuotas', {
+      p_orden_id: p.ordenId,
+      p_cantidad: p.cantidad,
+      p_referencia: p.referencia,
+      p_clave: p.clave,
+      p_monto: p.monto.toFixed(2),
+    });
+    return {
+      repetido: r.repetido,
+      referencia: r.referencia,
+      montoPagado: aDinero(r.monto_pagado),
+      cuotasPagadas: r.cuotas_pagadas,
+      cuotas: r.cuotas.map((c) => ({
+        numero: c.numero,
+        monto: aDinero(c.monto),
+        fechaVencimiento: c.fecha_vencimiento,
+        estado: c.estado,
+      })),
     };
   }
 

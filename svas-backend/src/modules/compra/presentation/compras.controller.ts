@@ -15,11 +15,13 @@ import {
 import { AccessToken } from '../../../common/decorators/access-token.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CompraService } from '../application/compra.service';
+import { PagarCuotasUseCase } from '../application/pagar-cuotas.use-case';
 import { PagarYEmitirUseCase } from '../application/pagar-y-emitir.use-case';
 import {
   CrearCompraDto,
   DatosCompraDto,
   FORMATO_IDEMPOTENCY_KEY,
+  PagarCuotasDto,
   PagarDto,
   ResumenQueryDto,
 } from './dto/compra.dto';
@@ -41,6 +43,7 @@ export class ComprasController {
   constructor(
     private readonly compras: CompraService,
     private readonly pagar: PagarYEmitirUseCase,
+    private readonly pagarCuotasUseCase: PagarCuotasUseCase,
   ) {}
 
   @Get('resumen')
@@ -87,6 +90,29 @@ export class ComprasController {
       ordenId: id,
       modo: dto.modo,
       numeroCuotas: dto.numeroCuotas,
+      idempotencyKey: clave,
+    });
+  }
+
+  /**
+   * 201 { pago }. Paga las SIGUIENTES `cantidad` cuotas pendientes, en orden (1 = la próxima, todas = las que queden).
+   * Repetir con la misma Idempotency-Key devuelve lo mismo sin cobrar otra vez.
+   */
+  @Post(':id/cuotas/pago')
+  @HttpCode(HttpStatus.CREATED)
+  pagarCuotas(
+    @AccessToken() token: string,
+    @Param('id', compraValida) id: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Body() dto: PagarCuotasDto,
+  ) {
+    const clave = idempotencyKey?.trim();
+    if (!clave || !FORMATO_IDEMPOTENCY_KEY.test(clave)) {
+      throw new BadRequestException(FALTA_IDEMPOTENCY_KEY);
+    }
+    return this.pagarCuotasUseCase.ejecutar(token, {
+      ordenId: id,
+      cantidad: dto.cantidad,
       idempotencyKey: clave,
     });
   }

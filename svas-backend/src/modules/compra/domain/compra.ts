@@ -79,6 +79,9 @@ export interface PagoOrden {
     monto: Decimal;
     fechaVencimiento: string;
     estado: EstadoPago;
+    /** Cobro que la pagó (0041). La cuota 1 no tiene clave: se pagó al comprar. */
+    referencia?: string | null;
+    clave?: string | null;
   }[];
 }
 

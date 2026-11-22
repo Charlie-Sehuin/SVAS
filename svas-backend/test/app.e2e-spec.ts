@@ -353,6 +353,7 @@ describe('App (e2e)', () => {
       ['put', `/api/v1/compras/${ID}/datos`],
       ['post', '/api/v1/compras'],
       ['post', `/api/v1/compras/${ID}/pago`],
+      ['post', `/api/v1/compras/${ID}/cuotas/pago`],
       ['get', `/api/v1/compras/${ID}/estado`],
     ] as const)('%s %s sin token → 401', (metodo, ruta) =>
       http()[metodo](ruta).expect(401),
