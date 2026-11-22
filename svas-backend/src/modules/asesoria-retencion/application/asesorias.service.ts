@@ -27,6 +27,11 @@ export class AsesoriasService {
     return this.repo.solicitar(accessToken, d);
   }
 
+  /** GET /asesorias/mias (CLIENTE): el estado de sus propias solicitudes. */
+  mias(accessToken: string) {
+    return this.repo.listarMias(accessToken);
+  }
+
   /** GET /asesorias/cola: datos personales enmascarados. */
   async cola(
     accessToken: string,

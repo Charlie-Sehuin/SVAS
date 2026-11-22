@@ -364,6 +364,7 @@ describe('App (e2e)', () => {
 
     it.each([
       ['post', '/api/v1/asesorias'],
+      ['get', '/api/v1/asesorias/mias'],
       ['get', '/api/v1/asesorias/cola'],
       ['get', `/api/v1/asesorias/${ID}`],
       ['post', `/api/v1/asesorias/${ID}/tomar`],

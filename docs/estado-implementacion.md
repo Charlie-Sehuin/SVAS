@@ -29,6 +29,22 @@ cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públ
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
 Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos), 0035 (18 casos), 0036 (16 casos) y 0037 (8 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
 
+### Panel del cliente · Fase D: Mis asesorías (backend `feat/mis-asesorias` y frontend `feat/panel-cliente-asesorias`, 2026-11-22)
+
+- **Backend**: `GET /asesorias/mias` (solo CLIENTE; declarada antes de `:id`). Lee `solicitud_asesoria` **como el propio cliente**: la RLS ya le deja ver las de
+  sus cotizaciones, así que **no hay migración**. Devuelve, la más reciente primero (máx. 100): `id, motivo, estado, canal, origen, fechaCreacion, conAsesor`,
+  `cotizacion { id, fecha, estado, vehiculo }` y `descuentoAceptado { tipo, porcentaje } | null` (el vigente, RN-09).
+- **Qué NO se le muestra al cliente (decisión 2026-11-22, distinta de lo que decía la propuesta)**: el **nombre del asesor** (la RLS de `usuario` no se lo deja
+  leer y habría que abrir esa puerta con `service_role`; solo se dice si ya lo tomó alguien) y el **texto del cierre** (`resultado`: es una nota interna del
+  asesor). Tampoco se le piden datos personales a la base. Los **seguimientos** (abandono de cotización) y los **intentos de contacto** son internos y
+  siguen sin RLS para el cliente: no se muestran.
+- **Frontend**: `/mi-cuenta/asesorias` ("Mis asesorías", `MisAsesoriasPage`), solo lectura. Una tarjeta por solicitud con el motivo en palabras del cliente
+  ("Una duda sobre tu seguro", "Revisión de tu vehículo" para lo que abre el sistema), el estado, **una frase de qué sigue** según el estado y el canal elegido,
+  el descuento vigente si lo hay y "Ver mi cotización". Pestaña y entrada de menú nuevas; pedir asesoría invalida la lista.
+- **Pruebas**: backend 8 nuevas (491 unitarias; 7 del repositorio con un cliente falso y 1 del servicio) y el e2e sin token; frontend 8 nuevas (375). Lint, `tsc` y
+  `build` en verde (el inicial no crece). **Sin probar contra la base real**: se lee con la sesión del cliente y RLS.
+- **Merge**: primero el backend, después el frontend.
+
 ### Panel del cliente · Fase C: Perfil y datos (backend `feat/editar-contacto-cliente` y frontend `feat/panel-cliente-perfil`, 2026-11-22)
 
 - **Backend**: `PATCH /usuarios/me/contacto` (solo CLIENTE). Cuerpo `{ telefono?, canal? }` (al menos uno; celular peruano de 9 dígitos que empieza con 9,

@@ -34,7 +34,7 @@
 - Cambiar el correo debe pasar por Supabase Auth (confirmación), no solo por la tabla de contacto.
 - Pantalla `/mi-cuenta/perfil`.
 
-### Fase D — Asesorías y seguimientos del cliente
+### Fase D — Asesorías y seguimientos del cliente (**construida el 2026-11-22**; sin nombre del asesor ni nota de cierre, ver `estado-implementacion.md`)
 - `GET /asesorias/mias` (estado, motivo, asesor asignado por nombre, descuento vigente, fecha). El cliente **no** ve datos internos del asesor ni la cola.
 - Pantalla `/mi-cuenta/asesorias` con estado en texto y enlace a la cotización.
 
