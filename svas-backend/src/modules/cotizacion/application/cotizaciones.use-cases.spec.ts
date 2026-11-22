@@ -107,6 +107,7 @@ function dobles() {
     actualizarSuma: jest.fn().mockResolvedValue({ simulacionesInvalidadas: 0 }),
     vincularCliente: jest.fn(),
     listarMias: jest.fn(),
+    listarVehiculos: jest.fn(),
     contarAsegurados: jest
       .fn()
       .mockResolvedValue({ particular: 0, comercial: 0 }),

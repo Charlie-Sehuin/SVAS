@@ -1,3 +1,4 @@
+import type { VehiculoRegistrado } from './vehiculos';
 import type Decimal from 'decimal.js';
 import type {
   CanalContacto,
@@ -118,6 +119,8 @@ export interface CotizacionRepository {
   }): Promise<{ clienteId: string }>;
   /** Cotizaciones del usuario autenticado (RLS). */
   listarMias(accessToken: string): Promise<CotizacionDeLista[]>;
+  /** Vehículos de la persona (una fila por cotización, RLS), con su ubicación y sus cotizaciones. */
+  listarVehiculos(accessToken: string): Promise<VehiculoRegistrado[]>;
   /** Vehículos ya asegurados (cotización CONVERTIDA) de la persona, para RN-05. */
   contarAsegurados(
     email: string,

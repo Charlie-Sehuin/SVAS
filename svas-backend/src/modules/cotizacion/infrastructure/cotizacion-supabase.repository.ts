@@ -21,6 +21,7 @@ import type {
   NuevaCotizacion,
 } from '../domain/cotizacion.repository.port';
 import type { ResultadoPlan } from '../domain/tarifa.types';
+import type { VehiculoRegistrado } from '../domain/vehiculos';
 
 type Uno<T> = T | T[] | null;
 const uno = <T>(v: Uno<T>): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
@@ -303,6 +304,70 @@ export class CotizacionSupabaseRepository implements CotizacionRepository {
         anio: v?.anio ?? 0,
         primaMensualDesde: mensuales.length ? Decimal.min(...mensuales) : null,
       };
+    });
+  }
+
+  async listarVehiculos(accessToken: string): Promise<VehiculoRegistrado[]> {
+    const { data, error } = await this.clientes
+      .paraToken(accessToken)
+      .from('vehiculo')
+      .select(
+        `id, anio, placa, clase, uso, creado_en,
+         modelo(id, nombre, marca(id, nombre)),
+         ubicacion_uso(ubigeo(codigo, departamento, provincia, distrito)),
+         cotizacion(id, fecha, estado)`,
+      )
+      .order('creado_en', { ascending: false })
+      .limit(200);
+    if (error) throw new ErrorBaseDatos(error);
+
+    type Fila = {
+      id: string;
+      anio: number;
+      placa: string | null;
+      clase: string | null;
+      uso: UsoVehiculo;
+      creado_en: string;
+      modelo: Uno<{
+        id: string;
+        nombre: string;
+        marca: Uno<{ id: string; nombre: string }>;
+      }>;
+      ubicacion_uso: Uno<{
+        ubigeo: Uno<{
+          codigo: string;
+          departamento: string;
+          provincia: string;
+          distrito: string;
+        }>;
+      }>;
+      cotizacion: { id: string; fecha: string; estado: EstadoCotizacion }[];
+    };
+    return (data as unknown as Fila[]).flatMap((f) => {
+      const m = uno(f.modelo);
+      const marca = uno(m?.marca ?? null);
+      // Sin modelo o marca no hay auto que mostrar (no debería pasar: son claves foráneas).
+      if (!m || !marca) return [];
+      const u = uno(uno(f.ubicacion_uso)?.ubigeo ?? null);
+      return [
+        {
+          id: f.id,
+          anio: f.anio,
+          placa: f.placa,
+          clase: f.clase,
+          uso: f.uso,
+          creadoEn: f.creado_en,
+          marca: { id: marca.id, nombre: marca.nombre },
+          modelo: { id: m.id, nombre: m.nombre },
+          ubicacion: u && {
+            ubigeo: u.codigo,
+            departamento: u.departamento,
+            provincia: u.provincia,
+            distrito: u.distrito,
+          },
+          cotizaciones: f.cotizacion ?? [],
+        },
+      ];
     });
   }
 

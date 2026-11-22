@@ -7,6 +7,7 @@ import {
   AjustarSumaUseCase,
   CotizarUseCase,
   MisCotizacionesUseCase,
+  MisVehiculosUseCase,
   ObtenerResumenUseCase,
   VincularClienteUseCase,
 } from './application/cotizaciones.use-cases';
@@ -23,6 +24,7 @@ import { LeerTarjetaController } from './presentation/leer-tarjeta.controller';
 import { ReconocerVehiculoController } from './presentation/reconocer-vehiculo.controller';
 import { CotizacionAccesoGuard } from './presentation/cotizacion-acceso.guard';
 import { CotizacionesController } from './presentation/cotizaciones.controller';
+import { VehiculosController } from './presentation/vehiculos.controller';
 
 /** Ola 1: catálogo público, cálculo de primas y cotizaciones (0007/0008/0009/0012). */
 @Module({
@@ -32,6 +34,7 @@ import { CotizacionesController } from './presentation/cotizaciones.controller';
     ReconocerVehiculoController,
     LeerTarjetaController,
     CotizacionesController,
+    VehiculosController,
   ],
   providers: [
     { provide: TARIFA_REPOSITORY, useClass: TarifaSupabaseRepository },
@@ -49,6 +52,7 @@ import { CotizacionesController } from './presentation/cotizaciones.controller';
     AjustarSumaUseCase,
     VincularClienteUseCase,
     MisCotizacionesUseCase,
+    MisVehiculosUseCase,
     CotizacionAccesoGuard,
   ],
   exports: [
