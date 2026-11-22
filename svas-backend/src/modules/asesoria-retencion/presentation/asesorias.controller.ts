@@ -40,6 +40,13 @@ export class AsesoriasController {
     return this.asesorias.solicitar(accessToken, dto);
   }
 
+  /** Antes de `:id`, para que "mias" no se tome por un id. */
+  @Roles('CLIENTE')
+  @Get('mias')
+  mias(@AccessToken() accessToken: string) {
+    return this.asesorias.mias(accessToken);
+  }
+
   @Roles('ASESOR', 'ADMINISTRADOR')
   @Get('cola')
   cola(

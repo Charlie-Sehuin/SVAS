@@ -64,6 +64,22 @@ export interface SolicitudDetalle extends Solicitud {
   descuentos: DescuentoDelCaso[];
 }
 
+/**
+ * Lo que el CLIENTE ve de una solicitud suya: sin el nombre del asesor ni el texto del cierre (es una nota interna
+ * del asesor). `conAsesor` solo dice si ya la tomó alguien; `descuentoAceptado` es el vigente de esa cotización (RN-09).
+ */
+export interface SolicitudDelCliente {
+  id: string;
+  motivo: MotivoAsesoria;
+  estado: EstadoSolicitud;
+  canal: CanalContacto;
+  origen: OrigenCaso;
+  fechaCreacion: string;
+  conAsesor: boolean;
+  cotizacion: CotizacionDelCaso;
+  descuentoAceptado: { tipo: TipoDescuento; porcentaje: string } | null;
+}
+
 export interface IntentoDeContacto {
   id: string;
   canal: CanalContacto;
@@ -127,6 +143,8 @@ export interface AsesoriaRepository {
       'id' | 'motivo' | 'estado' | 'canal' | 'origen' | 'fechaCreacion'
     >
   >;
+  /** Solicitudes del propio cliente (RLS: solo las de sus cotizaciones), la más reciente primero. */
+  listarMias(accessToken: string): Promise<SolicitudDelCliente[]>;
   /** Cola RN-13: SISTEMA antes que CLIENTE, por antigüedad. Sin estado: las abiertas. */
   listarCola(
     accessToken: string,

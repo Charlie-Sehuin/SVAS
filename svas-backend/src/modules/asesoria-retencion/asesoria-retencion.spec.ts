@@ -88,6 +88,7 @@ const cierre = (enlaceToken: string | null): CierreSeguimiento => ({
 function repoFalso(): jest.Mocked<AsesoriaRepository> {
   return {
     solicitar: jest.fn(),
+    listarMias: jest.fn(),
     listarCola: jest.fn(),
     obtenerSolicitud: jest.fn(),
     tomar: jest.fn(),
@@ -290,6 +291,13 @@ describe('AvisoClienteService', () => {
 
 // ── AsesoriasService ────────────────────────────────────────────────────────
 describe('AsesoriasService', () => {
+  it('mias: pide al repositorio las del propio cliente, con su token', async () => {
+    const repo = repoFalso();
+    repo.listarMias.mockResolvedValue([]);
+    expect(await new AsesoriasService(repo).mias('jwt')).toEqual([]);
+    expect(repo.listarMias).toHaveBeenCalledWith('jwt');
+  });
+
   it('cola: enmascara y marca los casos del asesor', async () => {
     const repo = repoFalso();
     repo.listarCola.mockResolvedValue([

@@ -29,6 +29,7 @@ import type {
   Seguimiento,
   SeguimientoDetalle,
   Solicitud,
+  SolicitudDelCliente,
   SolicitudDetalle,
 } from '../domain/asesoria.repository.port';
 
@@ -97,6 +98,30 @@ interface FilaSolicitud {
   asesor_id: string | null;
   resultado: string | null;
   cotizacion: Uno<FilaCotizacion>;
+}
+
+interface FilaMia {
+  id: string;
+  motivo: MotivoAsesoria;
+  estado: EstadoSolicitud;
+  canal: CanalContacto;
+  origen: OrigenCaso;
+  fecha_creacion: string;
+  asesor_id: string | null;
+  cotizacion: Uno<{
+    id: string;
+    fecha: string;
+    estado: EstadoCotizacion;
+    vehiculo: Uno<{
+      anio: number;
+      modelo: Uno<{ nombre: string; marca: Uno<{ nombre: string }> }>;
+    }>;
+    descuento?: {
+      tipo: TipoDescuento;
+      porcentaje: number | string;
+      aceptado: boolean;
+    }[];
+  }>;
 }
 
 interface FilaSeguimiento {
@@ -264,6 +289,53 @@ export class AsesoriaSupabaseRepository implements AsesoriaRepository {
       origen: f.origen,
       fechaCreacion: f.fecha_creacion,
     };
+  }
+
+  async listarMias(accessToken: string): Promise<SolicitudDelCliente[]> {
+    // Sin datos del cliente ni del asesor: el cliente solo necesita ver el estado de lo que pidió.
+    const { data, error } = await this.como(accessToken)
+      .from('solicitud_asesoria')
+      .select(
+        `id, motivo, estado, canal, origen, fecha_creacion, asesor_id,
+         cotizacion!inner(id, fecha, estado,
+           vehiculo!inner(anio, modelo(nombre, marca(nombre))),
+           descuento(tipo, porcentaje, aceptado))`,
+      )
+      .order('fecha_creacion', { ascending: false })
+      .limit(100);
+    if (error) throw new ErrorBaseDatos(error);
+    return (data as unknown as FilaMia[]).map((f) => {
+      const c = uno(f.cotizacion);
+      const v = uno(c?.vehiculo ?? null);
+      const m = uno(v?.modelo ?? null);
+      if (!c || !v) {
+        throw new ErrorBaseDatos({ message: 'Solicitud sin cotización' });
+      }
+      const aceptado = c.descuento?.find((d) => d.aceptado) ?? null;
+      return {
+        id: f.id,
+        motivo: f.motivo,
+        estado: f.estado,
+        canal: f.canal,
+        origen: f.origen,
+        fechaCreacion: f.fecha_creacion,
+        conAsesor: f.asesor_id !== null,
+        cotizacion: {
+          id: c.id,
+          fecha: c.fecha,
+          estado: c.estado,
+          vehiculo: [uno(m?.marca ?? null)?.nombre, m?.nombre, v.anio]
+            .filter(Boolean)
+            .join(' '),
+        },
+        descuentoAceptado: aceptado
+          ? {
+              tipo: aceptado.tipo,
+              porcentaje: new Decimal(aceptado.porcentaje).toFixed(2),
+            }
+          : null,
+      };
+    });
   }
 
   async listarCola(
