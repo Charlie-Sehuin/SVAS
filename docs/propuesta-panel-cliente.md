@@ -43,7 +43,7 @@
 - Con eso: etiqueta "vence en N días" en Mis pólizas y botón "Renovar" que abre una cotización nueva con los mismos datos.
 - Los **recordatorios por correo/WhatsApp** son un job aparte (como el detector de abandonadas) y salen por el puerto `NotificadorMensajes`, que hoy es simulado. Sin canal real, solo habría aviso dentro del panel.
 
-### Fase F — Mis vehículos
+### Fase F — Mis vehículos (**construida el 2026-11-22**, derivados de las cotizaciones y sin tabla nueva; ver `estado-implementacion.md`)
 - Lo más barato: **derivarlos** de las cotizaciones y pólizas del cliente (marca, modelo, año, placa) y ofrecerlos como "Usar este auto" en `/cotizar`. Sin tabla nueva.
 - Una tabla propia (`vehiculo_cliente`) solo si se quiere editar o borrar autos a mano. No lo recomiendo al inicio.
 

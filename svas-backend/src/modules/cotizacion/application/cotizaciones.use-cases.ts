@@ -1,3 +1,4 @@
+import { agruparVehiculos } from '../domain/vehiculos';
 import {
   BadRequestException,
   ConflictException,
@@ -590,5 +591,22 @@ export class MisCotizacionesUseCase {
       vehiculo: { marca: c.marca, modelo: c.modelo, anio: c.anio },
       primaMensualDesde: fijo(c.primaMensualDesde),
     }));
+  }
+}
+
+// ── GET /vehiculos/mios ─────────────────────────────────────────────────────
+
+/**
+ * Los autos de la persona, uno por auto aunque lo haya cotizado varias veces, el más reciente primero. Con esto no
+ * vuelve a escribir marca, modelo, año, placa ni ubicación al cotizar de nuevo.
+ */
+@Injectable()
+export class MisVehiculosUseCase {
+  constructor(
+    @Inject(COTIZACION_REPOSITORY) private readonly repo: CotizacionRepository,
+  ) {}
+
+  async ejecutar(accessToken: string) {
+    return agruparVehiculos(await this.repo.listarVehiculos(accessToken));
   }
 }

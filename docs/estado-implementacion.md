@@ -29,6 +29,21 @@ cotizaciones, asesoría y prueba de choque solo prueban errores y lecturas públ
 el camino feliz se prueba con Bruno 06, 07, 08 y 09.
 Las RPC de 0025 (41 casos), 0028 (15 casos), 0029 (36 casos), 0030–0031 (27 casos), 0032 (5 casos), 0033–0034 (25 casos), 0035 (18 casos), 0036 (16 casos) y 0037 (8 casos) se probaron dentro de `begin … rollback` antes de aplicarlas.
 
+### Panel del cliente · Fase F: Mis vehículos (backend `feat/mis-vehiculos` y frontend `feat/mis-vehiculos`, 2026-11-22)
+
+- **Backend**: `GET /vehiculos/mios` (solo CLIENTE). Lee `vehiculo` **como el propio cliente** (la RLS ya le deja ver los suyos, con su `ubicacion_uso` y sus `cotizacion`): **sin
+  migración ni tabla nueva**, como se había propuesto. En la base hay una fila de `vehiculo` por cada cotización; `agruparVehiculos` (`cotizacion/domain/vehiculos.ts`) junta las del
+  **mismo auto** (mismo modelo, año y placa, sin importar guion ni mayúsculas) y deja los datos de la cotización más reciente. Devuelve, el cotizado más recientemente primero:
+  `clave, marca{id,nombre}, modelo{id,nombre}, anio, placa, clase, uso, ubicacion{ubigeo,departamento,provincia,distrito}, cotizaciones, ultimaCotizacion, asegurado`.
+  No lee datos personales del cliente. Máx. 200 filas.
+- **Decisión de agrupación**: un auto **sin placa** no se mezcla con el mismo modelo y año **con** placa (pueden ser autos distintos); dos sin placa del mismo modelo y año sí se juntan.
+- **Frontend**: (1) `/mi-cuenta/vehiculos` ("Mis vehículos", `MisVehiculosPage`): una tarjeta por auto con placa, uso, dónde circula, cuántas veces se cotizó, "Asegurado" y **"Cotizar de nuevo"**
+  (reinicia el borrador, le pone los datos del auto y abre `/cotizar` en el paso 1); (2) en el paso Vehículo del cotizador, **"¿Es uno de tus autos?"** (`UsarMisVehiculos`): hasta 3 atajos
+  que rellenan vehículo, uso, placa, clase y ubicación; no aparece sin sesión, sin autos o si la consulta falla (nunca estorba). El contacto no se copia: el paso 3 ya se prellena con la cuenta.
+- **Límite**: si un auto ya no es cotizable (modelo o año fuera del catálogo vigente), el selector queda sin ese valor y la persona elige otro; no se bloquea nada.
+- **Pruebas**: backend 539 unitarias (18 nuevas: agrupación, mapeo del repositorio con cliente falso) y el e2e sin token; frontend 412 (12 nuevas). `tsc`, lint y build en verde. Sin probar contra la base real.
+- **Merge**: primero el backend, después el frontend (sin migración).
+
 ### Panel del cliente · Fase B: Pagar cuotas y campanita de avisos (backend `feat/pagar-cuotas` y frontend `feat/pagar-cuotas`, 2026-11-22)
 
 **Decisiones del dueño (2026-11-22)**: una cuota vencida **solo avisa** (sin recargo ni bloqueo); se paga **la siguiente, un grupo o todas, siempre en orden**; los
