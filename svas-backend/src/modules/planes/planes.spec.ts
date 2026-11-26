@@ -9,6 +9,7 @@ import {
 import { PlanesService } from './application/planes.service';
 import {
   armarComparacion,
+  textoBeneficio,
   LEYENDA_CONTENIDO,
   validarContenidoPlan,
   type CoberturaCatalogo,
@@ -94,6 +95,7 @@ function plan(
     requisitos: [
       { tipo: 'VEHICULO', texto: 'Del 2015 al 2026', obligatorio: true },
     ],
+    beneficios: [],
     actualizadoEn: '2026-11-12T00:00:00Z',
   };
 }
@@ -193,6 +195,75 @@ describe('armarComparacion', () => {
       CATALOGO,
     );
     expect(c.filas.find((f) => f.codigo === 'LUNAS')?.valores[0]).toBeNull();
+  });
+});
+
+describe('beneficios de los planes', () => {
+  const beneficio = (
+    codigo: string,
+    tipo: 'CANTIDAD' | 'PRECIO' | 'PORCENTAJE',
+    unidad: string,
+    valor: string,
+    orden: number,
+  ) => ({ codigo, nombre: codigo, tipo, unidad, valor, detalle: null, orden });
+
+  it('textoBeneficio: cantidad, precio y porcentaje como los lee el cliente', () => {
+    expect(
+      textoBeneficio(beneficio('A', 'CANTIDAD', 'al año', '4.00', 1)),
+    ).toBe('4 al año');
+    expect(
+      textoBeneficio(beneficio('B', 'PRECIO', 'USD por litro', '1.00', 2)),
+    ).toBe('USD 1,00 por litro');
+    expect(
+      textoBeneficio(beneficio('C', 'PRECIO', 'USD por litro', '2.5', 2)),
+    ).toBe('USD 2,50 por litro');
+    expect(
+      textoBeneficio(
+        beneficio('D', 'PORCENTAJE', '% de descuento', '12.00', 3),
+      ),
+    ).toBe('12 %');
+  });
+
+  it('armarComparacion: junta los beneficios de los planes; el que no lo ofrece lleva null', () => {
+    const bajo = {
+      ...plan(ID_PLATA, 'Plata', false),
+      beneficios: [beneficio('VISITAS', 'CANTIDAD', 'al año', '2.00', 1)],
+    };
+    const alto = {
+      ...plan(ID_ORO, 'Oro', true),
+      beneficios: [
+        beneficio('VISITAS', 'CANTIDAD', 'al año', '4.00', 1),
+        beneficio('GRUA', 'CANTIDAD', 'veces al año', '3.00', 2),
+      ],
+    };
+    const c = armarComparacion([bajo, alto], CATALOGO);
+    expect(c.beneficios.map((b) => b.codigo)).toEqual(['VISITAS', 'GRUA']);
+    expect(c.beneficios[0].valores.map((v) => v?.valor)).toEqual([
+      '2.00',
+      '4.00',
+    ]);
+    expect(c.beneficios[1].valores).toEqual([
+      null,
+      { valor: '3.00', detalle: null },
+    ]);
+  });
+
+  it('el detalle público trae los beneficios sin el campo interno orden', async () => {
+    const conB = {
+      ...plan(ID_ORO, 'Oro', true),
+      beneficios: [beneficio('VISITAS', 'CANTIDAD', 'al año', '4.00', 1)],
+    };
+    const r = await new PlanesService(repo([conB])).contenido(ID_ORO);
+    expect(r.beneficios).toEqual([
+      {
+        codigo: 'VISITAS',
+        nombre: 'VISITAS',
+        tipo: 'CANTIDAD',
+        unidad: 'al año',
+        valor: '4.00',
+        detalle: null,
+      },
+    ]);
   });
 });
 

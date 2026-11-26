@@ -77,6 +77,7 @@ const contenido: ContenidoPlan = {
   ],
   exclusiones: [],
   requisitos: [],
+  beneficios: [],
   actualizadoEn: null,
 };
 

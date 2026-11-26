@@ -156,6 +156,65 @@ describe('asistente · contexto e instrucciones', () => {
   });
 });
 
+describe('asistente · beneficios de los planes', () => {
+  const conBeneficios = plan('id-oro', 'Rímac', 'Oro', {
+    beneficios: [
+      {
+        nombre: 'Visitas técnicas',
+        tipo: 'CANTIDAD',
+        unidad: 'al año',
+        valor: '4.00',
+      },
+      {
+        nombre: 'Combustible en grifos aliados',
+        tipo: 'PRECIO',
+        unidad: 'USD por litro',
+        valor: '1.00',
+      },
+      {
+        nombre: 'Descuento en talleres afiliados',
+        tipo: 'PORCENTAJE',
+        unidad: '% de descuento',
+        valor: '10.00',
+      },
+    ],
+  });
+  const ctx = armarContexto([
+    conBeneficios,
+    plan('id-plata', 'Rímac', 'Plata'),
+  ]);
+
+  it('el bot recibe los beneficios de cada plan y sabe cuándo no hay', () => {
+    const t = armarInstrucciones(ctx);
+    expect(t).toContain('Beneficios: Visitas técnicas: 4 al año');
+    expect(t).toContain('Combustible en grifos aliados: USD 1,00 por litro');
+    expect(t).toContain('Descuento en talleres afiliados: 10 %');
+    expect(t).toContain('este plan no ofrece beneficios adicionales');
+  });
+
+  it('puede repetir un monto de beneficio entregado, pero no inventar otro', () => {
+    const ok = validarRespuesta(
+      {
+        respuesta: 'Rímac Oro cobra USD 1,00 por litro y da 4 visitas al año.',
+        planes: [],
+        acciones: [],
+      },
+      ctx,
+    );
+    expect(ok.respuesta).toContain('USD 1,00 por litro');
+    const mal = validarRespuesta(
+      {
+        respuesta: 'Rímac Oro cobra USD 0,50 por litro.',
+        planes: [],
+        acciones: [],
+      },
+      ctx,
+    );
+    expect(mal.respuesta).not.toContain('0,50');
+    expect(mal.acciones).toContain('HABLAR_ASESOR');
+  });
+});
+
 describe('asistente · guardia de precios', () => {
   it('reconoce montos en varios formatos', () => {
     expect(montosMencionados('Cuesta USD 439.13 al año')).toEqual([439.13]);

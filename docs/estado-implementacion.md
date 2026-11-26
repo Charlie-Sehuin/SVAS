@@ -122,6 +122,29 @@ Primera entrega de `propuesta-panel-cliente.md`. **No toca el backend ni la base
 - **Pruebas**: 18 nuevas (358 en total): 7 del Inicio y 11 de recuperar/restablecer. `lint`, `tsc` y `build` en verde (chunks nuevos de ~2 KB gzip, el inicial no crece).
 - **Sin probar a mano**: el correo real y el enlace de Supabase de extremo a extremo (falta la configuración de arriba).
 
+### Beneficios de los planes (rama `feat/beneficios-planes` en backend y frontend, 2026-11-26)
+
+El profesor preguntó si además de lo que cubre el seguro se incluyen los beneficios que ofrecen las aseguradoras (visitas técnicas,
+grúa, precio del combustible…). Propuesta y valores en `docs/propuesta-beneficios-planes.pdf`; Charlie la aprobó con tres ajustes:
+cada aseguradora y cada plan ofrece SUS beneficios, el plan superior incluye todo lo del inferior (regla de escalera) y el chatbot
+los cita.
+
+- **Migración 0042** (`0042_beneficios_planes.sql`, **sin aplicar todavía**; probar con `begin … rollback` antes): tablas `beneficio`
+  (catálogo de 12 tipos: CANTIDAD / PRECIO / PORCENTAJE) y `plan_beneficio` (solo lo que el plan ofrece; la ausencia es "No incluye").
+  `fn_incoherencias_escalera` compara el plan superior de cada aseguradora (mayor `tasa_base`) con el inferior y solo **advierte**.
+  RPC `admin_guardar_beneficios_plan` y `admin_incoherencias_escalera`. Siembra 32 filas con valores ESTIMADOS (RN-26) para los 10 planes
+  y verifica que la escalera se cumple.
+- **Lectura pública**: `GET /planes/:id/contenido` trae `beneficios`; `GET /planes/comparar` trae `beneficios` (tabla por plan, `null` = no
+  incluye). Las órdenes nuevas los congelan en `contenido_plan` (RN-45); las anteriores no los traen (campo opcional).
+- **Admin**: `GET` y `PUT /admin/planes/:planId/beneficios` (reemplaza todo en una transacción; si no se cumple la escalera guarda igual y
+  devuelve `warning` `BENEFICIOS_FUERA_DE_ESCALERA`). El catálogo de beneficios no se edita desde el panel todavía.
+- **PDF de la póliza**: sección "Beneficios incluidos" (si la compra los trae). **Chatbot**: recibe los beneficios de cada plan y sus
+  números cuentan como datos entregados para la guardia de precios.
+- **Frontend**: pestaña "Beneficios" en el detalle del plan, tabla de beneficios en el comparador, "Beneficios incluidos" en lo contratado
+  y panel "Beneficios del plan" al final de `Contenido del plan` en el admin (guardado propio).
+- **Pruebas**: backend 548 y frontend 420 en verde. **Pendiente**: aplicar 0042, ver el resultado en la web y la Fase 2 (calculadora de
+  costo total), solo si Charlie la quiere.
+
 ### Leer la tarjeta de propiedad (ramas `feat/leer-tarjeta` en backend y frontend, 2026-11-17)
 
 El cliente sube la foto o el PDF de su tarjeta de propiedad y el paso Vehículo se rellena con **marca, modelo, año y placa**. Diseño y

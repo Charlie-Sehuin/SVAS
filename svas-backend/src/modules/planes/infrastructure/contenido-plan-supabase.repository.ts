@@ -9,6 +9,7 @@ import type {
   CategoriaCobertura,
   CoberturaCatalogo,
   ContenidoPlan,
+  TipoBeneficio,
   TipoRequisito,
 } from '../domain/contenido-plan';
 import type {
@@ -73,34 +74,49 @@ export class ContenidoPlanSupabaseRepository
   async publicado(): Promise<ContenidoPublicado> {
     if (this.cache && this.cache.vence > Date.now()) return this.cache.valor;
 
-    const [planes, coberturas, filas, exclusiones, requisitos] =
-      await Promise.all([
-        this.servicio
-          .from('plan')
-          .select(
-            'id, nombre, resumen, descripcion, ideal_para, orden, contenido_actualizado_en, aseguradora!inner(nombre)',
-          )
-          .eq('activo', true)
-          .eq('aseguradora.activa', true),
-        this.servicio
-          .from('cobertura')
-          .select('id, codigo, nombre, categoria, orden')
-          .eq('activa', true)
-          .order('orden'),
-        this.servicio
-          .from('plan_cobertura')
-          .select('plan_id, cobertura_id, incluida, detalle, limite_monto'),
-        this.servicio
-          .from('plan_exclusion')
-          .select('plan_id, texto, orden')
-          .eq('activa', true)
-          .order('orden'),
-        this.servicio
-          .from('plan_requisito')
-          .select('plan_id, tipo, texto, obligatorio, orden')
-          .eq('activo', true)
-          .order('orden'),
-      ]);
+    const [
+      planes,
+      coberturas,
+      filas,
+      exclusiones,
+      requisitos,
+      beneficios,
+      filasBeneficio,
+    ] = await Promise.all([
+      this.servicio
+        .from('plan')
+        .select(
+          'id, nombre, resumen, descripcion, ideal_para, orden, contenido_actualizado_en, aseguradora!inner(nombre)',
+        )
+        .eq('activo', true)
+        .eq('aseguradora.activa', true),
+      this.servicio
+        .from('cobertura')
+        .select('id, codigo, nombre, categoria, orden')
+        .eq('activa', true)
+        .order('orden'),
+      this.servicio
+        .from('plan_cobertura')
+        .select('plan_id, cobertura_id, incluida, detalle, limite_monto'),
+      this.servicio
+        .from('plan_exclusion')
+        .select('plan_id, texto, orden')
+        .eq('activa', true)
+        .order('orden'),
+      this.servicio
+        .from('plan_requisito')
+        .select('plan_id, tipo, texto, obligatorio, orden')
+        .eq('activo', true)
+        .order('orden'),
+      this.servicio
+        .from('beneficio')
+        .select('id, codigo, nombre, tipo, unidad, orden')
+        .eq('activo', true)
+        .order('orden'),
+      this.servicio
+        .from('plan_beneficio')
+        .select('plan_id, beneficio_id, valor, detalle'),
+    ]);
 
     const catalogoFilas = datos<FilaCobertura[]>(coberturas);
     const porId = new Map(catalogoFilas.map((c) => [c.id, c]));
@@ -117,6 +133,7 @@ export class ContenidoPlanSupabaseRepository
           coberturas: [],
           exclusiones: [],
           requisitos: [],
+          beneficios: [],
           actualizadoEn: p.contenido_actualizado_en,
         },
       ]),
@@ -169,6 +186,45 @@ export class ContenidoPlanSupabaseRepository
         texto: r.texto,
         obligatorio: r.obligatorio,
       });
+    }
+
+    const beneficiosPorId = new Map(
+      datos<
+        {
+          id: string;
+          codigo: string;
+          nombre: string;
+          tipo: TipoBeneficio;
+          unidad: string;
+          orden: number;
+        }[]
+      >(beneficios).map((b) => [b.id, b]),
+    );
+    for (const f of datos<
+      {
+        plan_id: string;
+        beneficio_id: string;
+        valor: number | string;
+        detalle: string | null;
+      }[]
+    >(filasBeneficio)) {
+      const plan = contenido.get(f.plan_id);
+      const b = beneficiosPorId.get(f.beneficio_id);
+      if (!plan || !b) continue; // plan inactivo o beneficio inactivo
+      plan.beneficios.push({
+        codigo: b.codigo,
+        nombre: b.nombre,
+        tipo: b.tipo,
+        unidad: b.unidad,
+        valor: new Decimal(f.valor).toFixed(2),
+        detalle: f.detalle,
+        orden: b.orden,
+      });
+    }
+    for (const p of contenido.values()) {
+      p.beneficios.sort(
+        (a, b) => a.orden - b.orden || a.codigo.localeCompare(b.codigo),
+      );
     }
 
     const catalogo: CoberturaCatalogo[] = catalogoFilas.map((c) => ({

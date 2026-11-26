@@ -12,6 +12,7 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { ContenidoAdminService } from '../application/contenido-admin.service';
 import {
   CodigoCoberturaParam,
+  GuardarBeneficiosPlanDto,
   GuardarContenidoPlanDto,
   GuardarCoberturaDto,
 } from './dto/contenido-admin.dto';
@@ -44,6 +45,24 @@ export class ContenidoAdminController {
     @Body() dto: GuardarContenidoPlanDto,
   ) {
     return this.servicio.guardar(token, planId, dto);
+  }
+
+  @Get('planes/:planId/beneficios')
+  beneficios(
+    @AccessToken() token: string,
+    @Param('planId', planValido) planId: string,
+  ) {
+    return this.servicio.obtenerBeneficios(token, planId);
+  }
+
+  /** Reemplaza los beneficios del plan (solo los que ofrece). */
+  @Put('planes/:planId/beneficios')
+  guardarBeneficios(
+    @AccessToken() token: string,
+    @Param('planId', planValido) planId: string,
+    @Body() dto: GuardarBeneficiosPlanDto,
+  ) {
+    return this.servicio.guardarBeneficios(token, planId, dto.beneficios);
   }
 
   @Get('coberturas')

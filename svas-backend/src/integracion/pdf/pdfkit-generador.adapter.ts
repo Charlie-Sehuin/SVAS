@@ -3,7 +3,10 @@ import { nombrePropio } from '../../common/utils/nombre-propio';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import PDFDocument from 'pdfkit';
-import { LEYENDA_CONTENIDO } from '../../modules/planes/domain/contenido-plan';
+import {
+  LEYENDA_CONTENIDO,
+  textoBeneficio,
+} from '../../modules/planes/domain/contenido-plan';
 import type {
   DatosSimulacionPdf,
   DatosVentasPdf,
@@ -440,6 +443,15 @@ export class PdfkitGeneradorAdapter implements GeneradorPdf {
         x.detalle ? `${x.nombre}: ${x.detalle}` : x.nombre,
       ),
     );
+
+    // Las compras anteriores a los beneficios (0042) no traen la lista.
+    if (c.beneficios?.length) {
+      this.titulo(doc, 'Beneficios incluidos', p);
+      this.listaEnColumnas(
+        doc,
+        c.beneficios.map((b) => `${b.nombre}: ${textoBeneficio(b)}`),
+      );
+    }
 
     this.titulo(doc, 'Qué no cubre', p);
     this.lista(doc, [

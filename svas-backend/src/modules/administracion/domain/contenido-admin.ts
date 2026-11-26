@@ -1,6 +1,7 @@
 import type {
   CategoriaCobertura,
   RequisitoPlan,
+  TipoBeneficio,
   TipoRequisito,
 } from '../../planes/domain/contenido-plan';
 
@@ -101,4 +102,54 @@ export function aAdvertencia(i: Incoherencia): AdvertenciaContenido {
     ? `«${i.nombre}» dice que sí, pero la Prueba de Choque dice que no. Corrige una de las dos.`
     : `«${i.nombre}» dice que no, pero la Prueba de Choque la cubre en ${i.escenariosQueCubren.join(', ')}. Corrige una de las dos.`;
   return { ...i, mensaje };
+}
+
+// ── Beneficios de los planes (0042) ─────────────────────────────────────────
+export interface BeneficioCatalogoAdmin {
+  codigo: string;
+  nombre: string;
+  tipo: TipoBeneficio;
+  unidad: string;
+  orden: number;
+}
+
+export interface BeneficioDePlanAdmin extends BeneficioCatalogoAdmin {
+  /** Decimal como string. */
+  valor: string;
+  detalle: string | null;
+}
+
+export interface BeneficioParaGuardar {
+  codigo: string;
+  valor: number;
+  detalle?: string | null;
+}
+
+/** Fila de svas.fn_incoherencias_escalera: el plan superior no cumple lo del inferior. */
+export interface IncoherenciaEscalera {
+  codigo: string;
+  nombre: string;
+  planBajo: string;
+  planAlto: string;
+  motivo: string;
+}
+
+export interface BeneficiosPlanAdmin {
+  planId: string;
+  aseguradora: string;
+  plan: string;
+  /** Solo los que el plan ofrece. */
+  beneficios: BeneficioDePlanAdmin[];
+  /** Todos los beneficios activos que se pueden asignar. */
+  catalogo: BeneficioCatalogoAdmin[];
+  advertencias: (IncoherenciaEscalera & { mensaje: string })[];
+}
+
+export function aAdvertenciaEscalera(
+  i: IncoherenciaEscalera,
+): IncoherenciaEscalera & { mensaje: string } {
+  return {
+    ...i,
+    mensaje: `«${i.nombre}»: ${i.motivo} (${i.planBajo} → ${i.planAlto}). Un plan superior debe incluir todo lo del inferior, con igual o mejor valor.`,
+  };
 }
