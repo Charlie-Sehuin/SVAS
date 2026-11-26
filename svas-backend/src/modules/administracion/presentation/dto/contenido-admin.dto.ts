@@ -168,3 +168,33 @@ export class GuardarCoberturaDto {
   })
   escenarios!: string[];
 }
+
+// ── Beneficios de un plan (0042) ────────────────────────────────────────────
+export class BeneficioDePlanDto {
+  @Matches(CODIGO, { message: 'El código del beneficio no es válido' })
+  codigo!: string;
+
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'El valor debe ser un número con hasta 2 decimales' },
+  )
+  @Min(0.01, { message: 'El valor debe ser mayor que 0' })
+  @Max(99_999_999.99, { message: 'El valor es demasiado alto' })
+  valor!: number;
+
+  @IsOptional()
+  @Transform(recortar)
+  @IsString({ message: 'El detalle debe ser texto' })
+  @MinLength(1, { message: 'El detalle no puede ir vacío (usa null)' })
+  @MaxLength(200, { message: 'El detalle admite hasta 200 caracteres' })
+  detalle?: string | null;
+}
+
+export class GuardarBeneficiosPlanDto {
+  /** Solo los beneficios que el plan ofrece; una lista vacía = el plan no ofrece ninguno. */
+  @IsArray({ message: 'beneficios debe ser una lista' })
+  @ArrayMaxSize(20, { message: 'Máximo 20 beneficios por plan' })
+  @ValidateNested({ each: true })
+  @Type(() => BeneficioDePlanDto)
+  beneficios!: BeneficioDePlanDto[];
+}

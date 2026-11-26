@@ -11,6 +11,7 @@ import {
 } from './domain/contenido-admin';
 import type { ContenidoAdminRepository } from './domain/contenido-admin.repository.port';
 import {
+  GuardarBeneficiosPlanDto,
   GuardarCoberturaDto,
   GuardarContenidoPlanDto,
 } from './presentation/dto/contenido-admin.dto';
@@ -51,6 +52,16 @@ function crear(parcial: Partial<ContenidoAdminRepository> = {}) {
     guardar: jest.fn().mockResolvedValue({ cambio: true, advertencias: [] }),
     listarCoberturas: jest.fn().mockResolvedValue(COBERTURAS),
     guardarCobertura: jest.fn().mockResolvedValue({ planesSinDefinir: 10 }),
+    obtenerBeneficios: jest.fn().mockResolvedValue({
+      aseguradora: 'Rímac',
+      plan: 'Oro',
+      beneficios: [],
+      catalogo: [],
+      advertencias: [],
+    }),
+    guardarBeneficios: jest
+      .fn()
+      .mockResolvedValue({ cambio: true, advertencias: [] }),
     ...parcial,
   } as unknown as jest.Mocked<ContenidoAdminRepository>;
   const publicado = { invalidar: jest.fn() };
@@ -159,6 +170,63 @@ describe('ContenidoAdminService', () => {
     const r = await servicio.completitud('t');
     expect(r.completo).toBe(false);
     expect(r.planesActivosIncompletos).toBe(1);
+  });
+});
+
+describe('beneficios de un plan', () => {
+  const ESCALERA = {
+    codigo: 'GRUA',
+    nombre: 'Grúa y auxilio mecánico',
+    planBajo: 'Plata',
+    planAlto: 'Oro',
+    motivo: 'el plan superior no incluye este beneficio',
+  };
+
+  it('obtener: 404 si el plan no existe', async () => {
+    const { servicio } = crear({ obtenerBeneficios: jest.fn().mockResolvedValue(null) });
+    await expect(servicio.obtenerBeneficios('t', PLAN)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('guardar: invalida la caché pública y, sin advertencias, no hay warning', async () => {
+    const { servicio, repo, publicado } = crear();
+    const r = await servicio.guardarBeneficios('t', PLAN, [{ codigo: 'GRUA', valor: 4 }]);
+    expect(repo.guardarBeneficios).toHaveBeenCalledWith('t', PLAN, [{ codigo: 'GRUA', valor: 4 }]);
+    expect(publicado.invalidar).toHaveBeenCalledTimes(1);
+    expect(r.cambio).toBe(true);
+    expect(r).not.toHaveProperty('warning');
+  });
+
+  it('guardar: si el plan superior no cumple la escalera se guarda igual y avisa', async () => {
+    const { servicio } = crear({
+      guardarBeneficios: jest.fn().mockResolvedValue({ cambio: true, advertencias: [ESCALERA] }),
+      obtenerBeneficios: jest.fn().mockResolvedValue({
+        aseguradora: 'Rímac',
+        plan: 'Oro',
+        beneficios: [],
+        catalogo: [],
+        advertencias: [ESCALERA],
+      }),
+    });
+    const r = await servicio.guardarBeneficios('t', PLAN, []);
+    expect(r.warning?.code).toBe('BENEFICIOS_FUERA_DE_ESCALERA');
+    expect(r.warning?.message).toContain('Plata → Oro');
+    expect(r.advertencias[0].mensaje).toContain('Grúa y auxilio mecánico');
+  });
+
+  it('DTO: valor positivo con hasta 2 decimales y código en mayúsculas', async () => {
+    const ok = plainToInstance(GuardarBeneficiosPlanDto, {
+      beneficios: [{ codigo: 'COMBUSTIBLE', valor: 1.0, detalle: '  En grifos aliados ' }],
+    });
+    expect(await validate(ok)).toHaveLength(0);
+    expect(ok.beneficios[0].detalle).toBe('En grifos aliados');
+
+    const mal = plainToInstance(GuardarBeneficiosPlanDto, {
+      beneficios: [{ codigo: 'combustible', valor: -1 }],
+    });
+    const errores = aplanarErrores(await validate(mal, { whitelist: true }));
+    expect(errores.map((e) => e.campo)).toEqual(
+      expect.arrayContaining(['beneficios.0.codigo', 'beneficios.0.valor']),
+    );
   });
 });
 

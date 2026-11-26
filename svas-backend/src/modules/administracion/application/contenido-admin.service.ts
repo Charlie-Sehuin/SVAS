@@ -11,7 +11,10 @@ import {
 } from '../../planes/domain/contenido-plan.repository.port';
 import {
   aAdvertencia,
+  aAdvertenciaEscalera,
   type AdvertenciaContenido,
+  type BeneficioParaGuardar,
+  type BeneficiosPlanAdmin,
   type CoberturaParaGuardar,
   type ContenidoParaGuardar,
 } from '../domain/contenido-admin';
@@ -86,6 +89,53 @@ export class ContenidoAdminService {
       cambio: r.cambio,
       advertencias,
       ...(warning && { warning }),
+    };
+  }
+
+  // ── Beneficios de un plan (0042) ──────────────────────────────────────────
+  /** GET /admin/planes/:planId/beneficios: lo que ofrece el plan, el catálogo y las advertencias de escalera. */
+  async obtenerBeneficios(
+    token: string,
+    planId: string,
+  ): Promise<BeneficiosPlanAdmin> {
+    const r = await this.repo.obtenerBeneficios(token, planId);
+    if (!r) throw new NotFoundException('El plan no existe');
+    return {
+      planId,
+      aseguradora: r.aseguradora,
+      plan: r.plan,
+      beneficios: r.beneficios,
+      catalogo: r.catalogo,
+      advertencias: r.advertencias.map(aAdvertenciaEscalera),
+    };
+  }
+
+  /**
+   * PUT /admin/planes/:planId/beneficios: reemplaza los beneficios del plan en una
+   * transacción. Que el plan superior no iguale al inferior no impide guardar:
+   * se avisa (igual que RN-43 con las coberturas).
+   */
+  async guardarBeneficios(
+    token: string,
+    planId: string,
+    beneficios: BeneficioParaGuardar[],
+  ) {
+    const r = await this.repo.guardarBeneficios(token, planId, beneficios);
+    this.publicado.invalidar();
+    const contenido = await this.obtenerBeneficios(token, planId);
+    const n = r.advertencias.length;
+    return {
+      ...contenido,
+      cambio: r.cambio,
+      ...(n > 0 && {
+        warning: {
+          code: 'BENEFICIOS_FUERA_DE_ESCALERA',
+          message:
+            n === 1
+              ? contenido.advertencias[0].mensaje
+              : `${n} beneficios no cumplen que el plan superior incluya todo lo del inferior. Revisa la lista de advertencias.`,
+        },
+      }),
     };
   }
 

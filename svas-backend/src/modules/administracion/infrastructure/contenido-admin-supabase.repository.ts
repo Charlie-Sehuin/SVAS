@@ -5,15 +5,20 @@ import { llamarRpc } from '../../../infrastructure/database/rpc.helper';
 import { SupabaseUserClientFactory } from '../../../infrastructure/database/supabase-user-client.factory';
 import type {
   CategoriaCobertura,
+  TipoBeneficio,
   TipoRequisito,
 } from '../../planes/domain/contenido-plan';
 import type {
+  BeneficioCatalogoAdmin,
+  BeneficioDePlanAdmin,
+  BeneficioParaGuardar,
   CoberturaAdminVista,
   CoberturaParaGuardar,
   CompletitudPlan,
   ContenidoAdminBase,
   ContenidoParaGuardar,
   Incoherencia,
+  IncoherenciaEscalera,
 } from '../domain/contenido-admin';
 import type { ContenidoAdminRepository } from '../domain/contenido-admin.repository.port';
 
@@ -58,6 +63,31 @@ interface FilaCompletitudDb {
   completo: boolean;
   contenido_actualizado_en: string | null;
 }
+
+interface FilaEscaleraDb {
+  codigo: string;
+  nombre: string;
+  plan_bajo: string;
+  plan_alto: string;
+  motivo: string;
+}
+
+interface FilaBeneficioDb {
+  id: string;
+  codigo: string;
+  nombre: string;
+  tipo: TipoBeneficio;
+  unidad: string;
+  orden: number;
+}
+
+const aEscalera = (f: FilaEscaleraDb): IncoherenciaEscalera => ({
+  codigo: f.codigo,
+  nombre: f.nombre,
+  planBajo: f.plan_bajo,
+  planAlto: f.plan_alto,
+  motivo: f.motivo,
+});
 
 const aIncoherencia = (f: FilaIncoherenciaDb): Incoherencia => ({
   codigo: f.codigo,
@@ -243,6 +273,91 @@ export class ContenidoAdminSupabaseRepository implements ContenidoAdminRepositor
     return {
       cambio: r.cambio,
       advertencias: (r.advertencias ?? []).map(aIncoherencia),
+    };
+  }
+
+  async obtenerBeneficios(token: string, planId: string) {
+    const db = this.db(token);
+    const plan = datos<{
+      nombre: string;
+      aseguradora: Uno<{ nombre: string }>;
+    } | null>(
+      await db
+        .from('plan')
+        .select('nombre, aseguradora(nombre)')
+        .eq('id', planId)
+        .maybeSingle(),
+    );
+    if (!plan) return null;
+
+    const [catalogo, filas, advertencias] = await Promise.all([
+      db
+        .from('beneficio')
+        .select('id, codigo, nombre, tipo, unidad, orden')
+        .eq('activo', true)
+        .order('orden'),
+      db
+        .from('plan_beneficio')
+        .select('beneficio_id, valor, detalle')
+        .eq('plan_id', planId),
+      llamarRpc<FilaEscaleraDb[]>(db, 'admin_incoherencias_escalera', {
+        p_plan_id: planId,
+      }),
+    ]);
+
+    const cat = datos<FilaBeneficioDb[]>(catalogo);
+    const porId = new Map(cat.map((b) => [b.id, b]));
+    const beneficios: BeneficioDePlanAdmin[] = [];
+    for (const f of datos<
+      { beneficio_id: string; valor: number | string; detalle: string | null }[]
+    >(filas)) {
+      const b = porId.get(f.beneficio_id);
+      if (!b) continue;
+      beneficios.push({
+        codigo: b.codigo,
+        nombre: b.nombre,
+        tipo: b.tipo,
+        unidad: b.unidad,
+        orden: b.orden,
+        valor: new Decimal(f.valor).toFixed(2),
+        detalle: f.detalle,
+      });
+    }
+    beneficios.sort((a, b) => a.orden - b.orden);
+    return {
+      aseguradora: uno(plan.aseguradora)?.nombre ?? '',
+      plan: plan.nombre,
+      beneficios,
+      catalogo: cat.map((b): BeneficioCatalogoAdmin => ({
+        codigo: b.codigo,
+        nombre: b.nombre,
+        tipo: b.tipo,
+        unidad: b.unidad,
+        orden: b.orden,
+      })),
+      advertencias: (advertencias ?? []).map(aEscalera),
+    };
+  }
+
+  async guardarBeneficios(
+    token: string,
+    planId: string,
+    beneficios: BeneficioParaGuardar[],
+  ) {
+    const r = await llamarRpc<{
+      cambio: boolean;
+      advertencias: FilaEscaleraDb[];
+    }>(this.db(token), 'admin_guardar_beneficios_plan', {
+      p_plan_id: planId,
+      p_beneficios: beneficios.map((b) => ({
+        codigo: b.codigo,
+        valor: b.valor,
+        detalle: b.detalle ?? null,
+      })),
+    });
+    return {
+      cambio: r.cambio,
+      advertencias: (r.advertencias ?? []).map(aEscalera),
     };
   }
 

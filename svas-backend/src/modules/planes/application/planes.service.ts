@@ -33,6 +33,7 @@ export class PlanesService {
       coberturas: p.coberturas.map(({ orden: _orden, ...c }) => c),
       exclusiones: p.exclusiones,
       requisitos: p.requisitos,
+      beneficios: p.beneficios.map(({ orden: _orden, ...b }) => b),
       actualizadoEn: p.actualizadoEn,
       leyenda: LEYENDA_CONTENIDO,
     };

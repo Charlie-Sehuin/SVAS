@@ -1,10 +1,14 @@
 import type {
+  BeneficioCatalogoAdmin,
+  BeneficioDePlanAdmin,
+  BeneficioParaGuardar,
   CoberturaAdminVista,
   CoberturaParaGuardar,
   CompletitudPlan,
   ContenidoAdminBase,
   ContenidoParaGuardar,
   Incoherencia,
+  IncoherenciaEscalera,
 } from './contenido-admin';
 
 /**
@@ -20,6 +24,23 @@ export interface ContenidoAdminRepository {
     planId: string,
     c: ContenidoParaGuardar,
   ): Promise<{ cambio: boolean; advertencias: Incoherencia[] }>;
+
+  /** null si el plan no existe. */
+  obtenerBeneficios(
+    token: string,
+    planId: string,
+  ): Promise<{
+    aseguradora: string;
+    plan: string;
+    beneficios: BeneficioDePlanAdmin[];
+    catalogo: BeneficioCatalogoAdmin[];
+    advertencias: IncoherenciaEscalera[];
+  } | null>;
+  guardarBeneficios(
+    token: string,
+    planId: string,
+    beneficios: BeneficioParaGuardar[],
+  ): Promise<{ cambio: boolean; advertencias: IncoherenciaEscalera[] }>;
 
   listarCoberturas(token: string): Promise<CoberturaAdminVista[]>;
   guardarCobertura(

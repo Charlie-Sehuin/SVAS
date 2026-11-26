@@ -14,6 +14,10 @@ export const CATEGORIAS_COBERTURA = [
 ] as const;
 export type CategoriaCobertura = (typeof CATEGORIAS_COBERTURA)[number];
 
+/** Cómo se mide un beneficio: una cantidad, un precio por unidad o un porcentaje. */
+export const TIPOS_BENEFICIO = ['CANTIDAD', 'PRECIO', 'PORCENTAJE'] as const;
+export type TipoBeneficio = (typeof TIPOS_BENEFICIO)[number];
+
 export const TIPOS_REQUISITO = [
   'VEHICULO',
   'CONDUCTOR',
@@ -40,6 +44,37 @@ export interface CoberturaDePlan {
   orden: number;
 }
 
+/**
+ * Beneficio extra de un plan (visitas técnicas, grúa, combustible…). Solo está
+ * en la lista si el plan lo ofrece: la ausencia significa "no incluye".
+ */
+export interface BeneficioDePlan {
+  codigo: string;
+  nombre: string;
+  tipo: TipoBeneficio;
+  /** "al año", "USD por litro", "% de descuento"… */
+  unidad: string;
+  /** Decimal como string. */
+  valor: string;
+  detalle: string | null;
+  orden: number;
+}
+
+/** "4 al año", "USD 1,00 por litro", "12 %": el valor de un beneficio como lo lee el cliente. */
+export function textoBeneficio(
+  b: Pick<BeneficioDePlan, 'tipo' | 'unidad' | 'valor'>,
+): string {
+  const n = Number(b.valor);
+  if (b.tipo === 'PRECIO') {
+    const precio = n.toFixed(2).replace('.', ',');
+    return b.unidad.includes('USD')
+      ? b.unidad.replace('USD', `USD ${precio}`)
+      : `${precio} ${b.unidad}`;
+  }
+  const num = Number.isInteger(n) ? String(n) : b.valor.replace('.', ',');
+  return b.tipo === 'PORCENTAJE' ? `${num} %` : `${num} ${b.unidad}`;
+}
+
 export interface RequisitoPlan {
   tipo: TipoRequisito;
   texto: string;
@@ -58,6 +93,8 @@ export interface ContenidoPlan {
   coberturas: CoberturaDePlan[];
   exclusiones: string[];
   requisitos: RequisitoPlan[];
+  /** Beneficios que el plan ofrece, por beneficio.orden. */
+  beneficios: BeneficioDePlan[];
   actualizadoEn: string | null;
 }
 
@@ -151,6 +188,17 @@ export interface Comparacion {
     /** valores[i] corresponde a planes[i]; null si el plan no tiene la fila. */
     valores: ({ incluida: boolean; detalle: string | null } | null)[];
   }[];
+  /**
+   * Beneficios que ofrece al menos uno de los planes comparados. Un plan que no
+   * lo ofrece lleva null ("No incluye").
+   */
+  beneficios: {
+    codigo: string;
+    nombre: string;
+    tipo: TipoBeneficio;
+    unidad: string;
+    valores: ({ valor: string; detalle: string | null } | null)[];
+  }[];
 }
 
 /**
@@ -164,6 +212,14 @@ export function armarComparacion(
   const porPlan = planes.map(
     (p) => new Map(p.coberturas.map((c) => [c.codigo, c])),
   );
+  const beneficios = new Map<string, BeneficioDePlan>();
+  for (const p of planes) {
+    for (const b of p.beneficios)
+      if (!beneficios.has(b.codigo)) beneficios.set(b.codigo, b);
+  }
+  const beneficiosPorPlan = planes.map(
+    (p) => new Map(p.beneficios.map((b) => [b.codigo, b])),
+  );
   return {
     planes: planes.map((p) => ({
       planId: p.planId,
@@ -171,6 +227,18 @@ export function armarComparacion(
       plan: p.plan,
       resumen: p.resumen,
     })),
+    beneficios: [...beneficios.values()]
+      .sort((a, b) => a.orden - b.orden || a.codigo.localeCompare(b.codigo))
+      .map((b) => ({
+        codigo: b.codigo,
+        nombre: b.nombre,
+        tipo: b.tipo,
+        unidad: b.unidad,
+        valores: beneficiosPorPlan.map((m) => {
+          const x = m.get(b.codigo);
+          return x ? { valor: x.valor, detalle: x.detalle } : null;
+        }),
+      })),
     filas: [...catalogo]
       .sort((a, b) => a.orden - b.orden)
       .map((cob) => ({

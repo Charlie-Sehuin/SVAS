@@ -17,8 +17,13 @@ export const BUCKET_POLIZAS = 'polizas';
  * Copia del plan guardada en orden_compra.contenido_plan (RN-45, §18.8).
  * Es el ContenidoPlan del momento de comprar más la fecha en que se congeló.
  */
-export type ContenidoCongelado = Omit<ContenidoPlan, 'actualizadoEn'> & {
+export type ContenidoCongelado = Omit<
+  ContenidoPlan,
+  'actualizadoEn' | 'beneficios'
+> & {
   actualizadoEn?: string | null;
+  /** Las compras anteriores a los beneficios (0042) no traen esta lista. */
+  beneficios?: ContenidoPlan['beneficios'];
   congeladoEn: string;
 };
 
